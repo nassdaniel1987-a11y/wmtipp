@@ -476,7 +476,7 @@ export default function App() {
           <span>{appStatus}</span>
         </section>
 
-        <div className="content-grid">
+        <div className={`content-grid active-${activeTab}`}>
           <aside className="join-panel panel">
             <StartPanel
               activeCode={activeCode}
