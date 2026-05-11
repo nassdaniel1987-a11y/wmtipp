@@ -28,7 +28,7 @@ import {
 } from "./api.js";
 import {
   knockoutPreview,
-  matches as fallbackMatches,
+  matches as bundledMatches,
   scheduleSource,
 } from "./data.js";
 
@@ -126,14 +126,14 @@ export default function App() {
   const [participant, setParticipant] = useState(savedParticipant);
   const [name, setName] = useState(savedParticipant?.name ?? "");
   const [manualCode, setManualCode] = useState("");
-  const [matches, setMatches] = useState(fallbackMatches);
+  const [matches, setMatches] = useState(bundledMatches);
   const [results, setResults] = useState([]);
-  const [tips, setTips] = useState(createInitialTips(fallbackMatches));
+  const [tips, setTips] = useState(createInitialTips(bundledMatches));
   const [ranking, setRanking] = useState([]);
   const [lastSavedMatch, setLastSavedMatch] = useState("");
   const [groupFilter, setGroupFilter] = useState("alle");
   const [searchTerm, setSearchTerm] = useState("");
-  const [appStatus, setAppStatus] = useState("Lade WM-Plan...");
+  const [appStatus, setAppStatus] = useState("Spielplan wird geladen...");
   const [codeStatus, setCodeStatus] = useState(scannedCode ? "checking" : "missing");
   const [adminSession, setAdminSession] = useState(null);
   const [adminData, setAdminData] = useState({ codes: [], participants: [], tips: [], results: [] });
@@ -190,15 +190,15 @@ export default function App() {
           getAdminSession(),
         ]);
 
-        const nextMatches = dbMatches.length ? dbMatches.map(mapDbMatch) : fallbackMatches;
+        const nextMatches = dbMatches.length ? dbMatches.map(mapDbMatch) : bundledMatches;
         setMatches(nextMatches);
         setResults(dbResults);
         setRanking(rankPayload.ranking ?? []);
         setAdminSession(session);
         setTips(createInitialTips(nextMatches));
-        setAppStatus(dbMatches.length ? "Mit Supabase verbunden" : "Fallback-Spielplan aktiv");
+        setAppStatus("Spielplan bereit");
       } catch (error) {
-        setAppStatus(`Supabase noch nicht bereit: ${error.message}`);
+        setAppStatus("Spielplan wird vorbereitet");
       }
     }
 
@@ -245,7 +245,7 @@ export default function App() {
         const payload = await apiGet(`/api/tips?participantId=${encodeURIComponent(participant.id)}`);
         setTips(createInitialTips(matches, payload.tips ?? []));
       } catch (error) {
-        setAppStatus(`Tipps konnten nicht geladen werden: ${error.message}`);
+        setAppStatus("Tipps konnten gerade nicht geladen werden");
       }
     }
 
@@ -619,7 +619,7 @@ function StartPanel({
 
       <div className="code-box">
         <QrCode size={28} />
-        <span>{activeCode || "QR-Code fehlt"}</span>
+          <span>{activeCode || "Noch kein Code"}</span>
       </div>
 
       {!participant && !hasScannedCode && (
@@ -664,7 +664,7 @@ function StartPanel({
 
       <p className="fine-print">
         Den Code bekommst du als QR-Code oder Nummer vom Admin. Er wird nicht
-        geraten oder selbst erzeugt. Danach werden die Tipps in Supabase gespeichert.
+        geraten oder selbst erzeugt. Danach kannst du deine Tipps speichern.
       </p>
 
       <div className="goal-illustration" aria-hidden="true">
@@ -957,8 +957,8 @@ function InfoBanner() {
     <aside className="info-banner">
       <Medal size={42} />
       <div>
-        <strong>Die Demo-Daten sind raus.</strong>
-        <span>QR-Codes, Tipps, Ergebnisse und Rangliste laufen jetzt ueber Supabase.</span>
+        <strong>Alles bereit fuer eure Tipprunde.</strong>
+        <span>Codes, Tipps, Ergebnisse und Rangliste werden zentral gespeichert.</span>
       </div>
     </aside>
   );
@@ -1095,7 +1095,7 @@ function AdminPanel({
           <ShieldCheck size={34} />
           <div>
             <h2>Admin-Login</h2>
-            <p>Admins werden in Supabase Auth angelegt und in der Tabelle admins freigeschaltet.</p>
+            <p>Mit dem Admin-Zugang kannst du Codes, Teilnehmer, Tipps und Ergebnisse verwalten.</p>
           </div>
         </header>
         <form className="admin-login" onSubmit={submitLogin}>

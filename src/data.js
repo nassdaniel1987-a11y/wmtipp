@@ -3,13 +3,6 @@ export const scheduleSource = {
   url: "https://worldcuphub.io/en/schedule",
 };
 
-export const demoCodes = [
-  { code: "DEMO-001", status: "frei" },
-  { code: "A1B2-C3D4-E5F6", status: "vergeben", name: "Max Mustermann" },
-  { code: "SCHULE-2026", status: "frei" },
-  { code: "ALT-000", status: "ungueltig" },
-];
-
 const teamFlagCodes = {
   Algeria: "dz",
   Argentina: "ar",
