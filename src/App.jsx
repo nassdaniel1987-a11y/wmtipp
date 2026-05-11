@@ -117,6 +117,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState("start");
   const [participant, setParticipant] = useState(savedParticipant);
   const [name, setName] = useState(savedParticipant?.name ?? "");
+  const [manualCode, setManualCode] = useState("");
   const [matches, setMatches] = useState(fallbackMatches);
   const [results, setResults] = useState([]);
   const [tips, setTips] = useState(createInitialTips(fallbackMatches));
@@ -129,7 +130,7 @@ export default function App() {
   const [adminSession, setAdminSession] = useState(null);
   const [adminData, setAdminData] = useState({ codes: [], participants: [], tips: [], results: [] });
 
-  const activeCode = participant?.code || scannedCode;
+  const activeCode = participant?.code || scannedCode || manualCode.trim();
   const savedTipCount = Object.values(tips).filter((tip) => tip.saved).length;
   const featuredMatch =
     matches.find((match) => match.teamA === "Germany" || match.teamB === "Germany") ??
@@ -272,6 +273,7 @@ export default function App() {
     window.localStorage.removeItem(STORAGE_KEY);
     setParticipant(null);
     setName("");
+    setManualCode("");
     setLastSavedMatch("");
     setTips(createInitialTips(matches));
     setGroupFilter("alle");
@@ -422,9 +424,11 @@ export default function App() {
             <StartPanel
               activeCode={activeCode}
               codeStatus={codeStatus}
+              manualCode={manualCode}
               name={name}
               participant={participant}
               savedTipCount={savedTipCount}
+              setManualCode={setManualCode}
               setName={setName}
               saveParticipant={saveParticipant}
               setActiveTab={setActiveTab}
@@ -480,6 +484,19 @@ export default function App() {
                 onLogout={handleAdminLogout}
                 onRefresh={() => refreshAdminData()}
                 onCreateCodes={handleCreateCodes}
+                onCreateParticipant={async (displayName) => {
+                  const payload = await apiPost(
+                    "/api/admin-create-participant",
+                    { name: displayName },
+                    adminSession?.access_token,
+                  );
+                  setAdminData((current) => ({
+                    ...current,
+                    codes: [payload.code, ...current.codes],
+                    participants: [payload.participant, ...current.participants],
+                  }));
+                  return payload;
+                }}
                 onSaveResult={handleSaveResult}
               />
             )}
@@ -508,9 +525,11 @@ async function apiGetWithAuth(path, token) {
 function StartPanel({
   activeCode,
   codeStatus,
+  manualCode,
   name,
   participant,
   savedTipCount,
+  setManualCode,
   setName,
   saveParticipant,
   setActiveTab,
@@ -546,6 +565,17 @@ function StartPanel({
         <QrCode size={28} />
         <span>{activeCode || "QR-Code fehlt"}</span>
       </div>
+
+      {!participant && !scannedCode && (
+        <label className="manual-code">
+          Anmeldecode eingeben
+          <input
+            value={manualCode}
+            onChange={(event) => setManualCode(event.target.value.toUpperCase())}
+            placeholder="WM-ABCDE-12345"
+          />
+        </label>
+      )}
 
       {participant ? (
         <div className="saved-user">
@@ -883,11 +913,13 @@ function AdminPanel({
   onLogout,
   onRefresh,
   onCreateCodes,
+  onCreateParticipant,
   onSaveResult,
 }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [codeCount, setCodeCount] = useState(10);
+  const [newParticipantName, setNewParticipantName] = useState("");
   const [adminMessage, setAdminMessage] = useState("");
   const [resultDrafts, setResultDrafts] = useState({});
 
@@ -905,6 +937,16 @@ function AdminPanel({
     try {
       await onCreateCodes(codeCount);
       setAdminMessage(`${codeCount} QR-Codes erstellt.`);
+    } catch (error) {
+      setAdminMessage(error.message);
+    }
+  }
+
+  async function createParticipant() {
+    try {
+      const payload = await onCreateParticipant(newParticipantName);
+      setNewParticipantName("");
+      setAdminMessage(`Nutzer ${payload.participant.display_name} erstellt: ${payload.code.code}`);
     } catch (error) {
       setAdminMessage(error.message);
     }
@@ -980,6 +1022,24 @@ function AdminPanel({
         <button className="primary-button compact" onClick={createCodes}>Codes erzeugen</button>
       </div>
 
+      <div className="admin-create participant-create">
+        <label>
+          Nutzer direkt anlegen
+          <input
+            value={newParticipantName}
+            onChange={(event) => setNewParticipantName(event.target.value)}
+            placeholder="Name des Kindes / Teilnehmers"
+          />
+        </label>
+        <button
+          className="primary-button compact"
+          onClick={createParticipant}
+          disabled={newParticipantName.trim().length < 2}
+        >
+          Nutzer + Code erzeugen
+        </button>
+      </div>
+
       {adminMessage && <p className="admin-message">{adminMessage}</p>}
 
       <div className="admin-stats">
@@ -995,6 +1055,7 @@ function AdminPanel({
             <QrCode size={26} />
             <strong>{row.code}</strong>
             <span>{row.participant?.display_name || row.status}</span>
+            <small>{`${window.location.origin}/?code=${row.code}`}</small>
           </article>
         ))}
       </div>

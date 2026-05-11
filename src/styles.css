@@ -311,14 +311,32 @@ p {
 }
 
 .join-form,
-.saved-user {
+.saved-user,
+.manual-code {
   display: grid;
   gap: 14px;
 }
 
-.join-form label {
+.join-form label,
+.manual-code {
   color: var(--green-dark);
   font-weight: 800;
+}
+
+.manual-code {
+  margin-bottom: 22px;
+}
+
+.manual-code input {
+  min-height: 50px;
+  border: 2px solid #b9d7c6;
+  border-radius: 8px;
+  padding: 0 14px;
+  color: var(--navy);
+  background: #ffffff;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: uppercase;
 }
 
 .input-row {
@@ -1005,6 +1023,14 @@ tbody tr:nth-child(1) td:first-child {
 .code-card span {
   color: var(--muted);
   font-weight: 800;
+}
+
+.code-card small {
+  display: block;
+  color: var(--blue);
+  font-size: 0.76rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .code-card.frei {
