@@ -407,7 +407,12 @@ export default function App() {
           <ChevronDown size={18} />
         </div>
 
-        <button className="icon-button" onClick={resetDevice} aria-label="Dieses Geraet zuruecksetzen">
+        <button
+          className="icon-button"
+          onClick={adminSession ? handleAdminLogout : resetDevice}
+          aria-label={adminSession ? "Admin abmelden" : "Dieses Geraet zuruecksetzen"}
+          title={adminSession ? "Admin abmelden" : "Dieses Geraet zuruecksetzen"}
+        >
           <LogOut size={20} />
         </button>
       </header>
@@ -495,6 +500,28 @@ export default function App() {
                     ...current,
                     codes: [payload.code, ...current.codes],
                     participants: [payload.participant, ...current.participants],
+                  }));
+                  return payload;
+                }}
+                onDeleteParticipant={async (participantId) => {
+                  const payload = await apiPost(
+                    "/api/admin-delete-participant",
+                    { participantId },
+                    adminSession?.access_token,
+                  );
+                  setAdminData((current) => ({
+                    ...current,
+                    participants: current.participants.filter(
+                      (participant) => participant.id !== payload.deletedParticipantId,
+                    ),
+                    tips: current.tips.filter(
+                      (tip) => tip.participant_id !== payload.deletedParticipantId,
+                    ),
+                    codes: current.codes.map((code) =>
+                      code.id === payload.freedCodeId
+                        ? { ...code, status: "free", participant: null, claimed_at: null }
+                        : code,
+                    ),
                   }));
                   return payload;
                 }}
@@ -916,6 +943,7 @@ function AdminPanel({
   onRefresh,
   onCreateCodes,
   onCreateParticipant,
+  onDeleteParticipant,
   onSaveResult,
 }) {
   const [email, setEmail] = useState("");
@@ -964,6 +992,19 @@ function AdminPanel({
         draft.scoreB ?? current?.score_b ?? 0,
       );
       setAdminMessage("Ergebnis gespeichert.");
+    } catch (error) {
+      setAdminMessage(error.message);
+    }
+  }
+
+  async function deleteParticipant(participantId, displayName) {
+    if (!window.confirm(`${displayName} wirklich loeschen? Die Tipps werden entfernt und der Code wird wieder frei.`)) {
+      return;
+    }
+
+    try {
+      await onDeleteParticipant(participantId);
+      setAdminMessage(`${displayName} wurde geloescht.`);
     } catch (error) {
       setAdminMessage(error.message);
     }
@@ -1060,6 +1101,28 @@ function AdminPanel({
             <small>{`${window.location.origin}/?code=${row.code}`}</small>
           </article>
         ))}
+      </div>
+
+      <h3>Teilnehmer</h3>
+      <div className="participant-list">
+        {adminData.participants.length === 0 && (
+          <p className="fine-print">Noch keine Teilnehmer angelegt.</p>
+        )}
+        {adminData.participants.map((participant) => {
+          const code = adminData.codes.find((item) => item.participant?.id === participant.id);
+          return (
+            <div className="participant-row" key={participant.id}>
+              <strong>{participant.display_name}</strong>
+              <span>{code?.code || "ohne Code"}</span>
+              <button
+                className="danger-button"
+                onClick={() => deleteParticipant(participant.id, participant.display_name)}
+              >
+                Loeschen
+              </button>
+            </div>
+          );
+        })}
       </div>
 
       <h3>Ergebnisse</h3>

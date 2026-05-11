@@ -980,6 +980,39 @@ tbody tr:nth-child(1) td:first-child {
   margin-top: 14px;
 }
 
+.participant-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.participant-row {
+  display: grid;
+  grid-template-columns: minmax(130px, 1fr) minmax(130px, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid #dbe7f2;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.participant-row span {
+  color: var(--muted);
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.danger-button {
+  min-height: 40px;
+  border: 0;
+  border-radius: 8px;
+  padding: 0 14px;
+  color: #ffffff;
+  background: #c62828;
+  font-weight: 900;
+}
+
 .result-row {
   display: grid;
   grid-template-columns: 80px minmax(160px, 1fr) 70px 70px auto;
@@ -1165,6 +1198,7 @@ tbody tr:nth-child(1) td:first-child {
 
   .admin-actions,
   .admin-stats,
+  .participant-row,
   .result-row {
     grid-template-columns: 1fr;
   }
