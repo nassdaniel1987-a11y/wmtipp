@@ -9,7 +9,7 @@ export default async (req) => {
     const [codes, participants, tips, results] = await Promise.all([
       supabase
         .from("invite_codes")
-        .select("id, code, status, claimed_at, participant:participants(id, display_name)")
+        .select("id, code, status, claimed_at, participant:participants!invite_codes_participant_id_fkey(id, display_name)")
         .order("created_at", { ascending: false }),
       supabase
         .from("participants")

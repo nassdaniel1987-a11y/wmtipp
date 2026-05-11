@@ -12,7 +12,7 @@ export default async (req) => {
     const supabase = getServiceClient();
     const { data: invite, error } = await supabase
       .from("invite_codes")
-      .select("id, code, status, participant:participants(id, display_name, invite_code_id)")
+      .select("id, code, status, participant:participants!invite_codes_participant_id_fkey(id, display_name, invite_code_id)")
       .eq("code", code)
       .maybeSingle();
 

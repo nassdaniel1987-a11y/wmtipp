@@ -54,7 +54,16 @@ export default async (req) => {
 
     if (updateError) throw updateError;
 
-    return json({ participant, code });
+    return json({
+      participant,
+      code: {
+        ...code,
+        participant: {
+          id: participant.id,
+          display_name: participant.display_name,
+        },
+      },
+    });
   } catch (error) {
     return json({ error: error.message || "Nutzer konnte nicht erstellt werden." }, 401);
   }
