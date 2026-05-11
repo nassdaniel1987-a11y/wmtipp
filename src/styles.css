@@ -232,10 +232,14 @@ input:disabled {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: minmax(260px, 360px) minmax(430px, 1fr) minmax(300px, 380px);
+  grid-template-columns: minmax(260px, 360px) minmax(0, 1fr) minmax(300px, 380px);
   gap: 22px;
   max-width: 1380px;
   margin: 0 auto;
+}
+
+.content-grid > * {
+  min-width: 0;
 }
 
 .panel {
@@ -439,6 +443,7 @@ p {
   display: grid;
   align-content: start;
   gap: 18px;
+  min-width: 0;
 }
 
 .tip-screen {
@@ -879,6 +884,7 @@ tbody tr:nth-child(1) td:first-child {
 
 .admin-panel {
   padding: 24px;
+  overflow: hidden;
 }
 
 .admin-hero {
@@ -887,6 +893,10 @@ tbody tr:nth-child(1) td:first-child {
   align-items: flex-start;
   padding-bottom: 20px;
   border-bottom: 1px solid var(--line);
+}
+
+.admin-hero div {
+  min-width: 0;
 }
 
 .admin-hero svg {
@@ -1071,8 +1081,8 @@ tbody tr:nth-child(1) td:first-child {
 
 .result-row {
   display: grid;
-  grid-template-columns: 80px minmax(160px, 1fr) minmax(130px, auto) 70px 70px auto;
-  gap: 10px;
+  grid-template-columns: 64px minmax(120px, 1fr) minmax(104px, auto) 58px 58px minmax(92px, auto);
+  gap: 8px;
   align-items: center;
   padding: 12px;
   border: 1px solid #dbe7f2;
@@ -1094,6 +1104,7 @@ tbody tr:nth-child(1) td:first-child {
 
 .result-row .save-tip {
   min-height: 40px;
+  padding: 0 12px;
   justify-content: center;
 }
 
