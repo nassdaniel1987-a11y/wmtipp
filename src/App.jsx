@@ -1180,39 +1180,41 @@ function GroupsOverview({ groupTables }) {
             <Trophy size={22} />
             <h2>Gruppe {group.groupKey}</h2>
           </header>
-          <table>
-            <thead>
-              <tr>
-                <th>Team</th>
-                <th>Sp</th>
-                <th>S</th>
-                <th>U</th>
-                <th>N</th>
-                <th>TD</th>
-                <th>Pt</th>
-              </tr>
-            </thead>
-            <tbody>
-              {group.rows.map((row) => (
-                <tr key={row.team}>
-                  <td>
-                    <span className="table-team">
-                      {row.flagCode && (
-                        <img src={`https://flagcdn.com/w40/${row.flagCode}.png`} alt={`Flagge ${row.team}`} />
-                      )}
-                      <span>{row.team}</span>
-                    </span>
-                  </td>
-                  <td>{row.played}</td>
-                  <td>{row.won}</td>
-                  <td>{row.drawn}</td>
-                  <td>{row.lost}</td>
-                  <td>{row.goalsFor - row.goalsAgainst}</td>
-                  <td>{row.points}</td>
+          <div className="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Team</th>
+                  <th>Sp</th>
+                  <th>S</th>
+                  <th>U</th>
+                  <th>N</th>
+                  <th>TD</th>
+                  <th>Pt</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {group.rows.map((row) => (
+                  <tr key={row.team}>
+                    <td>
+                      <span className="table-team">
+                        {row.flagCode && (
+                          <img src={`https://flagcdn.com/w40/${row.flagCode}.png`} alt={`Flagge ${row.team}`} />
+                        )}
+                        <span>{row.team}</span>
+                      </span>
+                    </td>
+                    <td>{row.played}</td>
+                    <td>{row.won}</td>
+                    <td>{row.drawn}</td>
+                    <td>{row.lost}</td>
+                    <td>{row.goalsFor - row.goalsAgainst}</td>
+                    <td>{row.points}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </article>
       ))}
     </section>
