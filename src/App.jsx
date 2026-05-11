@@ -172,15 +172,6 @@ function getGroups(matches) {
     .filter((group) => group.teams.length > 0);
 }
 
-function getFlagEmoji(flagCode) {
-  if (!flagCode || flagCode.length !== 2) return "";
-  return flagCode
-    .toUpperCase()
-    .split("")
-    .map((letter) => String.fromCodePoint(127397 + letter.charCodeAt(0)))
-    .join("");
-}
-
 function getTeamMeta(matches) {
   const meta = new Map();
   matches.forEach((match) => {
@@ -1119,9 +1110,7 @@ function BonusTipsPanel({
           >
             <option value="">Bitte waehlen</option>
             {teamOptions.map((team) => (
-              <option key={team.name} value={team.name}>
-                {getFlagEmoji(team.flagCode)} {team.name}
-              </option>
+              <option key={team.name} value={team.name}>{team.name}</option>
             ))}
           </select>
         </label>
@@ -1151,9 +1140,7 @@ function BonusTipsPanel({
             >
               <option value="">Bitte waehlen</option>
               {group.teams.map((team) => (
-                <option key={team.name} value={team.name}>
-                  {getFlagEmoji(team.flagCode)} {team.name}
-                </option>
+                <option key={team.name} value={team.name}>{team.name}</option>
               ))}
             </select>
           </label>
