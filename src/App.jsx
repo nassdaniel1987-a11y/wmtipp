@@ -430,7 +430,7 @@ export default function App() {
   return (
     <div className="app-shell">
       <header className="topbar">
-        <button className="brand" onClick={() => setActiveTab("start")}>
+        <button type="button" className="brand" onClick={() => setActiveTab("start")}>
           <span className="brand-ball">⚽</span>
           <span>WM-Tippspiel</span>
         </button>
@@ -438,6 +438,7 @@ export default function App() {
         <nav className="main-nav" aria-label="Hauptnavigation">
           {tabs.map(({ id, label, icon: Icon }) => (
             <button
+              type="button"
               key={id}
               className={`nav-button ${activeTab === id ? "active" : ""}`}
               onClick={() => setActiveTab(id)}
@@ -458,6 +459,7 @@ export default function App() {
         </div>
 
         <button
+          type="button"
           className="icon-button"
           onClick={adminSession ? handleAdminLogout : resetDevice}
           aria-label={adminSession ? "Admin abmelden" : "Dieses Geraet zuruecksetzen"}
@@ -692,7 +694,7 @@ function StartPanel({
             <small>Name gespeichert · {savedTipCount} Tipps</small>
             <strong>{participant.name}</strong>
           </div>
-          <button onClick={() => setActiveTab("tippen")}>Zum WM-Plan</button>
+          <button type="button" onClick={() => setActiveTab("tippen")}>Zum WM-Plan</button>
         </div>
       ) : (
         <form onSubmit={saveParticipant} className="join-form">
@@ -783,6 +785,7 @@ function TipScreen({
         <div className="filter-row" aria-label="Gruppenfilter">
           {groupFilters.map((filter) => (
             <button
+              type="button"
               key={filter}
               className={groupFilter === filter ? "active" : ""}
               onClick={() => setGroupFilter(filter)}
@@ -797,6 +800,7 @@ function TipScreen({
         </div>
 
         <button
+          type="button"
           className="primary-button compact"
           disabled={locked || filteredMatches.length === 0}
           onClick={saveVisibleTips}
@@ -917,11 +921,11 @@ function TeamBlock({ flagCode, name }) {
 function ScoreControl({ value, onIncrease, onDecrease, disabled }) {
   return (
     <div className="score-control">
-      <button onClick={onIncrease} disabled={disabled} aria-label="Tor hinzufuegen">
+      <button type="button" onClick={onIncrease} disabled={disabled} aria-label="Tor hinzufuegen">
         <ChevronUp size={22} />
       </button>
       <strong>{value}</strong>
-      <button onClick={onDecrease} disabled={disabled} aria-label="Tor entfernen">
+      <button type="button" onClick={onDecrease} disabled={disabled} aria-label="Tor entfernen">
         <ChevronDown size={22} />
       </button>
     </div>
@@ -961,7 +965,7 @@ function RankingPanel({ ranking: rows, expanded = false, setActiveTab }) {
         </tbody>
       </table>
       {!expanded && (
-        <button className="ghost-button" onClick={() => setActiveTab?.("rangliste")}>
+        <button type="button" className="ghost-button" onClick={() => setActiveTab?.("rangliste")}>
           Zur vollstaendigen Rangliste
         </button>
       )}
@@ -984,7 +988,7 @@ function UpcomingPanel({ matches, setActiveTab }) {
           <strong>{match.teamB}</strong>
         </div>
       ))}
-      <button className="ghost-button" onClick={() => setActiveTab?.("tippen")}>
+      <button type="button" className="ghost-button" onClick={() => setActiveTab?.("tippen")}>
         Alle Spiele im Tippbereich
       </button>
     </section>
@@ -1232,8 +1236,8 @@ function AdminPanel({
       </header>
 
       <div className="admin-actions">
-        <button className="ghost-button" onClick={onRefresh}>Daten aktualisieren</button>
-        <button className="ghost-button" onClick={onLogout}>Admin abmelden</button>
+        <button type="button" className="ghost-button" onClick={onRefresh}>Daten aktualisieren</button>
+        <button type="button" className="ghost-button" onClick={onLogout}>Admin abmelden</button>
       </div>
 
       <div className="admin-create">
@@ -1247,7 +1251,7 @@ function AdminPanel({
             onChange={(event) => setCodeCount(Number(event.target.value))}
           />
         </label>
-        <button className="primary-button compact" onClick={createCodes}>Codes erzeugen</button>
+        <button type="button" className="primary-button compact" onClick={createCodes}>Codes erzeugen</button>
       </div>
 
       <div className="admin-create participant-create">
@@ -1260,6 +1264,7 @@ function AdminPanel({
           />
         </label>
         <button
+          type="button"
           className="primary-button compact"
           onClick={createParticipant}
           disabled={newParticipantName.trim().length < 2}
@@ -1289,7 +1294,7 @@ function AdminPanel({
             <span>{row.participant?.display_name || codeStatusLabels[row.status] || row.status}</span>
             <small>{`${window.location.origin}/?code=${row.code}`}</small>
             {row.status === "free" && !row.participant && (
-              <button className="danger-button code-delete" onClick={() => deleteCode(row.id, row.code)}>
+              <button type="button" className="danger-button code-delete" onClick={() => deleteCode(row.id, row.code)}>
                 Code loeschen
               </button>
             )}
@@ -1312,7 +1317,7 @@ function AdminPanel({
 
           return (
             <div className="participant-row" key={participant.id}>
-              <button className="participant-open" onClick={() => openParticipant(participant)}>
+              <button type="button" className="participant-open" onClick={() => openParticipant(participant)}>
                 {participant.display_name}
               </button>
               <span>{code?.code || "ohne Code"}</span>
@@ -1320,6 +1325,7 @@ function AdminPanel({
                 {tipCount} / {matches.length} Tipps
               </span>
               <button
+                type="button"
                 className="danger-button"
                 onClick={() => deleteParticipant(participant.id, participant.display_name)}
               >
@@ -1335,18 +1341,21 @@ function AdminPanel({
         <span>{sortedResultMatches.length} Spiele angezeigt</span>
         <div className="segmented-control">
           <button
+            type="button"
             className={resultFilter === "open" ? "active" : ""}
             onClick={() => setResultFilter("open")}
           >
             Offen
           </button>
           <button
+            type="button"
             className={resultFilter === "started" ? "active" : ""}
             onClick={() => setResultFilter("started")}
           >
             Gestartet
           </button>
           <button
+            type="button"
             className={resultFilter === "all" ? "active" : ""}
             onClick={() => setResultFilter("all")}
           >
@@ -1390,7 +1399,7 @@ function AdminPanel({
                   }))
                 }
               />
-              <button className="save-tip" onClick={() => saveResult(match.id)}>Speichern</button>
+              <button type="button" className="save-tip" onClick={() => saveResult(match.id)}>Speichern</button>
             </div>
           );
         })}
@@ -1404,7 +1413,7 @@ function AdminPanel({
                 <h2>{selectedParticipant.display_name}</h2>
                 <p>Tipps ansehen oder stellvertretend eintragen.</p>
               </div>
-              <button className="icon-button" onClick={() => setSelectedParticipant(null)}>
+              <button type="button" className="icon-button" onClick={() => setSelectedParticipant(null)}>
                 ×
               </button>
             </header>
@@ -1448,7 +1457,7 @@ function AdminPanel({
                         }))
                       }
                     />
-                    <button className="save-tip" onClick={() => saveSelectedParticipantTips([match.id])}>
+                    <button type="button" className="save-tip" onClick={() => saveSelectedParticipantTips([match.id])}>
                       {draft.saved ? "Gespeichert" : "Speichern"}
                     </button>
                   </div>
@@ -1458,6 +1467,7 @@ function AdminPanel({
 
             <footer>
               <button
+                type="button"
                 className="primary-button compact"
                 onClick={() => saveSelectedParticipantTips(matches.map((match) => match.id))}
               >
