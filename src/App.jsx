@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import QRCode from "qrcode";
 import {
   CalendarDays,
   Check,
@@ -65,6 +66,40 @@ function loadSavedParticipant() {
   } catch {
     return null;
   }
+}
+
+function QrCodeImage({ value }) {
+  const [src, setSrc] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    QRCode.toDataURL(value, {
+      errorCorrectionLevel: "M",
+      margin: 1,
+      scale: 7,
+      color: {
+        dark: "#071b45",
+        light: "#ffffff",
+      },
+    })
+      .then((dataUrl) => {
+        if (!cancelled) setSrc(dataUrl);
+      })
+      .catch(() => {
+        if (!cancelled) setSrc("");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [value]);
+
+  return (
+    <span className="qr-image">
+      {src ? <img src={src} alt={`QR-Code fuer ${value}`} /> : <QrCode size={42} />}
+    </span>
+  );
 }
 
 function mapDbMatch(row) {
@@ -1283,13 +1318,13 @@ function AdminPanel({
 
       <h3>QR-Codes</h3>
       <p className="fine-print">
-        Diese Codes werden an Teilnehmende ausgegeben. Der komplette Link kann
-        als QR-Code gedruckt werden; die Nummer kann am PC manuell eingegeben werden.
+        Diese QR-Codes koennen mit der Handykamera gescannt werden. Die Nummer
+        darunter kann am PC manuell eingegeben werden.
       </p>
       <div className="admin-grid">
         {adminData.codes.slice(0, 12).map((row) => (
           <article key={row.id} className={`code-card ${row.status}`}>
-            <QrCode size={26} />
+            <QrCodeImage value={`${window.location.origin}/?code=${row.code}`} />
             <strong>{row.code}</strong>
             <span>{row.participant?.display_name || codeStatusLabels[row.status] || row.status}</span>
             <small>{`${window.location.origin}/?code=${row.code}`}</small>

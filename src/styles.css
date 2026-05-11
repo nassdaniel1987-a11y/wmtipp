@@ -1204,12 +1204,28 @@ tbody tr:nth-child(1) td:first-child {
   background: #ffffff;
 }
 
-.code-card svg {
-  color: var(--blue);
-}
-
 .code-card strong {
   font-size: 1.1rem;
+}
+
+.qr-image {
+  display: grid;
+  place-items: center;
+  width: 116px;
+  height: 116px;
+  border: 1px solid #d7e2ee;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.qr-image img {
+  display: block;
+  width: 106px;
+  height: 106px;
+}
+
+.qr-image svg {
+  color: var(--blue);
 }
 
 .code-card span {
