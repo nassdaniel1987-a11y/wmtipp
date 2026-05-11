@@ -151,6 +151,100 @@ function createInitialTips(matches, savedTips = []) {
   );
 }
 
+function getGroups(matches) {
+  return groupFilters
+    .filter((group) => !["alle", "deutschland"].includes(group))
+    .map((groupKey) => {
+      const teams = Array.from(
+        new Set(
+          matches
+            .filter((match) => match.groupKey === groupKey)
+            .flatMap((match) => [match.teamA, match.teamB]),
+        ),
+      ).sort((first, second) => first.localeCompare(second, "de"));
+
+      return { groupKey, teams };
+    })
+    .filter((group) => group.teams.length > 0);
+}
+
+function getTeamOptions(matches) {
+  return Array.from(new Set(matches.flatMap((match) => [match.teamA, match.teamB])))
+    .sort((first, second) => first.localeCompare(second, "de"));
+}
+
+function createInitialBonusTips(matches, savedBonusTip = null) {
+  const groups = getGroups(matches);
+  const savedGroupWinners = savedBonusTip?.group_winners ?? savedBonusTip?.groupWinners ?? {};
+
+  return {
+    champion: savedBonusTip?.champion ?? "",
+    topScorer: savedBonusTip?.top_scorer ?? savedBonusTip?.topScorer ?? "",
+    groupWinners: Object.fromEntries(
+      groups.map((group) => [group.groupKey, savedGroupWinners[group.groupKey] ?? ""]),
+    ),
+    saved: Boolean(savedBonusTip),
+  };
+}
+
+function buildGroupTables(matches, resultsByMatch) {
+  return getGroups(matches).map((group) => {
+    const table = new Map(
+      group.teams.map((team) => [
+        team,
+        { team, played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0, points: 0 },
+      ]),
+    );
+
+    matches
+      .filter((match) => match.groupKey === group.groupKey)
+      .forEach((match) => {
+        const result = resultsByMatch.get(match.id);
+        if (!result || result.status !== "final") return;
+
+        const teamA = table.get(match.teamA);
+        const teamB = table.get(match.teamB);
+        if (!teamA || !teamB) return;
+
+        teamA.played += 1;
+        teamB.played += 1;
+        teamA.goalsFor += result.score_a;
+        teamA.goalsAgainst += result.score_b;
+        teamB.goalsFor += result.score_b;
+        teamB.goalsAgainst += result.score_a;
+
+        if (result.score_a > result.score_b) {
+          teamA.won += 1;
+          teamA.points += 3;
+          teamB.lost += 1;
+        } else if (result.score_a < result.score_b) {
+          teamB.won += 1;
+          teamB.points += 3;
+          teamA.lost += 1;
+        } else {
+          teamA.drawn += 1;
+          teamB.drawn += 1;
+          teamA.points += 1;
+          teamB.points += 1;
+        }
+      });
+
+    return {
+      ...group,
+      rows: Array.from(table.values()).sort((first, second) => {
+        const goalDiffA = first.goalsFor - first.goalsAgainst;
+        const goalDiffB = second.goalsFor - second.goalsAgainst;
+        return (
+          second.points - first.points ||
+          goalDiffB - goalDiffA ||
+          second.goalsFor - first.goalsFor ||
+          first.team.localeCompare(second.team, "de")
+        );
+      }),
+    };
+  });
+}
+
 function clampScore(value) {
   return Math.max(0, Math.min(12, value));
 }
@@ -186,6 +280,8 @@ export default function App() {
   const [matches, setMatches] = useState(bundledMatches);
   const [results, setResults] = useState([]);
   const [tips, setTips] = useState(createInitialTips(bundledMatches));
+  const [bonusTips, setBonusTips] = useState(createInitialBonusTips(bundledMatches));
+  const [bonusMessage, setBonusMessage] = useState("");
   const [ranking, setRanking] = useState([]);
   const [lastSavedMatch, setLastSavedMatch] = useState("");
   const [groupFilter, setGroupFilter] = useState("alle");
@@ -193,7 +289,7 @@ export default function App() {
   const [appStatus, setAppStatus] = useState("Spielplan wird geladen...");
   const [codeStatus, setCodeStatus] = useState(scannedCode ? "checking" : "missing");
   const [adminSession, setAdminSession] = useState(null);
-  const [adminData, setAdminData] = useState({ codes: [], participants: [], tips: [], results: [] });
+  const [adminData, setAdminData] = useState({ codes: [], participants: [], tips: [], bonusTips: [], results: [] });
 
   const setActiveTab = useCallback((tabId, { replace = false } = {}) => {
     if (!tabIds.has(tabId)) return;
@@ -250,6 +346,8 @@ export default function App() {
       : ranking;
     return rows.sort((a, b) => b.points - a.points || a.name.localeCompare(b.name));
   }, [ranking, participant, currentPoints]);
+  const teamOptions = useMemo(() => getTeamOptions(matches), [matches]);
+  const groupTables = useMemo(() => buildGroupTables(matches, resultsByMatch), [matches, resultsByMatch]);
 
   useEffect(() => {
     function syncTabFromUrl() {
@@ -280,6 +378,7 @@ export default function App() {
         setRanking(rankPayload.ranking ?? []);
         setAdminSession(session);
         setTips(createInitialTips(nextMatches));
+        setBonusTips(createInitialBonusTips(nextMatches));
         setAppStatus("Spielplan bereit");
       } catch (error) {
         setAppStatus("Spielplan wird vorbereitet");
@@ -326,8 +425,12 @@ export default function App() {
     async function loadParticipantTips() {
       if (!participant?.id) return;
       try {
-        const payload = await apiGet(`/api/tips?participantId=${encodeURIComponent(participant.id)}`);
-        setTips(createInitialTips(matches, payload.tips ?? []));
+        const [tipPayload, bonusPayload] = await Promise.all([
+          apiGet(`/api/tips?participantId=${encodeURIComponent(participant.id)}`),
+          apiGet(`/api/bonus-tips?participantId=${encodeURIComponent(participant.id)}`).catch(() => ({ bonusTip: null })),
+        ]);
+        setTips(createInitialTips(matches, tipPayload.tips ?? []));
+        setBonusTips(createInitialBonusTips(matches, bonusPayload.bonusTip));
       } catch (error) {
         setAppStatus("Tipps konnten gerade nicht geladen werden");
       }
@@ -368,6 +471,8 @@ export default function App() {
     setManualCode("");
     setLastSavedMatch("");
     setTips(createInitialTips(matches));
+    setBonusTips(createInitialBonusTips(matches));
+    setBonusMessage("");
     setGroupFilter("alle");
     setSearchTerm("");
     setActiveTab("start");
@@ -392,6 +497,26 @@ export default function App() {
   async function saveVisibleTips() {
     await saveTipRows(filteredMatches.map((match) => match.id));
     setLastSavedMatch(filteredMatches[0]?.id ?? "");
+  }
+
+  async function saveBonusTips() {
+    if (!participant?.id) {
+      setBonusMessage("Bitte zuerst QR-Code aktivieren und Namen eintragen.");
+      return;
+    }
+
+    try {
+      const payload = await apiPost("/api/save-bonus-tips", {
+        participantId: participant.id,
+        champion: bonusTips.champion,
+        topScorer: bonusTips.topScorer,
+        groupWinners: bonusTips.groupWinners,
+      });
+      setBonusTips(createInitialBonusTips(matches, payload.bonusTip));
+      setBonusMessage("Bonus-Tipps gespeichert.");
+    } catch (error) {
+      setBonusMessage(error.message);
+    }
   }
 
   async function saveTipRows(matchIds) {
@@ -562,6 +687,13 @@ export default function App() {
                 setSearchTerm={setSearchTerm}
                 tips={tips}
                 resultsByMatch={resultsByMatch}
+                matches={matches}
+                teamOptions={teamOptions}
+                groupTables={groupTables}
+                bonusTips={bonusTips}
+                setBonusTips={setBonusTips}
+                saveBonusTips={saveBonusTips}
+                bonusMessage={bonusMessage}
                 changeScore={changeScore}
                 saveTip={saveTip}
                 saveVisibleTips={saveVisibleTips}
@@ -798,12 +930,21 @@ function TipScreen({
   setSearchTerm,
   tips,
   resultsByMatch,
+  matches,
+  teamOptions,
+  groupTables,
+  bonusTips,
+  setBonusTips,
+  saveBonusTips,
+  bonusMessage,
   changeScore,
   saveTip,
   saveVisibleTips,
   lastSavedMatch,
   locked,
 }) {
+  const [tipView, setTipView] = useState("spiele");
+
   return (
     <div className="tip-screen">
       <section className="tip-toolbar panel">
@@ -815,58 +956,223 @@ function TipScreen({
           </div>
         </div>
 
-        <label className="search-field">
-          <Search size={18} />
-          <input
-            value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
-            placeholder="Team, Gruppe oder Stadt suchen"
-          />
-        </label>
-
-        <div className="filter-row" aria-label="Gruppenfilter">
-          {groupFilters.map((filter) => (
-            <button
-              type="button"
-              key={filter}
-              className={groupFilter === filter ? "active" : ""}
-              onClick={() => setGroupFilter(filter)}
-            >
-              {filter === "alle"
-                ? "Alle"
-                : filter === "deutschland"
-                  ? "Deutschland"
-                  : `Gr. ${filter}`}
-            </button>
-          ))}
+        <div className="view-tabs" aria-label="Tippansicht">
+          <button
+            type="button"
+            className={tipView === "spiele" ? "active" : ""}
+            onClick={() => setTipView("spiele")}
+          >
+            Spiele
+          </button>
+          <button
+            type="button"
+            className={tipView === "gruppen" ? "active" : ""}
+            onClick={() => setTipView("gruppen")}
+          >
+            Gruppen & Bonus
+          </button>
         </div>
 
-        <button
-          type="button"
-          className="primary-button compact"
-          disabled={locked || filteredMatches.length === 0}
-          onClick={saveVisibleTips}
-        >
-          Sichtbare Tipps speichern
-          <Check size={18} />
-        </button>
+        {tipView === "spiele" ? (
+          <>
+            <label className="search-field">
+              <Search size={18} />
+              <input
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder="Team, Gruppe oder Stadt suchen"
+              />
+            </label>
+
+            <div className="filter-row" aria-label="Gruppenfilter">
+              {groupFilters.map((filter) => (
+                <button
+                  type="button"
+                  key={filter}
+                  className={groupFilter === filter ? "active" : ""}
+                  onClick={() => setGroupFilter(filter)}
+                >
+                  {filter === "alle"
+                    ? "Alle"
+                    : filter === "deutschland"
+                      ? "Deutschland"
+                      : `Gr. ${filter}`}
+                </button>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              className="primary-button compact"
+              disabled={locked || filteredMatches.length === 0}
+              onClick={saveVisibleTips}
+            >
+              Sichtbare Tipps speichern
+              <Check size={18} />
+            </button>
+          </>
+        ) : (
+          <p className="fine-print">
+            Bonus-Tipps gelten fuer das ganze Turnier. Die Gruppentabellen werden
+            aus den eingetragenen Ergebnissen berechnet.
+          </p>
+        )}
       </section>
 
-      <div className="match-stack">
-        {filteredMatches.map((match) => (
-          <MatchCard
-            key={match.id}
-            match={match}
-            tip={tips[match.id]}
-            result={resultsByMatch.get(match.id)}
-            changeScore={changeScore}
-            saveTip={saveTip}
-            lastSavedMatch={lastSavedMatch}
+      {tipView === "spiele" ? (
+        <div className="match-stack">
+          {filteredMatches.map((match) => (
+            <MatchCard
+              key={match.id}
+              match={match}
+              tip={tips[match.id]}
+              result={resultsByMatch.get(match.id)}
+              changeScore={changeScore}
+              saveTip={saveTip}
+              lastSavedMatch={lastSavedMatch}
+              locked={locked}
+            />
+          ))}
+        </div>
+      ) : (
+        <>
+          <BonusTipsPanel
+            matches={matches}
+            teamOptions={teamOptions}
+            groupTables={groupTables}
+            bonusTips={bonusTips}
+            setBonusTips={setBonusTips}
+            saveBonusTips={saveBonusTips}
+            bonusMessage={bonusMessage}
             locked={locked}
           />
+          <GroupsOverview groupTables={groupTables} />
+        </>
+      )}
+    </div>
+  );
+}
+
+function BonusTipsPanel({
+  teamOptions,
+  groupTables,
+  bonusTips,
+  setBonusTips,
+  saveBonusTips,
+  bonusMessage,
+  locked,
+}) {
+  function updateGroupWinner(groupKey, value) {
+    setBonusTips((current) => ({
+      ...current,
+      groupWinners: {
+        ...current.groupWinners,
+        [groupKey]: value,
+      },
+      saved: false,
+    }));
+  }
+
+  return (
+    <section className="bonus-panel panel">
+      <header className="section-title">
+        <Medal size={24} />
+        <h2>Bonus-Tipps</h2>
+        <span>{bonusTips.saved ? "gespeichert" : "offen"}</span>
+      </header>
+
+      <div className="bonus-main-grid">
+        <label>
+          Weltmeister
+          <select
+            value={bonusTips.champion}
+            disabled={locked}
+            onChange={(event) =>
+              setBonusTips((current) => ({ ...current, champion: event.target.value, saved: false }))
+            }
+          >
+            <option value="">Bitte waehlen</option>
+            {teamOptions.map((team) => (
+              <option key={team} value={team}>{team}</option>
+            ))}
+          </select>
+        </label>
+
+        <label>
+          Torschuetzenkoenig
+          <input
+            value={bonusTips.topScorer}
+            disabled={locked}
+            onChange={(event) =>
+              setBonusTips((current) => ({ ...current, topScorer: event.target.value, saved: false }))
+            }
+            placeholder="Name des Spielers"
+          />
+        </label>
+      </div>
+
+      <h3>Gruppensieger</h3>
+      <div className="group-winner-grid">
+        {groupTables.map((group) => (
+          <label key={group.groupKey}>
+            Gruppe {group.groupKey}
+            <select
+              value={bonusTips.groupWinners[group.groupKey] ?? ""}
+              disabled={locked}
+              onChange={(event) => updateGroupWinner(group.groupKey, event.target.value)}
+            >
+              <option value="">Bitte waehlen</option>
+              {group.teams.map((team) => (
+                <option key={team} value={team}>{team}</option>
+              ))}
+            </select>
+          </label>
         ))}
       </div>
-    </div>
+
+      <div className="bonus-actions">
+        <button type="button" className="primary-button compact" disabled={locked} onClick={saveBonusTips}>
+          Bonus-Tipps speichern
+          <Check size={18} />
+        </button>
+        {bonusMessage && <span>{bonusMessage}</span>}
+      </div>
+    </section>
+  );
+}
+
+function GroupsOverview({ groupTables }) {
+  return (
+    <section className="groups-overview">
+      {groupTables.map((group) => (
+        <article className="group-table panel" key={group.groupKey}>
+          <header className="section-title">
+            <Trophy size={22} />
+            <h2>Gruppe {group.groupKey}</h2>
+          </header>
+          <table>
+            <thead>
+              <tr>
+                <th>Team</th>
+                <th>Sp</th>
+                <th>TD</th>
+                <th>Pt</th>
+              </tr>
+            </thead>
+            <tbody>
+              {group.rows.map((row) => (
+                <tr key={row.team}>
+                  <td>{row.team}</td>
+                  <td>{row.played}</td>
+                  <td>{row.goalsFor - row.goalsAgainst}</td>
+                  <td>{row.points}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </article>
+      ))}
+    </section>
   );
 }
 

@@ -66,6 +66,14 @@ create table if not exists public.tips (
   unique (participant_id, match_id)
 );
 
+create table if not exists public.bonus_tips (
+  participant_id uuid primary key references public.participants(id) on delete cascade,
+  champion text,
+  top_scorer text,
+  group_winners jsonb not null default '{}'::jsonb,
+  saved_at timestamptz not null default now()
+);
+
 create table if not exists public.results (
   match_id text primary key references public.matches(id) on delete cascade,
   score_a integer not null check (score_a between 0 and 30),
@@ -84,6 +92,7 @@ alter table public.matches enable row level security;
 alter table public.invite_codes enable row level security;
 alter table public.participants enable row level security;
 alter table public.tips enable row level security;
+alter table public.bonus_tips enable row level security;
 alter table public.results enable row level security;
 alter table public.admins enable row level security;
 
@@ -93,6 +102,7 @@ grant select, insert, update, delete on public.matches to authenticated;
 grant select, insert, update, delete on public.invite_codes to authenticated;
 grant select, insert, update, delete on public.participants to authenticated;
 grant select, insert, update, delete on public.tips to authenticated;
+grant select, insert, update, delete on public.bonus_tips to authenticated;
 grant select, insert, update, delete on public.results to authenticated;
 grant select on public.admins to authenticated;
 
@@ -152,6 +162,12 @@ with check (public.is_admin());
 drop policy if exists "admins can view tips" on public.tips;
 create policy "admins can view tips"
 on public.tips for select
+to authenticated
+using (public.is_admin());
+
+drop policy if exists "admins can view bonus tips" on public.bonus_tips;
+create policy "admins can view bonus tips"
+on public.bonus_tips for select
 to authenticated
 using (public.is_admin());
 
