@@ -137,32 +137,88 @@ const groupStageRows = [
   ["2026-06-27", "18:00", "Croatia", "Ghana", "Lincoln Financial Field", "Philadelphia", "L"],
 ];
 
-function kickoffUtcFromEastern(date, time) {
-  return new Date(`${date}T${time}:00-04:00`).toISOString();
+const fifaScheduleRows = [
+  ["2026-06-11", "21:00", "Mexico", "South Africa", "Mexiko-Stadt-Stadion", "Mexiko-Stadt", "A"],
+  ["2026-06-12", "04:00", "South Korea", "Czechia", "Guadalajara-Stadion", "Guadalajara", "A"],
+  ["2026-06-12", "21:00", "Canada", "Bosnia & Herzegovina", "Toronto-Stadion", "Toronto", "B"],
+  ["2026-06-13", "03:00", "United States", "Paraguay", "Los-Angeles-Stadion", "Los Angeles", "D"],
+  ["2026-06-14", "03:00", "Haiti", "Scotland", "Boston-Stadion", "Boston", "C"],
+  ["2026-06-14", "06:00", "Australia", "Türkiye", "BC Place Vancouver", "Vancouver", "D"],
+  ["2026-06-14", "00:00", "Brazil", "Morocco", "New-York-New-Jersey-Stadion", "New York / New Jersey", "C"],
+  ["2026-06-13", "21:00", "Qatar", "Switzerland", "San-Francisco-Bay-Area-Stadion", "San Francisco", "B"],
+  ["2026-06-15", "01:00", "Ivory Coast", "Ecuador", "Philadelphia-Stadion", "Philadelphia", "E"],
+  ["2026-06-14", "19:00", "Germany", "Curaçao", "Houston-Stadion", "Houston", "E"],
+  ["2026-06-14", "22:00", "Netherlands", "Japan", "Dallas-Stadion", "Dallas", "F"],
+  ["2026-06-15", "04:00", "Sweden", "Tunisia", "Monterrey-Stadion", "Monterrey", "F"],
+  ["2026-06-16", "00:00", "Saudi Arabia", "Uruguay", "Miami-Stadion", "Miami", "H"],
+  ["2026-06-15", "18:00", "Spain", "Cape Verde", "Atlanta-Stadion", "Atlanta", "H"],
+  ["2026-06-16", "03:00", "Iran", "New Zealand", "Los-Angeles-Stadion", "Los Angeles", "G"],
+  ["2026-06-15", "21:00", "Belgium", "Egypt", "Seattle-Stadion", "Seattle", "G"],
+  ["2026-06-16", "21:00", "France", "Senegal", "New-York-New-Jersey-Stadion", "New York / New Jersey", "I"],
+  ["2026-06-17", "00:00", "Iraq", "Norway", "Boston-Stadion", "Boston", "I"],
+  ["2026-06-17", "03:00", "Argentina", "Algeria", "Kansas-City-Stadion", "Kansas City", "J"],
+  ["2026-06-17", "06:00", "Austria", "Jordan", "San-Francisco-Bay-Area-Stadion", "San Francisco", "J"],
+  ["2026-06-18", "01:00", "Ghana", "Panama", "Toronto-Stadion", "Toronto", "L"],
+  ["2026-06-17", "22:00", "England", "Croatia", "Dallas-Stadion", "Dallas", "L"],
+  ["2026-06-17", "19:00", "Portugal", "DR Congo", "Houston-Stadion", "Houston", "K"],
+  ["2026-06-18", "04:00", "Uzbekistan", "Colombia", "Mexiko-Stadt-Stadion", "Mexiko-Stadt", "K"],
+  ["2026-06-18", "18:00", "Czechia", "South Africa", "Atlanta-Stadion", "Atlanta", "A"],
+  ["2026-06-18", "21:00", "Switzerland", "Bosnia & Herzegovina", "Los-Angeles-Stadion", "Los Angeles", "B"],
+  ["2026-06-19", "00:00", "Canada", "Qatar", "BC Place Vancouver", "Vancouver", "B"],
+  ["2026-06-19", "03:00", "Mexico", "South Korea", "Guadalajara-Stadion", "Guadalajara", "A"],
+  ["2026-06-20", "02:30", "Brazil", "Haiti", "Philadelphia-Stadion", "Philadelphia", "C"],
+  ["2026-06-20", "00:00", "Scotland", "Morocco", "Boston-Stadion", "Boston", "C"],
+  ["2026-06-20", "05:00", "Türkiye", "Paraguay", "San-Francisco-Bay-Area-Stadion", "San Francisco", "D"],
+  ["2026-06-19", "21:00", "United States", "Australia", "Seattle-Stadion", "Seattle", "D"],
+  ["2026-06-20", "22:00", "Germany", "Ivory Coast", "Toronto-Stadion", "Toronto", "E"],
+  ["2026-06-21", "02:00", "Ecuador", "Curaçao", "Kansas-City-Stadion", "Kansas City", "E"],
+  ["2026-06-20", "19:00", "Netherlands", "Sweden", "Houston-Stadion", "Houston", "F"],
+  ["2026-06-21", "06:00", "Tunisia", "Japan", "Monterrey-Stadion", "Monterrey", "F"],
+  ["2026-06-22", "00:00", "Uruguay", "Cape Verde", "Miami-Stadion", "Miami", "H"],
+  ["2026-06-21", "18:00", "Spain", "Saudi Arabia", "Atlanta-Stadion", "Atlanta", "H"],
+  ["2026-06-21", "21:00", "Belgium", "Iran", "Los-Angeles-Stadion", "Los Angeles", "G"],
+  ["2026-06-22", "03:00", "New Zealand", "Egypt", "BC Place Vancouver", "Vancouver", "G"],
+  ["2026-06-23", "02:00", "Norway", "Senegal", "New-York-New-Jersey-Stadion", "New York / New Jersey", "I"],
+  ["2026-06-22", "23:00", "France", "Iraq", "Philadelphia-Stadion", "Philadelphia", "I"],
+  ["2026-06-22", "19:00", "Argentina", "Austria", "Dallas-Stadion", "Dallas", "J"],
+  ["2026-06-23", "05:00", "Jordan", "Algeria", "San-Francisco-Bay-Area-Stadion", "San Francisco", "J"],
+  ["2026-06-23", "22:00", "England", "Ghana", "Boston-Stadion", "Boston", "L"],
+  ["2026-06-24", "01:00", "Panama", "Croatia", "Toronto-Stadion", "Toronto", "L"],
+  ["2026-06-23", "19:00", "Portugal", "Uzbekistan", "Houston-Stadion", "Houston", "K"],
+  ["2026-06-24", "04:00", "Colombia", "DR Congo", "Guadalajara-Stadion", "Guadalajara", "K"],
+  ["2026-06-25", "00:00", "Scotland", "Brazil", "Miami-Stadion", "Miami", "C"],
+  ["2026-06-25", "00:00", "Morocco", "Haiti", "Atlanta-Stadion", "Atlanta", "C"],
+  ["2026-06-24", "21:00", "Switzerland", "Canada", "BC Place Vancouver", "Vancouver", "B"],
+  ["2026-06-24", "21:00", "Bosnia & Herzegovina", "Qatar", "Seattle-Stadion", "Seattle", "B"],
+  ["2026-06-25", "03:00", "Czechia", "Mexico", "Mexiko-Stadt-Stadion", "Mexiko-Stadt", "A"],
+  ["2026-06-25", "03:00", "South Africa", "South Korea", "Monterrey-Stadion", "Monterrey", "A"],
+  ["2026-06-25", "22:00", "Curaçao", "Ivory Coast", "Philadelphia-Stadion", "Philadelphia", "E"],
+  ["2026-06-25", "22:00", "Ecuador", "Germany", "New-York-New-Jersey-Stadion", "New York / New Jersey", "E"],
+  ["2026-06-26", "01:00", "Japan", "Sweden", "Dallas-Stadion", "Dallas", "F"],
+  ["2026-06-26", "01:00", "Tunisia", "Netherlands", "Kansas-City-Stadion", "Kansas City", "F"],
+  ["2026-06-26", "04:00", "Türkiye", "United States", "Los-Angeles-Stadion", "Los Angeles", "D"],
+  ["2026-06-26", "04:00", "Paraguay", "Australia", "San-Francisco-Bay-Area-Stadion", "San Francisco", "D"],
+  ["2026-06-26", "21:00", "Norway", "France", "Boston-Stadion", "Boston", "I"],
+  ["2026-06-26", "21:00", "Senegal", "Iraq", "Toronto-Stadion", "Toronto", "I"],
+  ["2026-06-27", "05:00", "Egypt", "Iran", "Seattle-Stadion", "Seattle", "G"],
+  ["2026-06-27", "05:00", "New Zealand", "Belgium", "BC Place Vancouver", "Vancouver", "G"],
+  ["2026-06-27", "02:00", "Cape Verde", "Saudi Arabia", "Houston-Stadion", "Houston", "H"],
+  ["2026-06-27", "02:00", "Uruguay", "Spain", "Guadalajara-Stadion", "Guadalajara", "H"],
+  ["2026-06-27", "23:00", "Panama", "England", "New-York-New-Jersey-Stadion", "New York / New Jersey", "L"],
+  ["2026-06-27", "23:00", "Croatia", "Ghana", "Philadelphia-Stadion", "Philadelphia", "L"],
+  ["2026-06-28", "04:00", "Algeria", "Austria", "Kansas-City-Stadion", "Kansas City", "J"],
+  ["2026-06-28", "04:00", "Jordan", "Argentina", "Dallas-Stadion", "Dallas", "J"],
+  ["2026-06-28", "01:30", "Colombia", "Portugal", "Miami-Stadion", "Miami", "K"],
+  ["2026-06-28", "01:30", "DR Congo", "Uzbekistan", "Atlanta-Stadion", "Atlanta", "K"],
+];
+
+function kickoffUtcFromBerlin(date, time) {
+  return new Date(`${date}T${time}:00+02:00`).toISOString();
 }
 
-function germanDateParts(isoString) {
-  const date = new Date(isoString);
-  const parts = new Intl.DateTimeFormat("sv-SE", {
-    timeZone: "Europe/Berlin",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).formatToParts(date);
-  const get = (type) => parts.find((part) => part.type === type)?.value;
-  return {
-    date: `${get("year")}-${get("month")}-${get("day")}`,
-    time: `${get("hour")}:${get("minute")}`,
-  };
-}
-
-export const matches = groupStageRows.map(
+export const matches = fifaScheduleRows.map(
   ([date, time, teamA, teamB, venue, city, group], index) => {
-    const kickoffAt = kickoffUtcFromEastern(date, time);
-    const germanTime = germanDateParts(kickoffAt);
+    const kickoffAt = kickoffUtcFromBerlin(date, time);
 
     return {
       id: `m${String(index + 1).padStart(2, "0")}`,
@@ -170,12 +226,10 @@ export const matches = groupStageRows.map(
       phase: "group",
       group: `Gruppe ${group}`,
       groupKey: group,
-      date: germanTime.date,
-      time: germanTime.time,
-      sourceDate: date,
-      sourceTime: time,
+      date,
+      time,
       kickoffAt,
-      kickoff: `${germanTime.date} · ${germanTime.time} Uhr`,
+      kickoff: `${date} · ${time} Uhr`,
       teamA,
       teamB,
       flagCodeA: teamFlagCodes[teamA] ?? "",
