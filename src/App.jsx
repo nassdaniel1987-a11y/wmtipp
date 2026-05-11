@@ -59,6 +59,13 @@ function getTabFromHash() {
   return tabIds.has(tabId) ? tabId : "start";
 }
 
+function getInviteUrl(code) {
+  const url = new URL(window.location.origin);
+  url.searchParams.set("code", code);
+  url.hash = "start";
+  return url.toString();
+}
+
 function loadSavedParticipant() {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
@@ -1324,10 +1331,10 @@ function AdminPanel({
       <div className="admin-grid">
         {adminData.codes.slice(0, 12).map((row) => (
           <article key={row.id} className={`code-card ${row.status}`}>
-            <QrCodeImage value={`${window.location.origin}/?code=${row.code}`} />
+            <QrCodeImage value={getInviteUrl(row.code)} />
             <strong>{row.code}</strong>
             <span>{row.participant?.display_name || codeStatusLabels[row.status] || row.status}</span>
-            <small>{`${window.location.origin}/?code=${row.code}`}</small>
+            <small>{getInviteUrl(row.code)}</small>
             {row.status === "free" && !row.participant && (
               <button type="button" className="danger-button code-delete" onClick={() => deleteCode(row.id, row.code)}>
                 Code loeschen
