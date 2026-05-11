@@ -988,8 +988,43 @@ function AdminPanel({
   const [newParticipantName, setNewParticipantName] = useState("");
   const [adminMessage, setAdminMessage] = useState("");
   const [resultDrafts, setResultDrafts] = useState({});
+  const [resultFilter, setResultFilter] = useState("open");
   const [selectedParticipant, setSelectedParticipant] = useState(null);
   const [participantTipDrafts, setParticipantTipDrafts] = useState({});
+
+  const sortedResultMatches = useMemo(() => {
+    const now = Date.now();
+
+    return matches
+      .map((match) => {
+        const result = resultsByMatch.get(match.id);
+        const kickoffTime = match.kickoffAt
+          ? new Date(match.kickoffAt).getTime()
+          : new Date(`${match.date}T${match.time}:00`).getTime();
+        const isFinal = result?.status === "final";
+        const hasStarted = kickoffTime <= now;
+
+        return {
+          ...match,
+          result,
+          kickoffTime,
+          isFinal,
+          hasStarted,
+        };
+      })
+      .filter((match) => {
+        if (resultFilter === "started") return match.hasStarted && !match.isFinal;
+        if (resultFilter === "all") return true;
+        return !match.isFinal;
+      })
+      .sort((first, second) => {
+        const firstRank = first.isFinal ? 2 : first.hasStarted ? 0 : 1;
+        const secondRank = second.isFinal ? 2 : second.hasStarted ? 0 : 1;
+
+        if (firstRank !== secondRank) return firstRank - secondRank;
+        return first.kickoffTime - second.kickoffTime || first.matchNumber - second.matchNumber;
+      });
+  }, [matches, resultsByMatch, resultFilter]);
 
   async function submitLogin(event) {
     event.preventDefault();
@@ -1223,14 +1258,41 @@ function AdminPanel({
       </div>
 
       <h3>Ergebnisse</h3>
+      <div className="result-toolbar">
+        <span>{sortedResultMatches.length} Spiele angezeigt</span>
+        <div className="segmented-control">
+          <button
+            className={resultFilter === "open" ? "active" : ""}
+            onClick={() => setResultFilter("open")}
+          >
+            Offen
+          </button>
+          <button
+            className={resultFilter === "started" ? "active" : ""}
+            onClick={() => setResultFilter("started")}
+          >
+            Gestartet
+          </button>
+          <button
+            className={resultFilter === "all" ? "active" : ""}
+            onClick={() => setResultFilter("all")}
+          >
+            Alle
+          </button>
+        </div>
+      </div>
       <div className="result-list">
-        {matches.slice(0, 18).map((match) => {
+        {sortedResultMatches.length === 0 && (
+          <p className="fine-print">Aktuell gibt es in dieser Ansicht keine Spiele.</p>
+        )}
+        {sortedResultMatches.map((match) => {
           const result = resultsByMatch.get(match.id);
           const draft = resultDrafts[match.id] ?? {};
           return (
             <div className="result-row" key={match.id}>
               <span>Spiel {match.matchNumber}</span>
               <strong>{match.teamA} - {match.teamB}</strong>
+              <small>{formatDate(match.date)} · {match.time} Uhr</small>
               <input
                 type="number"
                 min="0"

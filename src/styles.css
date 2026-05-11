@@ -980,6 +980,44 @@ tbody tr:nth-child(1) td:first-child {
   margin-top: 14px;
 }
 
+.result-toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.result-toolbar span {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.segmented-control {
+  display: inline-flex;
+  padding: 4px;
+  border: 1px solid #dbe7f2;
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
+.segmented-control button {
+  min-height: 34px;
+  border: 0;
+  border-radius: 6px;
+  padding: 0 12px;
+  color: var(--muted);
+  background: transparent;
+  font-weight: 900;
+}
+
+.segmented-control button.active {
+  color: var(--blue);
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(17, 38, 79, 0.1);
+}
+
 .participant-list {
   display: grid;
   gap: 10px;
@@ -1033,7 +1071,7 @@ tbody tr:nth-child(1) td:first-child {
 
 .result-row {
   display: grid;
-  grid-template-columns: 80px minmax(160px, 1fr) 70px 70px auto;
+  grid-template-columns: 80px minmax(160px, 1fr) minmax(130px, auto) 70px 70px auto;
   gap: 10px;
   align-items: center;
   padding: 12px;
@@ -1046,6 +1084,12 @@ tbody tr:nth-child(1) td:first-child {
   color: var(--muted);
   font-size: 0.86rem;
   font-weight: 800;
+}
+
+.result-row small {
+  color: var(--muted);
+  font-weight: 800;
+  white-space: nowrap;
 }
 
 .result-row .save-tip {
