@@ -1113,16 +1113,18 @@ tbody tr:nth-child(1) td:first-child {
   inset: 0;
   z-index: 50;
   display: grid;
-  place-items: center;
-  padding: 24px;
+  align-items: start;
+  justify-items: center;
+  padding: 32px 24px;
   background: rgba(7, 27, 69, 0.48);
+  overflow-y: auto;
 }
 
 .participant-modal {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   width: min(980px, 100%);
-  max-height: min(860px, calc(100vh - 48px));
+  max-height: calc(100vh - 64px);
   border: 1px solid #cbdbea;
   border-radius: 8px;
   background: #ffffff;
@@ -1173,6 +1175,7 @@ tbody tr:nth-child(1) td:first-child {
   grid-template-columns: 78px minmax(180px, 1fr) 70px 70px 120px;
   gap: 10px;
   align-items: center;
+  min-width: 640px;
   padding: 12px;
   border: 1px solid #dbe7f2;
   border-radius: 8px;
@@ -1540,11 +1543,11 @@ tbody tr:nth-child(1) td:first-child {
 
   .modal-backdrop {
     padding: 10px;
-    align-items: end;
+    align-items: start;
   }
 
   .participant-modal {
-    max-height: 92vh;
+    max-height: calc(100vh - 20px);
   }
 }
 
