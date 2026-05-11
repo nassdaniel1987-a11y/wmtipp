@@ -6,7 +6,7 @@ export default async (req) => {
 
   try {
     const { supabase } = await requireAdmin(req);
-    const [codes, participants, tips, results] = await Promise.all([
+    const [codes, participants, tips, bonusTips, results] = await Promise.all([
       supabase
         .from("invite_codes")
         .select("id, code, status, claimed_at, participant:participants!invite_codes_participant_id_fkey(id, display_name)")
@@ -20,11 +20,15 @@ export default async (req) => {
         .select("id, participant_id, match_id, score_a, score_b, saved_at")
         .order("saved_at", { ascending: false }),
       supabase
+        .from("bonus_tips")
+        .select("participant_id, champion, top_scorer, group_winners, saved_at")
+        .order("saved_at", { ascending: false }),
+      supabase
         .from("results")
         .select("match_id, score_a, score_b, status, updated_at"),
     ]);
 
-    for (const response of [codes, participants, tips, results]) {
+    for (const response of [codes, participants, tips, bonusTips, results]) {
       if (response.error) throw response.error;
     }
 
@@ -32,6 +36,7 @@ export default async (req) => {
       codes: codes.data ?? [],
       participants: participants.data ?? [],
       tips: tips.data ?? [],
+      bonusTips: bonusTips.data ?? [],
       results: results.data ?? [],
     });
   } catch (error) {

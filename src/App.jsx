@@ -1176,6 +1176,40 @@ function GroupsOverview({ groupTables }) {
   );
 }
 
+function countGroupWinnerTips(bonusTip) {
+  return Object.values(bonusTip?.group_winners ?? {}).filter(Boolean).length;
+}
+
+function isBonusTipStarted(bonusTip) {
+  return Boolean(bonusTip?.champion || bonusTip?.top_scorer || countGroupWinnerTips(bonusTip) > 0);
+}
+
+function AdminBonusSummary({ bonusTip }) {
+  if (!bonusTip || !isBonusTipStarted(bonusTip)) {
+    return <p className="fine-print">Noch keine Bonus-Tipps gespeichert.</p>;
+  }
+
+  return (
+    <section className="admin-bonus-summary">
+      <h3>Bonus-Tipps</h3>
+      <div className="bonus-summary-grid">
+        <div>
+          <span>Weltmeister</span>
+          <strong>{bonusTip.champion || "offen"}</strong>
+        </div>
+        <div>
+          <span>Torschuetzenkoenig</span>
+          <strong>{bonusTip.top_scorer || "offen"}</strong>
+        </div>
+        <div>
+          <span>Gruppensieger</span>
+          <strong>{countGroupWinnerTips(bonusTip)} / 12</strong>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function MatchCard({
   match,
   tip,
@@ -1657,6 +1691,7 @@ function AdminPanel({
         )}
         {adminData.participants.map((participant) => {
           const code = adminData.codes.find((item) => item.participant?.id === participant.id);
+          const bonusTip = adminData.bonusTips?.find((item) => item.participant_id === participant.id);
           const tipCount = new Set(
             adminData.tips
               .filter((tip) => tip.participant_id === participant.id)
@@ -1671,6 +1706,9 @@ function AdminPanel({
               <span>{code?.code || "ohne Code"}</span>
               <span className="participant-tip-count">
                 {tipCount} / {matches.length} Tipps
+              </span>
+              <span className={`participant-bonus-count ${isBonusTipStarted(bonusTip) ? "done" : ""}`}>
+                Bonus {isBonusTipStarted(bonusTip) ? "angefangen" : "offen"}
               </span>
               <button
                 type="button"
@@ -1765,6 +1803,10 @@ function AdminPanel({
                 ×
               </button>
             </header>
+
+            <AdminBonusSummary
+              bonusTip={adminData.bonusTips?.find((item) => item.participant_id === selectedParticipant.id)}
+            />
 
             <div className="participant-tip-list">
               {matches.map((match) => {
