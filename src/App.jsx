@@ -424,6 +424,7 @@ export default function App() {
             <StartPanel
               activeCode={activeCode}
               codeStatus={codeStatus}
+              hasScannedCode={Boolean(scannedCode)}
               manualCode={manualCode}
               name={name}
               participant={participant}
@@ -525,6 +526,7 @@ async function apiGetWithAuth(path, token) {
 function StartPanel({
   activeCode,
   codeStatus,
+  hasScannedCode,
   manualCode,
   name,
   participant,
@@ -566,7 +568,7 @@ function StartPanel({
         <span>{activeCode || "QR-Code fehlt"}</span>
       </div>
 
-      {!participant && !scannedCode && (
+      {!participant && !hasScannedCode && (
         <label className="manual-code">
           Anmeldecode eingeben
           <input
