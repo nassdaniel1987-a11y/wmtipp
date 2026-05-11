@@ -152,6 +152,8 @@ function createInitialTips(matches, savedTips = []) {
 }
 
 function getGroups(matches) {
+  const teamMeta = getTeamMeta(matches);
+
   return groupFilters
     .filter((group) => !["alle", "deutschland"].includes(group))
     .map((groupKey) => {
@@ -161,16 +163,40 @@ function getGroups(matches) {
             .filter((match) => match.groupKey === groupKey)
             .flatMap((match) => [match.teamA, match.teamB]),
         ),
-      ).sort((first, second) => first.localeCompare(second, "de"));
+      )
+        .sort((first, second) => first.localeCompare(second, "de"))
+        .map((team) => teamMeta.get(team) ?? { name: team, flagCode: "" });
 
       return { groupKey, teams };
     })
     .filter((group) => group.teams.length > 0);
 }
 
+function getFlagEmoji(flagCode) {
+  if (!flagCode || flagCode.length !== 2) return "";
+  return flagCode
+    .toUpperCase()
+    .split("")
+    .map((letter) => String.fromCodePoint(127397 + letter.charCodeAt(0)))
+    .join("");
+}
+
+function getTeamMeta(matches) {
+  const meta = new Map();
+  matches.forEach((match) => {
+    if (!meta.has(match.teamA)) {
+      meta.set(match.teamA, { name: match.teamA, flagCode: match.flagCodeA ?? "" });
+    }
+    if (!meta.has(match.teamB)) {
+      meta.set(match.teamB, { name: match.teamB, flagCode: match.flagCodeB ?? "" });
+    }
+  });
+  return meta;
+}
+
 function getTeamOptions(matches) {
-  return Array.from(new Set(matches.flatMap((match) => [match.teamA, match.teamB])))
-    .sort((first, second) => first.localeCompare(second, "de"));
+  return Array.from(getTeamMeta(matches).values())
+    .sort((first, second) => first.name.localeCompare(second.name, "de"));
 }
 
 function createInitialBonusTips(matches, savedBonusTip = null) {
@@ -191,8 +217,8 @@ function buildGroupTables(matches, resultsByMatch) {
   return getGroups(matches).map((group) => {
     const table = new Map(
       group.teams.map((team) => [
-        team,
-        { team, played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0, points: 0 },
+        team.name,
+        { team: team.name, flagCode: team.flagCode, played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0, points: 0 },
       ]),
     );
 
@@ -1093,7 +1119,9 @@ function BonusTipsPanel({
           >
             <option value="">Bitte waehlen</option>
             {teamOptions.map((team) => (
-              <option key={team} value={team}>{team}</option>
+              <option key={team.name} value={team.name}>
+                {getFlagEmoji(team.flagCode)} {team.name}
+              </option>
             ))}
           </select>
         </label>
@@ -1123,7 +1151,9 @@ function BonusTipsPanel({
             >
               <option value="">Bitte waehlen</option>
               {group.teams.map((team) => (
-                <option key={team} value={team}>{team}</option>
+                <option key={team.name} value={team.name}>
+                  {getFlagEmoji(team.flagCode)} {team.name}
+                </option>
               ))}
             </select>
           </label>
@@ -1155,6 +1185,9 @@ function GroupsOverview({ groupTables }) {
               <tr>
                 <th>Team</th>
                 <th>Sp</th>
+                <th>S</th>
+                <th>U</th>
+                <th>N</th>
                 <th>TD</th>
                 <th>Pt</th>
               </tr>
@@ -1162,8 +1195,18 @@ function GroupsOverview({ groupTables }) {
             <tbody>
               {group.rows.map((row) => (
                 <tr key={row.team}>
-                  <td>{row.team}</td>
+                  <td>
+                    <span className="table-team">
+                      {row.flagCode && (
+                        <img src={`https://flagcdn.com/w40/${row.flagCode}.png`} alt={`Flagge ${row.team}`} />
+                      )}
+                      <span>{row.team}</span>
+                    </span>
+                  </td>
                   <td>{row.played}</td>
+                  <td>{row.won}</td>
+                  <td>{row.drawn}</td>
+                  <td>{row.lost}</td>
                   <td>{row.goalsFor - row.goalsAgainst}</td>
                   <td>{row.points}</td>
                 </tr>
