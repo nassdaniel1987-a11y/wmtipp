@@ -64,6 +64,7 @@ function mapDbMatch(row) {
     groupKey: row.group_key,
     date: row.match_date,
     time: row.match_time,
+    kickoffAt: row.kickoff_at,
     teamA: row.team_a,
     teamB: row.team_b,
     flagCodeA: row.flag_code_a,
@@ -101,6 +102,11 @@ function formatDate(date) {
     day: "2-digit",
     month: "2-digit",
   }).format(new Date(`${date}T12:00:00`));
+}
+
+function isLockedForUsers(match) {
+  if (!match?.kickoffAt) return false;
+  return new Date(match.kickoffAt).getTime() <= Date.now();
 }
 
 function pointsFor(tip, result) {
@@ -775,6 +781,8 @@ function MatchCard({
   featured,
 }) {
   if (!match || !tip) return null;
+  const lockedByKickoff = isLockedForUsers(match);
+  const isLocked = locked || lockedByKickoff;
 
   return (
     <article className={`match-card panel ${featured ? "featured" : ""}`}>
@@ -785,7 +793,7 @@ function MatchCard({
         </div>
         <span className="match-time">
           <CalendarDays size={17} />
-          {formatDate(match.date)} · {match.time} ET
+          {formatDate(match.date)} · {match.time} Uhr
         </span>
       </header>
 
@@ -800,14 +808,14 @@ function MatchCard({
           value={tip.scoreA}
           onIncrease={() => changeScore(match.id, "scoreA", 1)}
           onDecrease={() => changeScore(match.id, "scoreA", -1)}
-          disabled={locked}
+          disabled={isLocked}
         />
         <span className="score-separator">:</span>
         <ScoreControl
           value={tip.scoreB}
           onIncrease={() => changeScore(match.id, "scoreB", 1)}
           onDecrease={() => changeScore(match.id, "scoreB", -1)}
-          disabled={locked}
+          disabled={isLocked}
         />
         <TeamBlock flagCode={match.flagCodeB} name={match.teamB} />
       </div>
@@ -816,7 +824,7 @@ function MatchCard({
         <button
           className="save-tip"
           onClick={() => saveTip(match.id)}
-          disabled={locked}
+          disabled={isLocked}
         >
           <ShieldCheck size={17} />
           Tipp speichern
@@ -824,6 +832,8 @@ function MatchCard({
         <span className={tip.saved || lastSavedMatch === match.id ? "saved" : ""}>
           {locked
             ? "Erst QR-Code aktivieren"
+            : lockedByKickoff
+              ? "Tipp gesperrt: Spiel gestartet"
             : tip.saved || lastSavedMatch === match.id
               ? "Tipp gespeichert"
               : "Noch nicht gespeichert"}

@@ -35,6 +35,25 @@ export default async (req) => {
     }
 
     const supabase = getServiceClient();
+    const matchIds = rows.map((row) => row.match_id);
+    const { data: lockedMatches, error: lockError } = await supabase
+      .from("matches")
+      .select("id, team_a, team_b, kickoff_at")
+      .in("id", matchIds)
+      .not("kickoff_at", "is", null)
+      .lte("kickoff_at", new Date().toISOString());
+
+    if (lockError) throw lockError;
+    if ((lockedMatches ?? []).length > 0) {
+      const locked = lockedMatches[0];
+      return json(
+        {
+          error: `Tipp gesperrt: ${locked.team_a} - ${locked.team_b} hat bereits begonnen.`,
+        },
+        409,
+      );
+    }
+
     const { data, error } = await supabase
       .from("tips")
       .upsert(rows, { onConflict: "participant_id,match_id" })

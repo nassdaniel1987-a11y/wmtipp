@@ -9,6 +9,7 @@ create table if not exists public.matches (
   match_number integer not null unique,
   phase text not null default 'group',
   group_key text,
+  kickoff_at timestamptz,
   match_date date not null,
   match_time text not null,
   team_a text not null,
@@ -20,6 +21,9 @@ create table if not exists public.matches (
   status text not null default 'Gruppenspiel',
   created_at timestamptz not null default now()
 );
+
+alter table public.matches
+  add column if not exists kickoff_at timestamptz;
 
 create table if not exists public.invite_codes (
   id uuid primary key default gen_random_uuid(),

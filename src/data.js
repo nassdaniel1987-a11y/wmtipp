@@ -1,5 +1,5 @@
 export const scheduleSource = {
-  label: "Spielplan-Stand: 10. Mai 2026, Zeiten in Eastern Time (ET)",
+  label: "Spielplan-Stand: 10. Mai 2026, Anzeigezeiten fuer Deutschland",
   url: "https://worldcuphub.io/en/schedule",
 };
 
@@ -137,24 +137,54 @@ const groupStageRows = [
   ["2026-06-27", "18:00", "Croatia", "Ghana", "Lincoln Financial Field", "Philadelphia", "L"],
 ];
 
+function kickoffUtcFromEastern(date, time) {
+  return new Date(`${date}T${time}:00-04:00`).toISOString();
+}
+
+function germanDateParts(isoString) {
+  const date = new Date(isoString);
+  const parts = new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Europe/Berlin",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(date);
+  const get = (type) => parts.find((part) => part.type === type)?.value;
+  return {
+    date: `${get("year")}-${get("month")}-${get("day")}`,
+    time: `${get("hour")}:${get("minute")}`,
+  };
+}
+
 export const matches = groupStageRows.map(
-  ([date, time, teamA, teamB, venue, city, group], index) => ({
-    id: `m${String(index + 1).padStart(2, "0")}`,
-    matchNumber: index + 1,
-    phase: "group",
-    group: `Gruppe ${group}`,
-    groupKey: group,
-    date,
-    time,
-    kickoff: `${date} · ${time} Uhr ET`,
-    teamA,
-    teamB,
-    flagCodeA: teamFlagCodes[teamA] ?? "",
-    flagCodeB: teamFlagCodes[teamB] ?? "",
-    venue,
-    city,
-    status: index === 0 ? "Eröffnungsspiel" : "Gruppenspiel",
-  }),
+  ([date, time, teamA, teamB, venue, city, group], index) => {
+    const kickoffAt = kickoffUtcFromEastern(date, time);
+    const germanTime = germanDateParts(kickoffAt);
+
+    return {
+      id: `m${String(index + 1).padStart(2, "0")}`,
+      matchNumber: index + 1,
+      phase: "group",
+      group: `Gruppe ${group}`,
+      groupKey: group,
+      date: germanTime.date,
+      time: germanTime.time,
+      sourceDate: date,
+      sourceTime: time,
+      kickoffAt,
+      kickoff: `${germanTime.date} · ${germanTime.time} Uhr`,
+      teamA,
+      teamB,
+      flagCodeA: teamFlagCodes[teamA] ?? "",
+      flagCodeB: teamFlagCodes[teamB] ?? "",
+      venue,
+      city,
+      status: index === 0 ? "Eröffnungsspiel" : "Gruppenspiel",
+    };
+  },
 );
 
 export const knockoutPreview = [
