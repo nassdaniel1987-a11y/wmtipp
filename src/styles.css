@@ -988,7 +988,7 @@ tbody tr:nth-child(1) td:first-child {
 
 .participant-row {
   display: grid;
-  grid-template-columns: minmax(130px, 1fr) minmax(130px, 1fr) auto;
+  grid-template-columns: minmax(130px, 1fr) minmax(130px, 1fr) minmax(110px, auto) auto;
   gap: 10px;
   align-items: center;
   padding: 12px;
@@ -1010,6 +1010,15 @@ tbody tr:nth-child(1) td:first-child {
   color: var(--muted);
   font-weight: 800;
   overflow-wrap: anywhere;
+}
+
+.participant-tip-count {
+  justify-self: start;
+  padding: 7px 10px;
+  border-radius: 999px;
+  color: #244d33 !important;
+  background: #e6f4ea;
+  white-space: nowrap;
 }
 
 .danger-button {

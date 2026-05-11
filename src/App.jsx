@@ -1196,12 +1196,21 @@ function AdminPanel({
         )}
         {adminData.participants.map((participant) => {
           const code = adminData.codes.find((item) => item.participant?.id === participant.id);
+          const tipCount = new Set(
+            adminData.tips
+              .filter((tip) => tip.participant_id === participant.id)
+              .map((tip) => tip.match_id),
+          ).size;
+
           return (
             <div className="participant-row" key={participant.id}>
               <button className="participant-open" onClick={() => openParticipant(participant)}>
                 {participant.display_name}
               </button>
               <span>{code?.code || "ohne Code"}</span>
+              <span className="participant-tip-count">
+                {tipCount} / {matches.length} Tipps
+              </span>
               <button
                 className="danger-button"
                 onClick={() => deleteParticipant(participant.id, participant.display_name)}
