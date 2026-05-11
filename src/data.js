@@ -1,3 +1,5 @@
+import { displayTeamName } from "./teamNames.js";
+
 export const scheduleSource = {
   label: "Spielplan-Stand: 10. Mai 2026, Anzeigezeiten fuer Deutschland",
   url: "https://worldcuphub.io/en/schedule",
@@ -53,58 +55,6 @@ const teamFlagCodes = {
   Uruguay: "uy",
   "United States": "us",
   Uzbekistan: "uz",
-};
-
-const germanTeamNames = {
-  Algeria: "Algerien",
-  Argentina: "Argentinien",
-  Australia: "Australien",
-  Austria: "Österreich",
-  Belgium: "Belgien",
-  "Bosnia & Herzegovina": "Bosnien und Herzegowina",
-  Brazil: "Brasilien",
-  Canada: "Kanada",
-  "Cape Verde": "Kap Verde",
-  Colombia: "Kolumbien",
-  Croatia: "Kroatien",
-  Curaçao: "Curaçao",
-  Czechia: "Tschechien",
-  "DR Congo": "DR Kongo",
-  Ecuador: "Ecuador",
-  Egypt: "Ägypten",
-  England: "England",
-  France: "Frankreich",
-  Germany: "Deutschland",
-  Ghana: "Ghana",
-  Haiti: "Haiti",
-  Iran: "IR Iran",
-  Iraq: "Irak",
-  "Ivory Coast": "Elfenbeinküste",
-  Japan: "Japan",
-  Jordan: "Jordanien",
-  Mexico: "Mexiko",
-  Morocco: "Marokko",
-  Netherlands: "Niederlande",
-  "New Zealand": "Neuseeland",
-  Norway: "Norwegen",
-  Panama: "Panama",
-  Paraguay: "Paraguay",
-  Portugal: "Portugal",
-  Qatar: "Katar",
-  "Saudi Arabia": "Saudi-Arabien",
-  Scotland: "Schottland",
-  Senegal: "Senegal",
-  Serbia: "Serbien",
-  "South Africa": "Südafrika",
-  "South Korea": "Republik Korea",
-  Spain: "Spanien",
-  Sweden: "Schweden",
-  Switzerland: "Schweiz",
-  Tunisia: "Tunesien",
-  Türkiye: "Türkei",
-  Uruguay: "Uruguay",
-  "United States": "USA",
-  Uzbekistan: "Usbekistan",
 };
 
 const groupStageRows = [
@@ -264,8 +214,8 @@ function kickoffUtcFromBerlin(date, time) {
 export const matches = fifaScheduleRows.map(
   ([date, time, teamA, teamB, venue, city, group], index) => {
     const kickoffAt = kickoffUtcFromBerlin(date, time);
-    const displayTeamA = germanTeamNames[teamA] ?? teamA;
-    const displayTeamB = germanTeamNames[teamB] ?? teamB;
+    const displayTeamA = displayTeamName(teamA);
+    const displayTeamB = displayTeamName(teamB);
 
     return {
       id: `m${String(index + 1).padStart(2, "0")}`,

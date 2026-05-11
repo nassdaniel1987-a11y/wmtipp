@@ -31,6 +31,7 @@ import {
   matches as bundledMatches,
   scheduleSource,
 } from "./data.js";
+import { displayTeamName } from "./teamNames.js";
 
 const STORAGE_KEY = "wm-tippspiel-participant";
 const tabs = [
@@ -56,6 +57,9 @@ function loadSavedParticipant() {
 }
 
 function mapDbMatch(row) {
+  const teamA = displayTeamName(row.team_a);
+  const teamB = displayTeamName(row.team_b);
+
   return {
     id: row.id,
     matchNumber: row.match_number,
@@ -65,8 +69,8 @@ function mapDbMatch(row) {
     date: row.match_date,
     time: row.match_time,
     kickoffAt: row.kickoff_at,
-    teamA: row.team_a,
-    teamB: row.team_b,
+    teamA,
+    teamB,
     flagCodeA: row.flag_code_a,
     flagCodeB: row.flag_code_b,
     venue: row.venue,
