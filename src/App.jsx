@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   CalendarDays,
   Check,
@@ -40,6 +40,7 @@ const tabs = [
   { id: "rangliste", label: "Rangliste", icon: Trophy },
   { id: "admin", label: "Admin", icon: ShieldCheck },
 ];
+const tabIds = new Set(tabs.map((tab) => tab.id));
 const groupFilters = ["alle", "deutschland", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"];
 const codeStatusLabels = {
   free: "frei",
@@ -50,6 +51,11 @@ const codeStatusLabels = {
 function getInitialCode() {
   const params = new URLSearchParams(window.location.search);
   return params.get("code")?.trim() || "";
+}
+
+function getTabFromHash() {
+  const tabId = window.location.hash.replace("#", "").trim();
+  return tabIds.has(tabId) ? tabId : "start";
 }
 
 function loadSavedParticipant() {
@@ -131,7 +137,7 @@ function pointsFor(tip, result) {
 export default function App() {
   const scannedCode = getInitialCode();
   const savedParticipant = useMemo(() => loadSavedParticipant(), []);
-  const [activeTab, setActiveTab] = useState("start");
+  const [activeTab, setActiveTabState] = useState(getTabFromHash);
   const [participant, setParticipant] = useState(savedParticipant);
   const [name, setName] = useState(savedParticipant?.name ?? "");
   const [manualCode, setManualCode] = useState("");
@@ -146,6 +152,20 @@ export default function App() {
   const [codeStatus, setCodeStatus] = useState(scannedCode ? "checking" : "missing");
   const [adminSession, setAdminSession] = useState(null);
   const [adminData, setAdminData] = useState({ codes: [], participants: [], tips: [], results: [] });
+
+  const setActiveTab = useCallback((tabId, { replace = false } = {}) => {
+    if (!tabIds.has(tabId)) return;
+
+    setActiveTabState(tabId);
+    const nextUrl = `${window.location.pathname}${window.location.search}#${tabId}`;
+    if (window.location.hash === `#${tabId}`) return;
+
+    if (replace) {
+      window.history.replaceState(null, "", nextUrl);
+    } else {
+      window.history.pushState(null, "", nextUrl);
+    }
+  }, []);
 
   const activeCode = participant?.code || scannedCode || manualCode.trim();
   const savedTipCount = Object.values(tips).filter((tip) => tip.saved).length;
@@ -188,6 +208,19 @@ export default function App() {
       : ranking;
     return rows.sort((a, b) => b.points - a.points || a.name.localeCompare(b.name));
   }, [ranking, participant, currentPoints]);
+
+  useEffect(() => {
+    function syncTabFromUrl() {
+      setActiveTabState(getTabFromHash());
+    }
+
+    window.addEventListener("hashchange", syncTabFromUrl);
+    window.addEventListener("popstate", syncTabFromUrl);
+    return () => {
+      window.removeEventListener("hashchange", syncTabFromUrl);
+      window.removeEventListener("popstate", syncTabFromUrl);
+    };
+  }, []);
 
   useEffect(() => {
     async function bootstrap() {
