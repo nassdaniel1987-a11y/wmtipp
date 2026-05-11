@@ -483,7 +483,7 @@ function MatchCard({
       </div>
 
       <div className="match-body">
-        <TeamBlock flag={match.flagA} name={match.teamA} />
+        <TeamBlock flagCode={match.flagCodeA} name={match.teamA} />
         <ScoreControl
           value={tip.scoreA}
           onIncrease={() => changeScore(match.id, "scoreA", 1)}
@@ -497,7 +497,7 @@ function MatchCard({
           onDecrease={() => changeScore(match.id, "scoreB", -1)}
           disabled={locked}
         />
-        <TeamBlock flag={match.flagB} name={match.teamB} />
+        <TeamBlock flagCode={match.flagCodeB} name={match.teamB} />
       </div>
 
       <footer className="match-actions">
@@ -521,11 +521,17 @@ function MatchCard({
   );
 }
 
-function TeamBlock({ flag, name }) {
+function TeamBlock({ flagCode, name }) {
+  const flagSrc = flagCode ? `https://flagcdn.com/w160/${flagCode}.png` : "";
+
   return (
     <div className="team-block">
-      <span className="flag" aria-hidden="true">
-        {flag}
+      <span className="flag">
+        {flagSrc ? (
+          <img src={flagSrc} alt={`Flagge ${name}`} />
+        ) : (
+          <span aria-hidden="true">⚽</span>
+        )}
       </span>
       <strong>{name}</strong>
     </div>
