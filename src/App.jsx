@@ -525,6 +525,25 @@ export default function App() {
                   }));
                   return payload;
                 }}
+                onSaveParticipantTips={async (participantId, participantTips) => {
+                  const payload = await apiPost(
+                    "/api/admin-save-participant-tips",
+                    { participantId, tips: participantTips },
+                    adminSession?.access_token,
+                  );
+                  setAdminData((current) => ({
+                    ...current,
+                    tips: [
+                      ...(payload.tips ?? []),
+                      ...current.tips.filter(
+                        (tip) =>
+                          tip.participant_id !== participantId ||
+                          !(payload.tips ?? []).some((saved) => saved.match_id === tip.match_id),
+                      ),
+                    ],
+                  }));
+                  return payload;
+                }}
                 onSaveResult={handleSaveResult}
               />
             )}
@@ -944,6 +963,7 @@ function AdminPanel({
   onCreateCodes,
   onCreateParticipant,
   onDeleteParticipant,
+  onSaveParticipantTips,
   onSaveResult,
 }) {
   const [email, setEmail] = useState("");
@@ -952,6 +972,8 @@ function AdminPanel({
   const [newParticipantName, setNewParticipantName] = useState("");
   const [adminMessage, setAdminMessage] = useState("");
   const [resultDrafts, setResultDrafts] = useState({});
+  const [selectedParticipant, setSelectedParticipant] = useState(null);
+  const [participantTipDrafts, setParticipantTipDrafts] = useState({});
 
   async function submitLogin(event) {
     event.preventDefault();
@@ -1005,6 +1027,50 @@ function AdminPanel({
     try {
       await onDeleteParticipant(participantId);
       setAdminMessage(`${displayName} wurde geloescht.`);
+    } catch (error) {
+      setAdminMessage(error.message);
+    }
+  }
+
+  function openParticipant(participant) {
+    const existingTips = adminData.tips.filter((tip) => tip.participant_id === participant.id);
+    const drafts = Object.fromEntries(
+      matches.map((match) => {
+        const tip = existingTips.find((item) => item.match_id === match.id);
+        return [
+          match.id,
+          {
+            scoreA: Number.isInteger(tip?.score_a) ? tip.score_a : 0,
+            scoreB: Number.isInteger(tip?.score_b) ? tip.score_b : 0,
+            saved: Boolean(tip),
+          },
+        ];
+      }),
+    );
+    setSelectedParticipant(participant);
+    setParticipantTipDrafts(drafts);
+  }
+
+  async function saveSelectedParticipantTips(matchIds) {
+    if (!selectedParticipant) return;
+    try {
+      const payload = await onSaveParticipantTips(
+        selectedParticipant.id,
+        matchIds.map((matchId) => ({
+          matchId,
+          scoreA: participantTipDrafts[matchId].scoreA,
+          scoreB: participantTipDrafts[matchId].scoreB,
+        })),
+      );
+      const savedIds = new Set((payload.tips ?? []).map((tip) => tip.match_id));
+      setParticipantTipDrafts((current) => {
+        const next = { ...current };
+        savedIds.forEach((matchId) => {
+          next[matchId] = { ...next[matchId], saved: true };
+        });
+        return next;
+      });
+      setAdminMessage(`Tipps fuer ${selectedParticipant.display_name} gespeichert.`);
     } catch (error) {
       setAdminMessage(error.message);
     }
@@ -1116,7 +1182,9 @@ function AdminPanel({
           const code = adminData.codes.find((item) => item.participant?.id === participant.id);
           return (
             <div className="participant-row" key={participant.id}>
-              <strong>{participant.display_name}</strong>
+              <button className="participant-open" onClick={() => openParticipant(participant)}>
+                {participant.display_name}
+              </button>
               <span>{code?.code || "ohne Code"}</span>
               <button
                 className="danger-button"
@@ -1167,6 +1235,78 @@ function AdminPanel({
           );
         })}
       </div>
+
+      {selectedParticipant && (
+        <div className="modal-backdrop" role="presentation">
+          <section className="participant-modal" role="dialog" aria-modal="true">
+            <header>
+              <div>
+                <h2>{selectedParticipant.display_name}</h2>
+                <p>Tipps ansehen oder stellvertretend eintragen.</p>
+              </div>
+              <button className="icon-button" onClick={() => setSelectedParticipant(null)}>
+                ×
+              </button>
+            </header>
+
+            <div className="participant-tip-list">
+              {matches.map((match) => {
+                const draft = participantTipDrafts[match.id] ?? { scoreA: 0, scoreB: 0 };
+                return (
+                  <div className="participant-tip-row" key={match.id}>
+                    <span>Spiel {match.matchNumber}</span>
+                    <strong>{match.teamA} - {match.teamB}</strong>
+                    <input
+                      type="number"
+                      min="0"
+                      max="12"
+                      value={draft.scoreA}
+                      onChange={(event) =>
+                        setParticipantTipDrafts((current) => ({
+                          ...current,
+                          [match.id]: {
+                            ...current[match.id],
+                            scoreA: Number(event.target.value),
+                            saved: false,
+                          },
+                        }))
+                      }
+                    />
+                    <input
+                      type="number"
+                      min="0"
+                      max="12"
+                      value={draft.scoreB}
+                      onChange={(event) =>
+                        setParticipantTipDrafts((current) => ({
+                          ...current,
+                          [match.id]: {
+                            ...current[match.id],
+                            scoreB: Number(event.target.value),
+                            saved: false,
+                          },
+                        }))
+                      }
+                    />
+                    <button className="save-tip" onClick={() => saveSelectedParticipantTips([match.id])}>
+                      {draft.saved ? "Gespeichert" : "Speichern"}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            <footer>
+              <button
+                className="primary-button compact"
+                onClick={() => saveSelectedParticipantTips(matches.map((match) => match.id))}
+              >
+                Alle Tipps speichern
+              </button>
+            </footer>
+          </section>
+        </div>
+      )}
     </section>
   );
 }

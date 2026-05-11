@@ -997,6 +997,15 @@ tbody tr:nth-child(1) td:first-child {
   background: #ffffff;
 }
 
+.participant-open {
+  border: 0;
+  padding: 0;
+  color: var(--blue);
+  background: transparent;
+  font-weight: 900;
+  text-align: left;
+}
+
 .participant-row span {
   color: var(--muted);
   font-weight: 800;
@@ -1033,6 +1042,92 @@ tbody tr:nth-child(1) td:first-child {
 .result-row .save-tip {
   min-height: 40px;
   justify-content: center;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(7, 27, 69, 0.48);
+}
+
+.participant-modal {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  width: min(980px, 100%);
+  max-height: min(860px, calc(100vh - 48px));
+  border: 1px solid #cbdbea;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 28px 80px rgba(7, 27, 69, 0.28);
+  overflow: hidden;
+}
+
+.participant-modal header,
+.participant-modal footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  padding: 18px 20px;
+  border-bottom: 1px solid #e1ebf4;
+}
+
+.participant-modal footer {
+  border-top: 1px solid #e1ebf4;
+  border-bottom: 0;
+}
+
+.participant-modal h2,
+.participant-modal p {
+  margin: 0;
+}
+
+.participant-modal p {
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.participant-modal .icon-button {
+  font-size: 1.4rem;
+  font-weight: 900;
+}
+
+.participant-tip-list {
+  display: grid;
+  gap: 9px;
+  overflow: auto;
+  padding: 16px 20px;
+  background: #f7fbff;
+}
+
+.participant-tip-row {
+  display: grid;
+  grid-template-columns: 78px minmax(180px, 1fr) 70px 70px 120px;
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid #dbe7f2;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.participant-tip-row span {
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.participant-tip-row input {
+  min-height: 42px;
+  border: 1px solid #cad9e8;
+  border-radius: 8px;
+  padding: 0 10px;
+  color: var(--navy);
+  font-weight: 900;
 }
 
 .code-card {
@@ -1199,8 +1294,13 @@ tbody tr:nth-child(1) td:first-child {
   .admin-actions,
   .admin-stats,
   .participant-row,
+  .participant-tip-row,
   .result-row {
     grid-template-columns: 1fr;
+  }
+
+  .modal-backdrop {
+    padding: 10px;
   }
 }
 
