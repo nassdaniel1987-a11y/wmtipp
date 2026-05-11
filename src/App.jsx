@@ -568,12 +568,12 @@ function StartPanel({
     codeStatus === "claimed"
       ? "Code aktiviert"
       : codeStatus === "free"
-        ? "Code erkannt"
+        ? "Freier Einladungscode"
         : codeStatus === "checking"
           ? "Code wird geprueft"
           : activeCode
             ? "Code nicht gefunden"
-            : "Kein QR-Code";
+            : "Code vom QR-Zettel eingeben";
 
   return (
     <>
@@ -597,11 +597,11 @@ function StartPanel({
 
       {!participant && !hasScannedCode && (
         <label className="manual-code">
-          Anmeldecode eingeben
+          Code vom QR-Zettel oder Admin eingeben
           <input
             value={manualCode}
             onChange={(event) => setManualCode(event.target.value.toUpperCase())}
-            placeholder="WM-ABCDE-12345"
+            placeholder="z. B. WM-7K2QD-9X4LA"
           />
         </label>
       )}
@@ -636,8 +636,8 @@ function StartPanel({
       )}
 
       <p className="fine-print">
-        Jeder QR-Code kann nur einem Namen zugeordnet werden. Danach werden die
-        Tipps in Supabase gespeichert.
+        Den Code bekommst du als QR-Code oder Nummer vom Admin. Er wird nicht
+        geraten oder selbst erzeugt. Danach werden die Tipps in Supabase gespeichert.
       </p>
 
       <div className="goal-illustration" aria-hidden="true">
@@ -1053,7 +1053,7 @@ function AdminPanel({
 
       <div className="admin-create">
         <label>
-          Neue QR-Codes
+          Freie QR-/Anmeldecodes erzeugen
           <input
             type="number"
             min="1"
@@ -1067,7 +1067,7 @@ function AdminPanel({
 
       <div className="admin-create participant-create">
         <label>
-          Nutzer direkt anlegen
+          Nutzer direkt mit eigenem Code anlegen
           <input
             value={newParticipantName}
             onChange={(event) => setNewParticipantName(event.target.value)}
@@ -1092,6 +1092,10 @@ function AdminPanel({
       </div>
 
       <h3>QR-Codes</h3>
+      <p className="fine-print">
+        Diese Codes werden an Teilnehmende ausgegeben. Der komplette Link kann
+        als QR-Code gedruckt werden; die Nummer kann am PC manuell eingegeben werden.
+      </p>
       <div className="admin-grid">
         {adminData.codes.slice(0, 12).map((row) => (
           <article key={row.id} className={`code-card ${row.status}`}>
