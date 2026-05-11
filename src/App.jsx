@@ -41,6 +41,11 @@ const tabs = [
   { id: "admin", label: "Admin", icon: ShieldCheck },
 ];
 const groupFilters = ["alle", "deutschland", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"];
+const codeStatusLabels = {
+  free: "frei",
+  claimed: "vergeben",
+  disabled: "ungueltig",
+};
 
 function getInitialCode() {
   const params = new URLSearchParams(window.location.search);
@@ -529,11 +534,21 @@ export default function App() {
                     tips: current.tips.filter(
                       (tip) => tip.participant_id !== payload.deletedParticipantId,
                     ),
-                    codes: current.codes.map((code) =>
-                      code.id === payload.freedCodeId
-                        ? { ...code, status: "free", participant: null, claimed_at: null }
-                        : code,
+                    codes: current.codes.filter(
+                      (code) => code.id !== payload.deletedCodeId,
                     ),
+                  }));
+                  return payload;
+                }}
+                onDeleteCode={async (codeId) => {
+                  const payload = await apiPost(
+                    "/api/admin-delete-code",
+                    { codeId },
+                    adminSession?.access_token,
+                  );
+                  setAdminData((current) => ({
+                    ...current,
+                    codes: current.codes.filter((code) => code.id !== payload.deletedCodeId),
                   }));
                   return payload;
                 }}
@@ -979,6 +994,7 @@ function AdminPanel({
   onCreateCodes,
   onCreateParticipant,
   onDeleteParticipant,
+  onDeleteCode,
   onSaveParticipantTips,
   onSaveResult,
 }) {
@@ -1071,13 +1087,26 @@ function AdminPanel({
   }
 
   async function deleteParticipant(participantId, displayName) {
-    if (!window.confirm(`${displayName} wirklich loeschen? Die Tipps werden entfernt und der Code wird wieder frei.`)) {
+    if (!window.confirm(`${displayName} wirklich loeschen? Die Tipps und der QR-Code werden entfernt.`)) {
       return;
     }
 
     try {
       await onDeleteParticipant(participantId);
       setAdminMessage(`${displayName} wurde geloescht.`);
+    } catch (error) {
+      setAdminMessage(error.message);
+    }
+  }
+
+  async function deleteCode(codeId, code) {
+    if (!window.confirm(`${code} wirklich loeschen? Dieser QR-Code kann danach nicht mehr benutzt werden.`)) {
+      return;
+    }
+
+    try {
+      await onDeleteCode(codeId);
+      setAdminMessage(`${code} wurde geloescht.`);
     } catch (error) {
       setAdminMessage(error.message);
     }
@@ -1218,8 +1247,13 @@ function AdminPanel({
           <article key={row.id} className={`code-card ${row.status}`}>
             <QrCode size={26} />
             <strong>{row.code}</strong>
-            <span>{row.participant?.display_name || row.status}</span>
+            <span>{row.participant?.display_name || codeStatusLabels[row.status] || row.status}</span>
             <small>{`${window.location.origin}/?code=${row.code}`}</small>
+            {row.status === "free" && !row.participant && (
+              <button className="danger-button code-delete" onClick={() => deleteCode(row.id, row.code)}>
+                Code loeschen
+              </button>
+            )}
           </article>
         ))}
       </div>

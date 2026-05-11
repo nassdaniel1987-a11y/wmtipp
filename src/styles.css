@@ -1225,14 +1225,25 @@ tbody tr:nth-child(1) td:first-child {
   overflow-wrap: anywhere;
 }
 
+.code-delete {
+  justify-self: start;
+  min-height: 36px;
+  margin-top: 4px;
+  padding: 0 12px;
+  font-size: 0.84rem;
+}
+
+.code-card.free,
 .code-card.frei {
   box-shadow: inset 4px 0 0 var(--green);
 }
 
+.code-card.claimed,
 .code-card.vergeben {
   box-shadow: inset 4px 0 0 var(--yellow);
 }
 
+.code-card.disabled,
 .code-card.ungueltig {
   box-shadow: inset 4px 0 0 #d92d20;
 }

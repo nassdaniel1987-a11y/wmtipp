@@ -26,16 +26,12 @@ export default async (req) => {
 
     const { error: codeError } = await supabase
       .from("invite_codes")
-      .update({
-        status: "free",
-        participant_id: null,
-        claimed_at: null,
-      })
+      .delete()
       .eq("id", participant.invite_code_id);
 
     if (codeError) throw codeError;
 
-    return json({ deletedParticipantId: participantId, freedCodeId: participant.invite_code_id });
+    return json({ deletedParticipantId: participantId, deletedCodeId: participant.invite_code_id });
   } catch (error) {
     return json({ error: error.message || "Nutzer konnte nicht geloescht werden." }, 401);
   }
