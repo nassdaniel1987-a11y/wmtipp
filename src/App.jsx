@@ -610,8 +610,8 @@ export default function App() {
           </section>
 
           <aside className="side-stack">
-            <RankingPanel ranking={displayRanking} />
-            <UpcomingPanel matches={matches} />
+            <RankingPanel ranking={displayRanking} setActiveTab={setActiveTab} />
+            <UpcomingPanel matches={matches} setActiveTab={setActiveTab} />
             <KnockoutPanel />
           </aside>
         </div>
@@ -928,7 +928,7 @@ function ScoreControl({ value, onIncrease, onDecrease, disabled }) {
   );
 }
 
-function RankingPanel({ ranking: rows, expanded = false }) {
+function RankingPanel({ ranking: rows, expanded = false, setActiveTab }) {
   const visibleRows = expanded ? rows : rows.slice(0, 10);
   return (
     <section className={`ranking-panel panel ${expanded ? "expanded" : ""}`}>
@@ -960,12 +960,16 @@ function RankingPanel({ ranking: rows, expanded = false }) {
           ))}
         </tbody>
       </table>
-      {!expanded && <button className="ghost-button">Zur vollstaendigen Rangliste</button>}
+      {!expanded && (
+        <button className="ghost-button" onClick={() => setActiveTab?.("rangliste")}>
+          Zur vollstaendigen Rangliste
+        </button>
+      )}
     </section>
   );
 }
 
-function UpcomingPanel({ matches }) {
+function UpcomingPanel({ matches, setActiveTab }) {
   return (
     <section className="upcoming-panel panel">
       <header className="section-title">
@@ -980,7 +984,9 @@ function UpcomingPanel({ matches }) {
           <strong>{match.teamB}</strong>
         </div>
       ))}
-      <button className="ghost-button">Alle Spiele im Tippbereich</button>
+      <button className="ghost-button" onClick={() => setActiveTab?.("tippen")}>
+        Alle Spiele im Tippbereich
+      </button>
     </section>
   );
 }
