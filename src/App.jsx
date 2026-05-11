@@ -72,6 +72,8 @@ function mapDbMatch(row) {
     venue: row.venue,
     city: row.city,
     status: row.status,
+    teamKeyA: row.team_a,
+    teamKeyB: row.team_b,
   };
 }
 
@@ -139,7 +141,7 @@ export default function App() {
   const activeCode = participant?.code || scannedCode || manualCode.trim();
   const savedTipCount = Object.values(tips).filter((tip) => tip.saved).length;
   const featuredMatch =
-    matches.find((match) => match.teamA === "Germany" || match.teamB === "Germany") ??
+    matches.find((match) => match.teamA === "Deutschland" || match.teamB === "Deutschland") ??
     matches[0];
   const resultsByMatch = useMemo(
     () => new Map(results.map((result) => [result.match_id, result])),
@@ -152,7 +154,7 @@ export default function App() {
       const groupMatch =
         groupFilter === "alle" ||
         (groupFilter === "deutschland" &&
-          [match.teamA, match.teamB].includes("Germany")) ||
+          [match.teamA, match.teamB].includes("Deutschland")) ||
         match.groupKey === groupFilter;
       const queryMatch =
         !query ||

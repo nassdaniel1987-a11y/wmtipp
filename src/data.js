@@ -62,6 +62,58 @@ const teamFlagCodes = {
   Uzbekistan: "uz",
 };
 
+const germanTeamNames = {
+  Algeria: "Algerien",
+  Argentina: "Argentinien",
+  Australia: "Australien",
+  Austria: "Österreich",
+  Belgium: "Belgien",
+  "Bosnia & Herzegovina": "Bosnien und Herzegowina",
+  Brazil: "Brasilien",
+  Canada: "Kanada",
+  "Cape Verde": "Kap Verde",
+  Colombia: "Kolumbien",
+  Croatia: "Kroatien",
+  Curaçao: "Curaçao",
+  Czechia: "Tschechien",
+  "DR Congo": "DR Kongo",
+  Ecuador: "Ecuador",
+  Egypt: "Ägypten",
+  England: "England",
+  France: "Frankreich",
+  Germany: "Deutschland",
+  Ghana: "Ghana",
+  Haiti: "Haiti",
+  Iran: "IR Iran",
+  Iraq: "Irak",
+  "Ivory Coast": "Elfenbeinküste",
+  Japan: "Japan",
+  Jordan: "Jordanien",
+  Mexico: "Mexiko",
+  Morocco: "Marokko",
+  Netherlands: "Niederlande",
+  "New Zealand": "Neuseeland",
+  Norway: "Norwegen",
+  Panama: "Panama",
+  Paraguay: "Paraguay",
+  Portugal: "Portugal",
+  Qatar: "Katar",
+  "Saudi Arabia": "Saudi-Arabien",
+  Scotland: "Schottland",
+  Senegal: "Senegal",
+  Serbia: "Serbien",
+  "South Africa": "Südafrika",
+  "South Korea": "Republik Korea",
+  Spain: "Spanien",
+  Sweden: "Schweden",
+  Switzerland: "Schweiz",
+  Tunisia: "Tunesien",
+  Türkiye: "Türkei",
+  Uruguay: "Uruguay",
+  "United States": "USA",
+  Uzbekistan: "Usbekistan",
+};
+
 const groupStageRows = [
   ["2026-06-11", "16:00", "Mexico", "South Africa", "Estadio Banorte", "Mexico City", "A"],
   ["2026-06-11", "23:00", "South Korea", "Czechia", "Estadio Akron", "Guadalajara", "A"],
@@ -219,6 +271,8 @@ function kickoffUtcFromBerlin(date, time) {
 export const matches = fifaScheduleRows.map(
   ([date, time, teamA, teamB, venue, city, group], index) => {
     const kickoffAt = kickoffUtcFromBerlin(date, time);
+    const displayTeamA = germanTeamNames[teamA] ?? teamA;
+    const displayTeamB = germanTeamNames[teamB] ?? teamB;
 
     return {
       id: `m${String(index + 1).padStart(2, "0")}`,
@@ -230,8 +284,10 @@ export const matches = fifaScheduleRows.map(
       time,
       kickoffAt,
       kickoff: `${date} · ${time} Uhr`,
-      teamA,
-      teamB,
+      teamA: displayTeamA,
+      teamB: displayTeamB,
+      teamKeyA: teamA,
+      teamKeyB: teamB,
       flagCodeA: teamFlagCodes[teamA] ?? "",
       flagCodeB: teamFlagCodes[teamB] ?? "",
       venue,
