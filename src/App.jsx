@@ -8,14 +8,22 @@ import {
   CircleUserRound,
   Goal,
   House,
+  ListFilter,
   LogOut,
   Medal,
   QrCode,
+  Search,
   ShieldCheck,
   Trophy,
   UsersRound,
 } from "lucide-react";
-import { demoCodes, matches, ranking } from "./data.js";
+import {
+  demoCodes,
+  knockoutPreview,
+  matches,
+  ranking,
+  scheduleSource,
+} from "./data.js";
 
 const STORAGE_KEY = "wm-tippspiel-prototyp";
 const tabs = [
@@ -24,6 +32,8 @@ const tabs = [
   { id: "rangliste", label: "Rangliste", icon: Trophy },
   { id: "admin", label: "Admin", icon: ShieldCheck },
 ];
+
+const groupFilters = ["alle", "deutschland", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"];
 
 function getInitialCode() {
   const params = new URLSearchParams(window.location.search);
@@ -39,8 +49,32 @@ function loadSavedState() {
   }
 }
 
+function createInitialTips(savedTips = {}) {
+  return Object.fromEntries(
+    matches.map((match) => {
+      const saved = savedTips[match.id];
+      return [
+        match.id,
+        {
+          scoreA: Number.isInteger(saved?.scoreA) ? saved.scoreA : 0,
+          scoreB: Number.isInteger(saved?.scoreB) ? saved.scoreB : 0,
+          saved: Boolean(saved?.saved),
+        },
+      ];
+    }),
+  );
+}
+
 function clampScore(value) {
   return Math.max(0, Math.min(12, value));
+}
+
+function formatDate(date) {
+  return new Intl.DateTimeFormat("de-DE", {
+    weekday: "short",
+    day: "2-digit",
+    month: "2-digit",
+  }).format(new Date(`${date}T12:00:00`));
 }
 
 export default function App() {
@@ -49,25 +83,38 @@ export default function App() {
   const [activeTab, setActiveTab] = useState("start");
   const [participant, setParticipant] = useState(savedState?.participant ?? null);
   const [name, setName] = useState(savedState?.participant?.name ?? "");
-  const [tips, setTips] = useState(
-    savedState?.tips ??
-      Object.fromEntries(
-        matches.map((match) => [
-          match.id,
-          {
-            scoreA: match.scoreA ?? 0,
-            scoreB: match.scoreB ?? 0,
-            saved: false,
-          },
-        ]),
-      ),
-  );
+  const [tips, setTips] = useState(createInitialTips(savedState?.tips));
   const [lastSavedMatch, setLastSavedMatch] = useState("");
+  const [groupFilter, setGroupFilter] = useState("alle");
+  const [searchTerm, setSearchTerm] = useState("");
 
   const activeCode = participant?.code || scannedCode || "DEMO-001";
   const knownCode = demoCodes.find((item) => item.code === activeCode);
   const codeState = knownCode?.status ?? (scannedCode ? "frei" : "demo");
   const canJoin = codeState === "frei" || codeState === "demo" || participant;
+
+  const savedTipCount = Object.values(tips).filter((tip) => tip.saved).length;
+  const featuredMatch =
+    matches.find((match) => match.teamA === "Germany" || match.teamB === "Germany") ??
+    matches[0];
+
+  const filteredMatches = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase();
+    return matches.filter((match) => {
+      const groupMatch =
+        groupFilter === "alle" ||
+        (groupFilter === "deutschland" &&
+          [match.teamA, match.teamB].includes("Germany")) ||
+        match.groupKey === groupFilter;
+      const queryMatch =
+        !query ||
+        [match.teamA, match.teamB, match.city, match.venue, match.group]
+          .join(" ")
+          .toLowerCase()
+          .includes(query);
+      return groupMatch && queryMatch;
+    });
+  }, [groupFilter, searchTerm]);
 
   useEffect(() => {
     window.localStorage.setItem(
@@ -89,14 +136,9 @@ export default function App() {
     setParticipant(null);
     setName("");
     setLastSavedMatch("");
-    setTips(
-      Object.fromEntries(
-        matches.map((match) => [
-          match.id,
-          { scoreA: match.scoreA ?? 0, scoreB: match.scoreB ?? 0, saved: false },
-        ]),
-      ),
-    );
+    setTips(createInitialTips());
+    setGroupFilter("alle");
+    setSearchTerm("");
     setActiveTab("start");
   }
 
@@ -117,6 +159,17 @@ export default function App() {
       [matchId]: { ...current[matchId], saved: true },
     }));
     setLastSavedMatch(matchId);
+  }
+
+  function saveVisibleTips() {
+    setTips((current) => {
+      const next = { ...current };
+      filteredMatches.forEach((match) => {
+        next[match.id] = { ...next[match.id], saved: true };
+      });
+      return next;
+    });
+    setLastSavedMatch(filteredMatches[0]?.id ?? "");
   }
 
   const displayRanking = participant
@@ -164,8 +217,8 @@ export default function App() {
 
       <main className="stadium">
         <section className="scoreboard-strip" aria-label="Turnieruebersicht">
-          <span>Ganztagsschule Cup</span>
-          <strong>Tippen · Mitfiebern · Punkte sammeln</strong>
+          <span>WM 2026 · 72 Gruppenspiele</span>
+          <strong>{savedTipCount} von {matches.length} Tipps gespeichert</strong>
           <span>Demo-Code: DEMO-001</span>
         </section>
 
@@ -177,6 +230,7 @@ export default function App() {
               codeState={codeState}
               name={name}
               participant={participant}
+              savedTipCount={savedTipCount}
               setName={setName}
               saveParticipant={saveParticipant}
               setActiveTab={setActiveTab}
@@ -186,9 +240,10 @@ export default function App() {
           <section className="center-stage">
             {activeTab === "start" && (
               <>
+                <ScheduleSummary />
                 <MatchCard
-                  match={matches[0]}
-                  tip={tips[matches[0].id]}
+                  match={featuredMatch}
+                  tip={tips[featuredMatch.id]}
                   changeScore={changeScore}
                   saveTip={saveTip}
                   lastSavedMatch={lastSavedMatch}
@@ -200,20 +255,19 @@ export default function App() {
             )}
 
             {activeTab === "tippen" && (
-              <div className="match-stack">
-                {matches.map((match, index) => (
-                  <MatchCard
-                    key={match.id}
-                    match={match}
-                    tip={tips[match.id]}
-                    changeScore={changeScore}
-                    saveTip={saveTip}
-                    lastSavedMatch={lastSavedMatch}
-                    locked={!participant}
-                    featured={index === 0}
-                  />
-                ))}
-              </div>
+              <TipScreen
+                filteredMatches={filteredMatches}
+                groupFilter={groupFilter}
+                searchTerm={searchTerm}
+                setGroupFilter={setGroupFilter}
+                setSearchTerm={setSearchTerm}
+                tips={tips}
+                changeScore={changeScore}
+                saveTip={saveTip}
+                saveVisibleTips={saveVisibleTips}
+                lastSavedMatch={lastSavedMatch}
+                locked={!participant}
+              />
             )}
 
             {activeTab === "rangliste" && (
@@ -226,6 +280,7 @@ export default function App() {
           <aside className="side-stack">
             <RankingPanel ranking={displayRanking} />
             <UpcomingPanel />
+            <KnockoutPanel />
           </aside>
         </div>
       </main>
@@ -239,6 +294,7 @@ function StartPanel({
   codeState,
   name,
   participant,
+  savedTipCount,
   setName,
   saveParticipant,
   setActiveTab,
@@ -267,10 +323,10 @@ function StartPanel({
         <div className="saved-user">
           <CircleUserRound size={34} />
           <div>
-            <small>Name gespeichert</small>
+            <small>Name gespeichert · {savedTipCount} Tipps</small>
             <strong>{participant.name}</strong>
           </div>
-          <button onClick={() => setActiveTab("tippen")}>Zum Tippen</button>
+          <button onClick={() => setActiveTab("tippen")}>Zum WM-Plan</button>
         </div>
       ) : (
         <form onSubmit={saveParticipant} className="join-form">
@@ -286,7 +342,7 @@ function StartPanel({
             <Check size={20} />
           </div>
           <button className="primary-button" disabled={!name.trim() || !canJoin}>
-            Tipp speichern
+            Freischalten
             <ChevronRight size={19} />
           </button>
         </form>
@@ -305,6 +361,101 @@ function StartPanel({
   );
 }
 
+function ScheduleSummary() {
+  return (
+    <section className="schedule-summary panel">
+      <header>
+        <CalendarDays size={25} />
+        <div>
+          <h2>Offizieller WM-Plan als Tippgrundlage</h2>
+          <p>{scheduleSource.label}</p>
+        </div>
+      </header>
+      <div className="summary-stats">
+        <strong>72<span>Gruppenspiele</span></strong>
+        <strong>12<span>Gruppen</span></strong>
+        <strong>11.06.-27.06.<span>Gruppenphase</span></strong>
+      </div>
+    </section>
+  );
+}
+
+function TipScreen({
+  filteredMatches,
+  groupFilter,
+  searchTerm,
+  setGroupFilter,
+  setSearchTerm,
+  tips,
+  changeScore,
+  saveTip,
+  saveVisibleTips,
+  lastSavedMatch,
+  locked,
+}) {
+  return (
+    <div className="tip-screen">
+      <section className="tip-toolbar panel">
+        <div className="toolbar-title">
+          <ListFilter size={24} />
+          <div>
+            <h2>WM-Plan tippen</h2>
+            <p>{filteredMatches.length} Spiele sichtbar · Ergebnis-Tipp mit Torzahlen</p>
+          </div>
+        </div>
+
+        <label className="search-field">
+          <Search size={18} />
+          <input
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+            placeholder="Team, Gruppe oder Stadt suchen"
+          />
+        </label>
+
+        <div className="filter-row" aria-label="Gruppenfilter">
+          {groupFilters.map((filter) => (
+            <button
+              key={filter}
+              className={groupFilter === filter ? "active" : ""}
+              onClick={() => setGroupFilter(filter)}
+            >
+              {filter === "alle"
+                ? "Alle"
+                : filter === "deutschland"
+                  ? "Deutschland"
+                  : `Gr. ${filter}`}
+            </button>
+          ))}
+        </div>
+
+        <button
+          className="primary-button compact"
+          disabled={locked || filteredMatches.length === 0}
+          onClick={saveVisibleTips}
+        >
+          Sichtbare Tipps speichern
+          <Check size={18} />
+        </button>
+      </section>
+
+      <div className="match-stack">
+        {filteredMatches.map((match) => (
+          <MatchCard
+            key={match.id}
+            match={match}
+            tip={tips[match.id]}
+            changeScore={changeScore}
+            saveTip={saveTip}
+            lastSavedMatch={lastSavedMatch}
+            locked={locked}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function MatchCard({
   match,
   tip,
@@ -318,14 +469,18 @@ function MatchCard({
     <article className={`match-card panel ${featured ? "featured" : ""}`}>
       <header className="match-header">
         <div>
-          <strong>{match.status}</strong>
-          <span>{match.group}</span>
+          <strong>Spiel {match.matchNumber}</strong>
+          <span>{match.status} · {match.group}</span>
         </div>
         <span className="match-time">
           <CalendarDays size={17} />
-          {match.kickoff}
+          {formatDate(match.date)} · {match.time} ET
         </span>
       </header>
+
+      <div className="venue-line">
+        {match.city} · {match.venue}
+      </div>
 
       <div className="match-body">
         <TeamBlock flag={match.flagA} name={match.teamA} />
@@ -359,7 +514,7 @@ function MatchCard({
             ? "Erst Namen eintragen"
             : tip.saved || lastSavedMatch === match.id
               ? "Tipp gespeichert"
-              : "Bereit zum Speichern"}
+              : "Noch nicht gespeichert"}
         </span>
       </footer>
     </article>
@@ -428,21 +583,36 @@ function UpcomingPanel() {
     <section className="upcoming-panel panel">
       <header className="section-title">
         <CalendarDays size={24} />
-        <h2>Weitere Spiele heute</h2>
+        <h2>Erste WM-Spiele</h2>
       </header>
-      <div className="fixture-row">
-        <span>15:00 Uhr</span>
-        <strong>Marokko</strong>
-        <b>1 : 1</b>
-        <strong>Kroatien</strong>
+      {matches.slice(0, 5).map((match) => (
+        <div className="fixture-row" key={match.id}>
+          <span>{formatDate(match.date)}</span>
+          <strong>{match.teamA}</strong>
+          <b>{match.time}</b>
+          <strong>{match.teamB}</strong>
+        </div>
+      ))}
+      <button className="ghost-button">Alle 72 Gruppenspiele im Tippbereich</button>
+    </section>
+  );
+}
+
+function KnockoutPanel() {
+  return (
+    <section className="knockout-panel panel">
+      <header className="section-title">
+        <Medal size={24} />
+        <h2>K.-o.-Runde</h2>
+      </header>
+      <div className="knockout-list">
+        {knockoutPreview.map((item) => (
+          <div key={`${item.date}-${item.round}`}>
+            <strong>{item.round}</strong>
+            <span>{formatDate(item.date)} · {item.label}</span>
+          </div>
+        ))}
       </div>
-      <div className="fixture-row">
-        <span>18:00 Uhr</span>
-        <strong>Spanien</strong>
-        <b>- : -</b>
-        <strong>Schweiz</strong>
-      </div>
-      <button className="ghost-button">Alle Spiele anzeigen</button>
     </section>
   );
 }
@@ -452,8 +622,8 @@ function InfoBanner() {
     <aside className="info-banner">
       <Medal size={42} />
       <div>
-        <strong>Mit jedem richtigen Tipp sammelst du Punkte!</strong>
-        <span>Zeig dein Fussballwissen und bringe deine Schule an die Spitze.</span>
+        <strong>Jetzt werden echte Gruppenspiele getippt.</strong>
+        <span>Die K.-o.-Runde ist vorbereitet und bekommt spaeter die qualifizierten Teams.</span>
       </div>
     </aside>
   );
