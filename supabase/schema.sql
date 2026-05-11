@@ -37,11 +37,20 @@ create table if not exists public.participants (
   created_at timestamptz not null default now()
 );
 
-alter table public.invite_codes
-  add constraint invite_codes_participant_id_fkey
-  foreign key (participant_id)
-  references public.participants(id)
-  on delete set null;
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'invite_codes_participant_id_fkey'
+  ) then
+    alter table public.invite_codes
+      add constraint invite_codes_participant_id_fkey
+      foreign key (participant_id)
+      references public.participants(id)
+      on delete set null;
+  end if;
+end $$;
 
 create table if not exists public.tips (
   id uuid primary key default gen_random_uuid(),
@@ -73,6 +82,15 @@ alter table public.participants enable row level security;
 alter table public.tips enable row level security;
 alter table public.results enable row level security;
 alter table public.admins enable row level security;
+
+grant select on public.matches to anon, authenticated;
+grant select on public.results to anon, authenticated;
+grant select, insert, update, delete on public.matches to authenticated;
+grant select, insert, update, delete on public.invite_codes to authenticated;
+grant select, insert, update, delete on public.participants to authenticated;
+grant select, insert, update, delete on public.tips to authenticated;
+grant select, insert, update, delete on public.results to authenticated;
+grant select on public.admins to authenticated;
 
 create or replace function public.is_admin()
 returns boolean
@@ -142,3 +160,12 @@ using (public.is_admin());
 -- Participant QR-code actions should ideally run through Netlify Functions
 -- with the Supabase secret/service role key, so users cannot enumerate codes.
 -- The frontend publishable key reads only public schedule/results directly.
+
+-- First admin setup:
+-- 1. Create a user in Supabase Dashboard > Authentication > Users.
+-- 2. Copy that user's UUID.
+-- 3. Run this manually with your values:
+--
+-- insert into public.admins (user_id, email)
+-- values ('USER_UUID_HERE', 'admin@example.com')
+-- on conflict (user_id) do update set email = excluded.email;

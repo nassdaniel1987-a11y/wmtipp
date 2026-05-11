@@ -18,21 +18,27 @@ import {
   UsersRound,
 } from "lucide-react";
 import {
-  demoCodes,
+  apiGet,
+  apiPost,
+  getAdminSession,
+  loadDbMatches,
+  loadResults,
+  signInAdmin,
+  signOutAdmin,
+} from "./api.js";
+import {
   knockoutPreview,
-  matches,
-  ranking,
+  matches as fallbackMatches,
   scheduleSource,
 } from "./data.js";
 
-const STORAGE_KEY = "wm-tippspiel-prototyp";
+const STORAGE_KEY = "wm-tippspiel-participant";
 const tabs = [
   { id: "start", label: "Start", icon: House },
   { id: "tippen", label: "Tippen", icon: Goal },
   { id: "rangliste", label: "Rangliste", icon: Trophy },
   { id: "admin", label: "Admin", icon: ShieldCheck },
 ];
-
 const groupFilters = ["alle", "deutschland", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"];
 
 function getInitialCode() {
@@ -40,7 +46,7 @@ function getInitialCode() {
   return params.get("code")?.trim() || "";
 }
 
-function loadSavedState() {
+function loadSavedParticipant() {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     return raw ? JSON.parse(raw) : null;
@@ -49,16 +55,36 @@ function loadSavedState() {
   }
 }
 
-function createInitialTips(savedTips = {}) {
+function mapDbMatch(row) {
+  return {
+    id: row.id,
+    matchNumber: row.match_number,
+    phase: row.phase,
+    group: `Gruppe ${row.group_key}`,
+    groupKey: row.group_key,
+    date: row.match_date,
+    time: row.match_time,
+    teamA: row.team_a,
+    teamB: row.team_b,
+    flagCodeA: row.flag_code_a,
+    flagCodeB: row.flag_code_b,
+    venue: row.venue,
+    city: row.city,
+    status: row.status,
+  };
+}
+
+function createInitialTips(matches, savedTips = []) {
+  const savedByMatch = new Map(savedTips.map((tip) => [tip.match_id, tip]));
   return Object.fromEntries(
     matches.map((match) => {
-      const saved = savedTips[match.id];
+      const saved = savedByMatch.get(match.id);
       return [
         match.id,
         {
-          scoreA: Number.isInteger(saved?.scoreA) ? saved.scoreA : 0,
-          scoreB: Number.isInteger(saved?.scoreB) ? saved.scoreB : 0,
-          saved: Boolean(saved?.saved),
+          scoreA: Number.isInteger(saved?.score_a) ? saved.score_a : 0,
+          scoreB: Number.isInteger(saved?.score_b) ? saved.score_b : 0,
+          saved: Boolean(saved),
         },
       ];
     }),
@@ -77,26 +103,41 @@ function formatDate(date) {
   }).format(new Date(`${date}T12:00:00`));
 }
 
+function pointsFor(tip, result) {
+  if (!result || result.status !== "final") return 0;
+  if (tip.scoreA === result.score_a && tip.scoreB === result.score_b) return 4;
+  const tipTrend = Math.sign(tip.scoreA - tip.scoreB);
+  const resultTrend = Math.sign(result.score_a - result.score_b);
+  return tipTrend === resultTrend ? 2 : 0;
+}
+
 export default function App() {
-  const savedState = useMemo(() => loadSavedState(), []);
   const scannedCode = getInitialCode();
+  const savedParticipant = useMemo(() => loadSavedParticipant(), []);
   const [activeTab, setActiveTab] = useState("start");
-  const [participant, setParticipant] = useState(savedState?.participant ?? null);
-  const [name, setName] = useState(savedState?.participant?.name ?? "");
-  const [tips, setTips] = useState(createInitialTips(savedState?.tips));
+  const [participant, setParticipant] = useState(savedParticipant);
+  const [name, setName] = useState(savedParticipant?.name ?? "");
+  const [matches, setMatches] = useState(fallbackMatches);
+  const [results, setResults] = useState([]);
+  const [tips, setTips] = useState(createInitialTips(fallbackMatches));
+  const [ranking, setRanking] = useState([]);
   const [lastSavedMatch, setLastSavedMatch] = useState("");
   const [groupFilter, setGroupFilter] = useState("alle");
   const [searchTerm, setSearchTerm] = useState("");
+  const [appStatus, setAppStatus] = useState("Lade WM-Plan...");
+  const [codeStatus, setCodeStatus] = useState(scannedCode ? "checking" : "missing");
+  const [adminSession, setAdminSession] = useState(null);
+  const [adminData, setAdminData] = useState({ codes: [], participants: [], tips: [], results: [] });
 
-  const activeCode = participant?.code || scannedCode || "DEMO-001";
-  const knownCode = demoCodes.find((item) => item.code === activeCode);
-  const codeState = knownCode?.status ?? (scannedCode ? "frei" : "demo");
-  const canJoin = codeState === "frei" || codeState === "demo" || participant;
-
+  const activeCode = participant?.code || scannedCode;
   const savedTipCount = Object.values(tips).filter((tip) => tip.saved).length;
   const featuredMatch =
     matches.find((match) => match.teamA === "Germany" || match.teamB === "Germany") ??
     matches[0];
+  const resultsByMatch = useMemo(
+    () => new Map(results.map((result) => [result.match_id, result])),
+    [results],
+  );
 
   const filteredMatches = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
@@ -114,29 +155,125 @@ export default function App() {
           .includes(query);
       return groupMatch && queryMatch;
     });
-  }, [groupFilter, searchTerm]);
+  }, [matches, groupFilter, searchTerm]);
+
+  const currentPoints = Object.entries(tips).reduce((sum, [matchId, tip]) => {
+    return sum + pointsFor(tip, resultsByMatch.get(matchId));
+  }, 0);
+
+  const displayRanking = useMemo(() => {
+    const rows = participant
+      ? [
+          ...ranking.filter((row) => row.name !== participant.name),
+          { name: participant.name, points: currentPoints, isCurrent: true },
+        ]
+      : ranking;
+    return rows.sort((a, b) => b.points - a.points || a.name.localeCompare(b.name));
+  }, [ranking, participant, currentPoints]);
 
   useEffect(() => {
-    window.localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({ participant, tips }),
-    );
-  }, [participant, tips]);
+    async function bootstrap() {
+      try {
+        const [dbMatches, dbResults, rankPayload, session] = await Promise.all([
+          loadDbMatches(),
+          loadResults(),
+          apiGet("/api/ranking").catch(() => ({ ranking: [] })),
+          getAdminSession(),
+        ]);
 
-  function saveParticipant(event) {
+        const nextMatches = dbMatches.length ? dbMatches.map(mapDbMatch) : fallbackMatches;
+        setMatches(nextMatches);
+        setResults(dbResults);
+        setRanking(rankPayload.ranking ?? []);
+        setAdminSession(session);
+        setTips(createInitialTips(nextMatches));
+        setAppStatus(dbMatches.length ? "Mit Supabase verbunden" : "Fallback-Spielplan aktiv");
+      } catch (error) {
+        setAppStatus(`Supabase noch nicht bereit: ${error.message}`);
+      }
+    }
+
+    bootstrap();
+  }, []);
+
+  useEffect(() => {
+    async function resolveParticipant() {
+      if (!activeCode) {
+        setCodeStatus("missing");
+        return;
+      }
+
+      if (participant?.id) {
+        setCodeStatus("claimed");
+        return;
+      }
+
+      try {
+        const payload = await apiGet(`/api/participant?code=${encodeURIComponent(activeCode)}`);
+        setCodeStatus(payload.codeStatus);
+        if (payload.participant) {
+          const saved = {
+            id: payload.participant.id,
+            name: payload.participant.display_name,
+            code: activeCode,
+          };
+          setParticipant(saved);
+          setName(saved.name);
+          window.localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
+        }
+      } catch {
+        setCodeStatus("unknown");
+      }
+    }
+
+    resolveParticipant();
+  }, [activeCode, participant?.id]);
+
+  useEffect(() => {
+    async function loadParticipantTips() {
+      if (!participant?.id) return;
+      try {
+        const payload = await apiGet(`/api/tips?participantId=${encodeURIComponent(participant.id)}`);
+        setTips(createInitialTips(matches, payload.tips ?? []));
+      } catch (error) {
+        setAppStatus(`Tipps konnten nicht geladen werden: ${error.message}`);
+      }
+    }
+
+    loadParticipantTips();
+  }, [participant?.id, matches]);
+
+  async function saveParticipant(event) {
     event.preventDefault();
     const cleanName = name.trim();
-    if (!cleanName || !canJoin) return;
-    setParticipant({ name: cleanName, code: activeCode });
-    setActiveTab("tippen");
+    if (!cleanName || !activeCode) return;
+
+    try {
+      const payload = await apiPost("/api/claim-code", {
+        code: activeCode,
+        name: cleanName,
+      });
+      const saved = {
+        id: payload.participant.id,
+        name: payload.participant.display_name,
+        code: activeCode,
+      };
+      setParticipant(saved);
+      setName(saved.name);
+      setCodeStatus("claimed");
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
+      setActiveTab("tippen");
+    } catch (error) {
+      setAppStatus(error.message);
+    }
   }
 
-  function resetDemo() {
+  function resetDevice() {
     window.localStorage.removeItem(STORAGE_KEY);
     setParticipant(null);
     setName("");
     setLastSavedMatch("");
-    setTips(createInitialTips());
+    setTips(createInitialTips(matches));
     setGroupFilter("alle");
     setSearchTerm("");
     setActiveTab("start");
@@ -153,32 +290,90 @@ export default function App() {
     }));
   }
 
-  function saveTip(matchId) {
-    setTips((current) => ({
-      ...current,
-      [matchId]: { ...current[matchId], saved: true },
-    }));
+  async function saveTip(matchId) {
+    await saveTipRows([matchId]);
     setLastSavedMatch(matchId);
   }
 
-  function saveVisibleTips() {
-    setTips((current) => {
-      const next = { ...current };
-      filteredMatches.forEach((match) => {
-        next[match.id] = { ...next[match.id], saved: true };
-      });
-      return next;
-    });
+  async function saveVisibleTips() {
+    await saveTipRows(filteredMatches.map((match) => match.id));
     setLastSavedMatch(filteredMatches[0]?.id ?? "");
   }
 
-  const displayRanking = participant
-    ? ranking.map((row) =>
-        row.name === "Max Mustermann"
-          ? { ...row, name: participant.name, isCurrent: true }
-          : row,
-      )
-    : ranking;
+  async function saveTipRows(matchIds) {
+    if (!participant?.id) {
+      setAppStatus("Bitte zuerst QR-Code aktivieren und Namen eintragen.");
+      return;
+    }
+
+    try {
+      const payload = await apiPost("/api/save-tips", {
+        participantId: participant.id,
+        tips: matchIds.map((matchId) => ({
+          matchId,
+          scoreA: tips[matchId].scoreA,
+          scoreB: tips[matchId].scoreB,
+        })),
+      });
+
+      const savedIds = new Set((payload.tips ?? []).map((tip) => tip.match_id));
+      setTips((current) => {
+        const next = { ...current };
+        savedIds.forEach((matchId) => {
+          next[matchId] = { ...next[matchId], saved: true };
+        });
+        return next;
+      });
+      setAppStatus("Tipp gespeichert.");
+    } catch (error) {
+      setAppStatus(error.message);
+    }
+  }
+
+  async function refreshAdminData(session = adminSession) {
+    if (!session?.access_token) return;
+    const payload = await apiGetWithAuth("/api/admin-data", session.access_token);
+    setAdminData(payload);
+  }
+
+  async function handleAdminLogin(email, password) {
+    const session = await signInAdmin(email, password);
+    setAdminSession(session);
+    await refreshAdminData(session);
+  }
+
+  async function handleAdminLogout() {
+    await signOutAdmin();
+    setAdminSession(null);
+    setAdminData({ codes: [], participants: [], tips: [], results: [] });
+  }
+
+  async function handleCreateCodes(count) {
+    const payload = await apiPost("/api/admin-create-codes", { count }, adminSession?.access_token);
+    setAdminData((current) => ({
+      ...current,
+      codes: [...(payload.codes ?? []), ...current.codes],
+    }));
+  }
+
+  async function handleSaveResult(matchId, scoreA, scoreB) {
+    const payload = await apiPost(
+      "/api/admin-save-result",
+      { matchId, scoreA, scoreB, status: "final" },
+      adminSession?.access_token,
+    );
+    setResults((current) => [
+      payload.result,
+      ...current.filter((result) => result.match_id !== matchId),
+    ]);
+    setAdminData((current) => ({
+      ...current,
+      results: [
+        payload.result,
+        ...current.results.filter((result) => result.match_id !== matchId),
+      ],
+    }));
+  }
 
   return (
     <div className="app-shell">
@@ -204,30 +399,29 @@ export default function App() {
         <div className="user-chip">
           <CircleUserRound size={26} />
           <span>
-            <small>Angemeldet als</small>
-            <strong>{participant?.name || "Gast"}</strong>
+            <small>{adminSession ? "Admin angemeldet" : "Angemeldet als"}</small>
+            <strong>{adminSession?.user?.email || participant?.name || "Gast"}</strong>
           </span>
           <ChevronDown size={18} />
         </div>
 
-        <button className="icon-button" onClick={resetDemo} aria-label="Demo zuruecksetzen">
+        <button className="icon-button" onClick={resetDevice} aria-label="Dieses Geraet zuruecksetzen">
           <LogOut size={20} />
         </button>
       </header>
 
       <main className="stadium">
         <section className="scoreboard-strip" aria-label="Turnieruebersicht">
-          <span>WM 2026 · 72 Gruppenspiele</span>
+          <span>WM 2026 · {matches.length} Gruppenspiele</span>
           <strong>{savedTipCount} von {matches.length} Tipps gespeichert</strong>
-          <span>Demo-Code: DEMO-001</span>
+          <span>{appStatus}</span>
         </section>
 
         <div className="content-grid">
           <aside className="join-panel panel">
             <StartPanel
               activeCode={activeCode}
-              canJoin={canJoin}
-              codeState={codeState}
+              codeStatus={codeStatus}
               name={name}
               participant={participant}
               savedTipCount={savedTipCount}
@@ -244,6 +438,7 @@ export default function App() {
                 <MatchCard
                   match={featuredMatch}
                   tip={tips[featuredMatch.id]}
+                  result={resultsByMatch.get(featuredMatch.id)}
                   changeScore={changeScore}
                   saveTip={saveTip}
                   lastSavedMatch={lastSavedMatch}
@@ -262,6 +457,7 @@ export default function App() {
                 setGroupFilter={setGroupFilter}
                 setSearchTerm={setSearchTerm}
                 tips={tips}
+                resultsByMatch={resultsByMatch}
                 changeScore={changeScore}
                 saveTip={saveTip}
                 saveVisibleTips={saveVisibleTips}
@@ -274,12 +470,24 @@ export default function App() {
               <RankingPanel ranking={displayRanking} expanded />
             )}
 
-            {activeTab === "admin" && <AdminPanel participant={participant} />}
+            {activeTab === "admin" && (
+              <AdminPanel
+                session={adminSession}
+                adminData={adminData}
+                matches={matches}
+                resultsByMatch={resultsByMatch}
+                onLogin={handleAdminLogin}
+                onLogout={handleAdminLogout}
+                onRefresh={() => refreshAdminData()}
+                onCreateCodes={handleCreateCodes}
+                onSaveResult={handleSaveResult}
+              />
+            )}
           </section>
 
           <aside className="side-stack">
             <RankingPanel ranking={displayRanking} />
-            <UpcomingPanel />
+            <UpcomingPanel matches={matches} />
             <KnockoutPanel />
           </aside>
         </div>
@@ -288,10 +496,18 @@ export default function App() {
   );
 }
 
+async function apiGetWithAuth(path, token) {
+  const response = await fetch(path, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.error || "Serverfehler");
+  return payload;
+}
+
 function StartPanel({
   activeCode,
-  canJoin,
-  codeState,
+  codeStatus,
   name,
   participant,
   savedTipCount,
@@ -299,6 +515,18 @@ function StartPanel({
   saveParticipant,
   setActiveTab,
 }) {
+  const canJoin = activeCode && ["free", "claimed"].includes(codeStatus);
+  const label =
+    codeStatus === "claimed"
+      ? "Code aktiviert"
+      : codeStatus === "free"
+        ? "Code erkannt"
+        : codeStatus === "checking"
+          ? "Code wird geprueft"
+          : activeCode
+            ? "Code nicht gefunden"
+            : "Kein QR-Code";
+
   return (
     <>
       <div className="panel-heading">
@@ -309,14 +537,14 @@ function StartPanel({
         </div>
       </div>
 
-      <div className={`code-status ${canJoin ? "ok" : "bad"}`}>
+      <div className={`code-status ${canJoin || participant ? "ok" : "bad"}`}>
         <Check size={20} />
-        <strong>{canJoin ? "Code erkannt" : "Code nicht gueltig"}</strong>
+        <strong>{label}</strong>
       </div>
 
       <div className="code-box">
         <QrCode size={28} />
-        <span>{activeCode}</span>
+        <span>{activeCode || "QR-Code fehlt"}</span>
       </div>
 
       {participant ? (
@@ -349,8 +577,8 @@ function StartPanel({
       )}
 
       <p className="fine-print">
-        Im Prototyp wird dein Name nur in diesem Browser gespeichert. Spaeter
-        uebernimmt eine Datenbank die echte QR-Code-Zuordnung.
+        Jeder QR-Code kann nur einem Namen zugeordnet werden. Danach werden die
+        Tipps in Supabase gespeichert.
       </p>
 
       <div className="goal-illustration" aria-hidden="true">
@@ -387,6 +615,7 @@ function TipScreen({
   setGroupFilter,
   setSearchTerm,
   tips,
+  resultsByMatch,
   changeScore,
   saveTip,
   saveVisibleTips,
@@ -445,6 +674,7 @@ function TipScreen({
             key={match.id}
             match={match}
             tip={tips[match.id]}
+            result={resultsByMatch.get(match.id)}
             changeScore={changeScore}
             saveTip={saveTip}
             lastSavedMatch={lastSavedMatch}
@@ -459,12 +689,15 @@ function TipScreen({
 function MatchCard({
   match,
   tip,
+  result,
   changeScore,
   saveTip,
   lastSavedMatch,
   locked,
   featured,
 }) {
+  if (!match || !tip) return null;
+
   return (
     <article className={`match-card panel ${featured ? "featured" : ""}`}>
       <header className="match-header">
@@ -480,6 +713,7 @@ function MatchCard({
 
       <div className="venue-line">
         {match.city} · {match.venue}
+        {result ? ` · Ergebnis: ${result.score_a}:${result.score_b}` : ""}
       </div>
 
       <div className="match-body">
@@ -511,7 +745,7 @@ function MatchCard({
         </button>
         <span className={tip.saved || lastSavedMatch === match.id ? "saved" : ""}>
           {locked
-            ? "Erst Namen eintragen"
+            ? "Erst QR-Code aktivieren"
             : tip.saved || lastSavedMatch === match.id
               ? "Tipp gespeichert"
               : "Noch nicht gespeichert"}
@@ -570,6 +804,11 @@ function RankingPanel({ ranking: rows, expanded = false }) {
           </tr>
         </thead>
         <tbody>
+          {visibleRows.length === 0 && (
+            <tr>
+              <td colSpan="3">Noch keine Punkte vorhanden.</td>
+            </tr>
+          )}
           {visibleRows.map((row, index) => (
             <tr key={`${row.name}-${index}`} className={row.isCurrent ? "current" : ""}>
               <td>{index + 1}</td>
@@ -584,7 +823,7 @@ function RankingPanel({ ranking: rows, expanded = false }) {
   );
 }
 
-function UpcomingPanel() {
+function UpcomingPanel({ matches }) {
   return (
     <section className="upcoming-panel panel">
       <header className="section-title">
@@ -599,7 +838,7 @@ function UpcomingPanel() {
           <strong>{match.teamB}</strong>
         </div>
       ))}
-      <button className="ghost-button">Alle 72 Gruppenspiele im Tippbereich</button>
+      <button className="ghost-button">Alle Spiele im Tippbereich</button>
     </section>
   );
 }
@@ -628,45 +867,176 @@ function InfoBanner() {
     <aside className="info-banner">
       <Medal size={42} />
       <div>
-        <strong>Jetzt werden echte Gruppenspiele getippt.</strong>
-        <span>Die K.-o.-Runde ist vorbereitet und bekommt spaeter die qualifizierten Teams.</span>
+        <strong>Die Demo-Daten sind raus.</strong>
+        <span>QR-Codes, Tipps, Ergebnisse und Rangliste laufen jetzt ueber Supabase.</span>
       </div>
     </aside>
   );
 }
 
-function AdminPanel({ participant }) {
-  const rows = demoCodes.map((row) =>
-    participant && row.code === participant.code
-      ? { ...row, status: "vergeben", name: participant.name }
-      : row,
-  );
+function AdminPanel({
+  session,
+  adminData,
+  matches,
+  resultsByMatch,
+  onLogin,
+  onLogout,
+  onRefresh,
+  onCreateCodes,
+  onSaveResult,
+}) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [codeCount, setCodeCount] = useState(10);
+  const [adminMessage, setAdminMessage] = useState("");
+  const [resultDrafts, setResultDrafts] = useState({});
+
+  async function submitLogin(event) {
+    event.preventDefault();
+    try {
+      await onLogin(email, password);
+      setAdminMessage("Admin angemeldet.");
+    } catch (error) {
+      setAdminMessage(error.message);
+    }
+  }
+
+  async function createCodes() {
+    try {
+      await onCreateCodes(codeCount);
+      setAdminMessage(`${codeCount} QR-Codes erstellt.`);
+    } catch (error) {
+      setAdminMessage(error.message);
+    }
+  }
+
+  async function saveResult(matchId) {
+    const draft = resultDrafts[matchId] ?? {};
+    const current = resultsByMatch.get(matchId);
+    try {
+      await onSaveResult(
+        matchId,
+        draft.scoreA ?? current?.score_a ?? 0,
+        draft.scoreB ?? current?.score_b ?? 0,
+      );
+      setAdminMessage("Ergebnis gespeichert.");
+    } catch (error) {
+      setAdminMessage(error.message);
+    }
+  }
+
+  if (!session) {
+    return (
+      <section className="admin-panel panel">
+        <header className="admin-hero">
+          <ShieldCheck size={34} />
+          <div>
+            <h2>Admin-Login</h2>
+            <p>Admins werden in Supabase Auth angelegt und in der Tabelle admins freigeschaltet.</p>
+          </div>
+        </header>
+        <form className="admin-login" onSubmit={submitLogin}>
+          <label>
+            E-Mail
+            <input value={email} onChange={(event) => setEmail(event.target.value)} type="email" />
+          </label>
+          <label>
+            Passwort
+            <input value={password} onChange={(event) => setPassword(event.target.value)} type="password" />
+          </label>
+          <button className="primary-button">Einloggen</button>
+        </form>
+        {adminMessage && <p className="admin-message">{adminMessage}</p>}
+      </section>
+    );
+  }
 
   return (
     <section className="admin-panel panel">
       <header className="admin-hero">
         <ShieldCheck size={34} />
         <div>
-          <h2>Admin-Vorschau</h2>
-          <p>Hier sieht man spaeter, welche QR-Codes frei oder bereits vergeben sind.</p>
+          <h2>Adminbereich</h2>
+          <p>QR-Codes erzeugen, Teilnehmer ansehen und Spielergebnisse eintragen.</p>
         </div>
       </header>
 
+      <div className="admin-actions">
+        <button className="ghost-button" onClick={onRefresh}>Daten aktualisieren</button>
+        <button className="ghost-button" onClick={onLogout}>Admin abmelden</button>
+      </div>
+
+      <div className="admin-create">
+        <label>
+          Neue QR-Codes
+          <input
+            type="number"
+            min="1"
+            max="100"
+            value={codeCount}
+            onChange={(event) => setCodeCount(Number(event.target.value))}
+          />
+        </label>
+        <button className="primary-button compact" onClick={createCodes}>Codes erzeugen</button>
+      </div>
+
+      {adminMessage && <p className="admin-message">{adminMessage}</p>}
+
+      <div className="admin-stats">
+        <strong>{adminData.codes.length}<span>QR-Codes</span></strong>
+        <strong>{adminData.participants.length}<span>Teilnehmer</span></strong>
+        <strong>{adminData.tips.length}<span>Tipps</span></strong>
+      </div>
+
+      <h3>QR-Codes</h3>
       <div className="admin-grid">
-        {rows.map((row) => (
-          <article key={row.code} className={`code-card ${row.status}`}>
+        {adminData.codes.slice(0, 12).map((row) => (
+          <article key={row.id} className={`code-card ${row.status}`}>
             <QrCode size={26} />
             <strong>{row.code}</strong>
-            <span>{row.name || statusLabel(row.status)}</span>
+            <span>{row.participant?.display_name || row.status}</span>
           </article>
         ))}
       </div>
+
+      <h3>Ergebnisse</h3>
+      <div className="result-list">
+        {matches.slice(0, 18).map((match) => {
+          const result = resultsByMatch.get(match.id);
+          const draft = resultDrafts[match.id] ?? {};
+          return (
+            <div className="result-row" key={match.id}>
+              <span>Spiel {match.matchNumber}</span>
+              <strong>{match.teamA} - {match.teamB}</strong>
+              <input
+                type="number"
+                min="0"
+                max="30"
+                value={draft.scoreA ?? result?.score_a ?? 0}
+                onChange={(event) =>
+                  setResultDrafts((current) => ({
+                    ...current,
+                    [match.id]: { ...current[match.id], scoreA: Number(event.target.value) },
+                  }))
+                }
+              />
+              <input
+                type="number"
+                min="0"
+                max="30"
+                value={draft.scoreB ?? result?.score_b ?? 0}
+                onChange={(event) =>
+                  setResultDrafts((current) => ({
+                    ...current,
+                    [match.id]: { ...current[match.id], scoreB: Number(event.target.value) },
+                  }))
+                }
+              />
+              <button className="save-tip" onClick={() => saveResult(match.id)}>Speichern</button>
+            </div>
+          );
+        })}
+      </div>
     </section>
   );
-}
-
-function statusLabel(status) {
-  if (status === "frei") return "frei";
-  if (status === "vergeben") return "vergeben";
-  return "ungueltig";
 }
