@@ -24,10 +24,17 @@ test("test mode ranking includes total and average views", async ({ page }) => {
   await page.getByRole("button", { name: "Rangliste ansehen" }).click();
   await expect(page).toHaveURL(/#rangliste$/);
   await expect(page.getByRole("heading", { name: "Rangliste" }).first()).toBeVisible();
-  await expect(page.getByRole("cell", { name: "Testkind" }).first()).toBeVisible();
-  await expect(page.getByText("33").first()).toBeVisible();
+  await expect(page.getByRole("row", { name: "1 Testkind 8 11 22 33" })).toBeVisible();
+  await expect(page.getByRole("row", { name: "2 Agapi 8 14 6 20" })).toBeVisible();
+  await expect(page.getByRole("row", { name: "3 Clemens 4 10 2 12" })).toBeVisible();
 
   await page.getByRole("button", { name: "Durchschnitt" }).click();
+  await expect(page.getByRole("row", { name: "1 Clemens 4 3 3.33 10" })).toBeVisible();
+  await expect(page.getByRole("row", { name: "2 Agapi 8 5 2.80 14" })).toBeVisible();
+  await expect(page.getByRole("row", { name: "3 Testkind 8 5 2.20 11" })).toBeVisible();
+  await expect(page.getByText("Tipps zeigt alle gespeicherten Spieltipps")).toBeVisible();
+  await expect(page.getByText("Bonuspunkte sind nicht eingerechnet")).toBeVisible();
+  await expect(page.getByText("3.33")).toBeVisible();
   await expect(page.getByText("2.80")).toBeVisible();
   await expect(page.getByText("2.20")).toBeVisible();
 });

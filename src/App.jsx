@@ -83,9 +83,9 @@ const TEST_RANKING_ROWS = [
     points: 12,
     matchPoints: 10,
     bonusPoints: 2,
-    tipCount: 6,
-    scoredTipCount: 5,
-    averagePoints: 2,
+    tipCount: 4,
+    scoredTipCount: 3,
+    averagePoints: 10 / 3,
   },
 ];
 const TEST_SCENARIOS = [
