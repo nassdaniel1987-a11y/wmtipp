@@ -48,6 +48,11 @@ const codeStatusLabels = {
   claimed: "vergeben",
   disabled: "ungültig",
 };
+const bonusPointValues = {
+  champion: 8,
+  topScorer: 6,
+  groupWinner: 2,
+};
 
 function getInitialCode() {
   const params = new URLSearchParams(window.location.search);
@@ -204,6 +209,19 @@ function createInitialBonusTips(matches, savedBonusTip = null) {
   };
 }
 
+function createInitialBonusResults(matches, savedBonusResults = null) {
+  const groups = getGroups(matches);
+  const savedGroupWinners = savedBonusResults?.group_winners ?? savedBonusResults?.groupWinners ?? {};
+
+  return {
+    champion: savedBonusResults?.champion ?? "",
+    topScorer: savedBonusResults?.top_scorer ?? savedBonusResults?.topScorer ?? "",
+    groupWinners: Object.fromEntries(
+      groups.map((group) => [group.groupKey, savedGroupWinners[group.groupKey] ?? ""]),
+    ),
+  };
+}
+
 function buildGroupTables(matches, resultsByMatch) {
   return getGroups(matches).map((group) => {
     const table = new Map(
@@ -282,9 +300,40 @@ function isLockedForUsers(match) {
 function pointsFor(tip, result) {
   if (!result || result.status !== "final") return 0;
   if (tip.scoreA === result.score_a && tip.scoreB === result.score_b) return 4;
-  const tipTrend = Math.sign(tip.scoreA - tip.scoreB);
-  const resultTrend = Math.sign(result.score_a - result.score_b);
-  return tipTrend === resultTrend ? 2 : 0;
+  const tipGoalDiff = tip.scoreA - tip.scoreB;
+  const resultGoalDiff = result.score_a - result.score_b;
+  const tipTrend = Math.sign(tipGoalDiff);
+  const resultTrend = Math.sign(resultGoalDiff);
+  if (tipTrend !== resultTrend) return 0;
+  return tipGoalDiff === resultGoalDiff ? 3 : 2;
+}
+
+function normalizeText(value) {
+  return String(value || "").trim().toLocaleLowerCase("de-DE");
+}
+
+function bonusPointsFor(bonusTip, bonusResult) {
+  if (!bonusTip || !bonusResult) return 0;
+  let points = 0;
+  if (normalizeText(bonusTip.champion) && normalizeText(bonusTip.champion) === normalizeText(bonusResult.champion)) {
+    points += bonusPointValues.champion;
+  }
+  if (normalizeText(bonusTip.topScorer) && normalizeText(bonusTip.topScorer) === normalizeText(bonusResult.topScorer)) {
+    points += bonusPointValues.topScorer;
+  }
+
+  Object.entries(bonusResult.groupWinners ?? {}).forEach(([groupKey, winner]) => {
+    if (normalizeText(bonusTip.groupWinners?.[groupKey]) && normalizeText(bonusTip.groupWinners?.[groupKey]) === normalizeText(winner)) {
+      points += bonusPointValues.groupWinner;
+    }
+  });
+  return points;
+}
+
+function getGroupLeaderSuggestions(groupTables) {
+  return Object.fromEntries(
+    groupTables.map((group) => [group.groupKey, group.rows[0]?.team ?? ""]),
+  );
 }
 
 export default function App() {
@@ -298,6 +347,7 @@ export default function App() {
   const [results, setResults] = useState([]);
   const [tips, setTips] = useState(createInitialTips(bundledMatches));
   const [bonusTips, setBonusTips] = useState(createInitialBonusTips(bundledMatches));
+  const [bonusResults, setBonusResults] = useState(createInitialBonusResults(bundledMatches));
   const [bonusMessage, setBonusMessage] = useState("");
   const [ranking, setRanking] = useState([]);
   const [lastSavedMatch, setLastSavedMatch] = useState("");
@@ -306,7 +356,7 @@ export default function App() {
   const [appStatus, setAppStatus] = useState("Spielplan wird geladen...");
   const [codeStatus, setCodeStatus] = useState(scannedCode ? "checking" : "missing");
   const [adminSession, setAdminSession] = useState(null);
-  const [adminData, setAdminData] = useState({ codes: [], participants: [], tips: [], bonusTips: [], results: [] });
+  const [adminData, setAdminData] = useState({ codes: [], participants: [], tips: [], bonusTips: [], bonusResults: null, results: [] });
 
   const setActiveTab = useCallback((tabId, { replace = false } = {}) => {
     if (!tabIds.has(tabId)) return;
@@ -350,19 +400,27 @@ export default function App() {
     });
   }, [matches, groupFilter, searchTerm]);
 
-  const currentPoints = Object.entries(tips).reduce((sum, [matchId, tip]) => {
+  const currentMatchPoints = Object.entries(tips).reduce((sum, [matchId, tip]) => {
     return sum + pointsFor(tip, resultsByMatch.get(matchId));
   }, 0);
+  const currentBonusPoints = bonusPointsFor(bonusTips, bonusResults);
+  const currentPoints = currentMatchPoints + currentBonusPoints;
 
   const displayRanking = useMemo(() => {
     const rows = participant
       ? [
           ...ranking.filter((row) => row.name !== participant.name),
-          { name: participant.name, points: currentPoints, isCurrent: true },
+          {
+            name: participant.name,
+            points: currentPoints,
+            matchPoints: currentMatchPoints,
+            bonusPoints: currentBonusPoints,
+            isCurrent: true,
+          },
         ]
       : ranking;
     return rows.sort((a, b) => b.points - a.points || a.name.localeCompare(b.name));
-  }, [ranking, participant, currentPoints]);
+  }, [ranking, participant, currentPoints, currentMatchPoints, currentBonusPoints]);
   const teamOptions = useMemo(() => getTeamOptions(matches), [matches]);
   const groupTables = useMemo(() => buildGroupTables(matches, resultsByMatch), [matches, resultsByMatch]);
 
@@ -382,10 +440,11 @@ export default function App() {
   useEffect(() => {
     async function bootstrap() {
       try {
-        const [dbMatches, dbResults, rankPayload, session] = await Promise.all([
+        const [dbMatches, dbResults, rankPayload, bonusPayload, session] = await Promise.all([
           loadDbMatches(),
           loadResults(),
           apiGet("/api/ranking").catch(() => ({ ranking: [] })),
+          apiGet("/api/bonus-results").catch(() => ({ bonusResults: null })),
           getAdminSession(),
         ]);
 
@@ -396,6 +455,7 @@ export default function App() {
         setAdminSession(session);
         setTips(createInitialTips(nextMatches));
         setBonusTips(createInitialBonusTips(nextMatches));
+        setBonusResults(createInitialBonusResults(nextMatches, bonusPayload.bonusResults));
         setAppStatus("Spielplan bereit");
       } catch (error) {
         setAppStatus("Spielplan wird vorbereitet");
@@ -531,9 +591,15 @@ export default function App() {
       });
       setBonusTips(createInitialBonusTips(matches, payload.bonusTip));
       setBonusMessage("Bonus-Tipps gespeichert.");
+      await refreshRanking();
     } catch (error) {
       setBonusMessage(error.message);
     }
+  }
+
+  async function refreshRanking() {
+    const payload = await apiGet("/api/ranking").catch(() => ({ ranking: [] }));
+    setRanking(payload.ranking ?? []);
   }
 
   async function saveTipRows(matchIds) {
@@ -561,6 +627,7 @@ export default function App() {
         return next;
       });
       setAppStatus("Tipp gespeichert.");
+      await refreshRanking();
     } catch (error) {
       setAppStatus(error.message);
     }
@@ -570,6 +637,7 @@ export default function App() {
     if (!session?.access_token) return;
     const payload = await apiGetWithAuth("/api/admin-data", session.access_token);
     setAdminData(payload);
+    setBonusResults(createInitialBonusResults(matches, payload.bonusResults));
   }
 
   async function handleAdminLogin(email, password) {
@@ -581,7 +649,7 @@ export default function App() {
   async function handleAdminLogout() {
     await signOutAdmin();
     setAdminSession(null);
-    setAdminData({ codes: [], participants: [], tips: [], results: [] });
+    setAdminData({ codes: [], participants: [], tips: [], bonusTips: [], bonusResults: null, results: [] });
   }
 
   async function handleCreateCodes(count) {
@@ -609,6 +677,7 @@ export default function App() {
         ...current.results.filter((result) => result.match_id !== matchId),
       ],
     }));
+    await refreshRanking();
   }
 
   return (
@@ -728,6 +797,9 @@ export default function App() {
                 session={adminSession}
                 adminData={adminData}
                 matches={matches}
+                teamOptions={teamOptions}
+                groupTables={groupTables}
+                bonusResults={bonusResults}
                 resultsByMatch={resultsByMatch}
                 onLogin={handleAdminLogin}
                 onLogout={handleAdminLogout}
@@ -795,6 +867,37 @@ export default function App() {
                       ),
                     ],
                   }));
+                  await refreshRanking();
+                  return payload;
+                }}
+                onSaveParticipantBonusTips={async (participantId, participantBonusTips) => {
+                  const payload = await apiPost(
+                    "/api/admin-save-participant-bonus-tips",
+                    { participantId, ...participantBonusTips },
+                    adminSession?.access_token,
+                  );
+                  setAdminData((current) => ({
+                    ...current,
+                    bonusTips: [
+                      payload.bonusTip,
+                      ...(current.bonusTips ?? []).filter((tip) => tip.participant_id !== participantId),
+                    ],
+                  }));
+                  await refreshRanking();
+                  return payload;
+                }}
+                onSaveBonusResults={async (officialBonusResults) => {
+                  const payload = await apiPost(
+                    "/api/admin-save-bonus-results",
+                    officialBonusResults,
+                    adminSession?.access_token,
+                  );
+                  setAdminData((current) => ({
+                    ...current,
+                    bonusResults: payload.bonusResults,
+                  }));
+                  setBonusResults(createInitialBonusResults(matches, payload.bonusResults));
+                  await refreshRanking();
                   return payload;
                 }}
                 onSaveResult={handleSaveResult}
@@ -1360,19 +1463,23 @@ function RankingPanel({ ranking: rows, expanded = false, setActiveTab }) {
           <tr>
             <th>Platz</th>
             <th>Name</th>
+            {expanded && <th>Spiele</th>}
+            {expanded && <th>Bonus</th>}
             <th>Punkte</th>
           </tr>
         </thead>
         <tbody>
           {visibleRows.length === 0 && (
             <tr>
-              <td colSpan="3">Noch keine Punkte vorhanden.</td>
+              <td colSpan={expanded ? 5 : 3}>Noch keine Punkte vorhanden.</td>
             </tr>
           )}
           {visibleRows.map((row, index) => (
             <tr key={`${row.name}-${index}`} className={row.isCurrent ? "current" : ""}>
               <td>{index + 1}</td>
               <td>{row.name}</td>
+              {expanded && <td>{row.matchPoints ?? row.points}</td>}
+              {expanded && <td>{row.bonusPoints ?? 0}</td>}
               <td>{row.points}</td>
             </tr>
           ))}
@@ -1444,6 +1551,9 @@ function AdminPanel({
   session,
   adminData,
   matches,
+  teamOptions,
+  groupTables,
+  bonusResults,
   resultsByMatch,
   onLogin,
   onLogout,
@@ -1453,6 +1563,8 @@ function AdminPanel({
   onDeleteParticipant,
   onDeleteCode,
   onSaveParticipantTips,
+  onSaveParticipantBonusTips,
+  onSaveBonusResults,
   onSaveResult,
 }) {
   const [email, setEmail] = useState("");
@@ -1464,7 +1576,13 @@ function AdminPanel({
   const [resultFilter, setResultFilter] = useState("open");
   const [selectedParticipant, setSelectedParticipant] = useState(null);
   const [participantTipDrafts, setParticipantTipDrafts] = useState({});
+  const [participantBonusDraft, setParticipantBonusDraft] = useState(createInitialBonusTips(matches));
+  const [bonusResultDraft, setBonusResultDraft] = useState(createInitialBonusResults(matches, bonusResults));
   const [selectedCodeIds, setSelectedCodeIds] = useState([]);
+
+  useEffect(() => {
+    setBonusResultDraft(createInitialBonusResults(matches, bonusResults));
+  }, [matches, bonusResults]);
 
   const sortedResultMatches = useMemo(() => {
     const now = Date.now();
@@ -1595,6 +1713,7 @@ function AdminPanel({
 
   function openParticipant(participant) {
     const existingTips = adminData.tips.filter((tip) => tip.participant_id === participant.id);
+    const existingBonusTip = adminData.bonusTips?.find((tip) => tip.participant_id === participant.id);
     const drafts = Object.fromEntries(
       matches.map((match) => {
         const tip = existingTips.find((item) => item.match_id === match.id);
@@ -1610,6 +1729,7 @@ function AdminPanel({
     );
     setSelectedParticipant(participant);
     setParticipantTipDrafts(drafts);
+    setParticipantBonusDraft(createInitialBonusTips(matches, existingBonusTip));
   }
 
   async function saveSelectedParticipantTips(matchIds) {
@@ -1635,6 +1755,41 @@ function AdminPanel({
     } catch (error) {
       setAdminMessage(error.message);
     }
+  }
+
+  async function saveSelectedParticipantBonusTips() {
+    if (!selectedParticipant) return;
+    try {
+      const payload = await onSaveParticipantBonusTips(selectedParticipant.id, {
+        champion: participantBonusDraft.champion,
+        topScorer: participantBonusDraft.topScorer,
+        groupWinners: participantBonusDraft.groupWinners,
+      });
+      setParticipantBonusDraft(createInitialBonusTips(matches, payload.bonusTip));
+      setAdminMessage(`Bonus-Tipps für ${selectedParticipant.display_name} gespeichert.`);
+    } catch (error) {
+      setAdminMessage(error.message);
+    }
+  }
+
+  async function saveOfficialBonusResults() {
+    try {
+      const payload = await onSaveBonusResults(bonusResultDraft);
+      setBonusResultDraft(createInitialBonusResults(matches, payload.bonusResults));
+      setAdminMessage("Offizielle Bonus-Ergebnisse gespeichert.");
+    } catch (error) {
+      setAdminMessage(error.message);
+    }
+  }
+
+  function useGroupLeaderSuggestions() {
+    setBonusResultDraft((current) => ({
+      ...current,
+      groupWinners: {
+        ...current.groupWinners,
+        ...getGroupLeaderSuggestions(groupTables),
+      },
+    }));
   }
 
   if (!session) {
@@ -1718,6 +1873,72 @@ function AdminPanel({
         <strong>{adminData.participants.length}<span>Teilnehmer</span></strong>
         <strong>{adminData.tips.length}<span>Tipps</span></strong>
       </div>
+
+      <section className="admin-bonus-editor">
+        <h3>Offizielle Bonus-Ergebnisse</h3>
+        <p className="fine-print">
+          Diese Werte werden für die Bonuspunkte in der Rangliste genutzt.
+          Gruppensieger können aus den aktuellen Tabellen vorgeschlagen und danach geprüft werden.
+        </p>
+        <div className="bonus-select-grid">
+          <label>
+            Weltmeister
+            <select
+              value={bonusResultDraft.champion}
+              onChange={(event) =>
+                setBonusResultDraft((current) => ({ ...current, champion: event.target.value }))
+              }
+            >
+              <option value="">Bitte wählen</option>
+              {teamOptions.map((team) => (
+                <option key={team.name} value={team.name}>{team.name}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Torschützenkönig
+            <input
+              value={bonusResultDraft.topScorer}
+              onChange={(event) =>
+                setBonusResultDraft((current) => ({ ...current, topScorer: event.target.value }))
+              }
+              placeholder="Name des Spielers"
+            />
+          </label>
+        </div>
+        <div className="group-winner-grid">
+          {groupTables.map((group) => (
+            <label key={group.groupKey}>
+              Gruppe {group.groupKey}
+              <select
+                value={bonusResultDraft.groupWinners?.[group.groupKey] ?? ""}
+                onChange={(event) =>
+                  setBonusResultDraft((current) => ({
+                    ...current,
+                    groupWinners: {
+                      ...current.groupWinners,
+                      [group.groupKey]: event.target.value,
+                    },
+                  }))
+                }
+              >
+                <option value="">Bitte wählen</option>
+                {group.teams.map((team) => (
+                  <option key={team.name} value={team.name}>{team.name}</option>
+                ))}
+              </select>
+            </label>
+          ))}
+        </div>
+        <div className="admin-actions inline-actions">
+          <button type="button" className="ghost-button" onClick={useGroupLeaderSuggestions}>
+            Gruppensieger aus Tabellen übernehmen
+          </button>
+          <button type="button" className="primary-button compact" onClick={saveOfficialBonusResults}>
+            Bonus-Ergebnisse speichern
+          </button>
+        </div>
+      </section>
 
       <h3>QR-Codes</h3>
       <p className="fine-print">
@@ -1889,9 +2110,63 @@ function AdminPanel({
               </button>
             </header>
 
-            <AdminBonusSummary
-              bonusTip={adminData.bonusTips?.find((item) => item.participant_id === selectedParticipant.id)}
-            />
+            <section className="admin-bonus-editor compact-editor">
+              <h3>Bonus-Tipps</h3>
+              <div className="bonus-select-grid">
+                <label>
+                  Weltmeister
+                  <select
+                    value={participantBonusDraft.champion}
+                    onChange={(event) =>
+                      setParticipantBonusDraft((current) => ({ ...current, champion: event.target.value, saved: false }))
+                    }
+                  >
+                    <option value="">Bitte wählen</option>
+                    {teamOptions.map((team) => (
+                      <option key={team.name} value={team.name}>{team.name}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Torschützenkönig
+                  <input
+                    value={participantBonusDraft.topScorer}
+                    onChange={(event) =>
+                      setParticipantBonusDraft((current) => ({ ...current, topScorer: event.target.value, saved: false }))
+                    }
+                    placeholder="Name des Spielers"
+                  />
+                </label>
+              </div>
+              <div className="group-winner-grid compact">
+                {groupTables.map((group) => (
+                  <label key={group.groupKey}>
+                    Gruppe {group.groupKey}
+                    <select
+                      value={participantBonusDraft.groupWinners?.[group.groupKey] ?? ""}
+                      onChange={(event) =>
+                        setParticipantBonusDraft((current) => ({
+                          ...current,
+                          saved: false,
+                          groupWinners: {
+                            ...current.groupWinners,
+                            [group.groupKey]: event.target.value,
+                          },
+                        }))
+                      }
+                    >
+                      <option value="">Bitte wählen</option>
+                      {group.teams.map((team) => (
+                        <option key={team.name} value={team.name}>{team.name}</option>
+                      ))}
+                    </select>
+                  </label>
+                ))}
+              </div>
+              <button type="button" className="primary-button compact" onClick={saveSelectedParticipantBonusTips}>
+                Bonus-Tipps speichern
+              </button>
+            </section>
 
             <div className="participant-tip-list">
               {matches.map((match) => {

@@ -1355,6 +1355,62 @@ tbody tr:nth-child(1) td:first-child {
   overflow-wrap: anywhere;
 }
 
+.admin-bonus-editor {
+  display: grid;
+  gap: 12px;
+  padding: 18px 0 22px;
+  border-top: 1px solid #e1ebf4;
+  border-bottom: 1px solid #e1ebf4;
+}
+
+.admin-bonus-editor h3,
+.admin-bonus-editor .fine-print {
+  margin: 0;
+}
+
+.bonus-select-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.admin-bonus-editor label {
+  display: grid;
+  gap: 7px;
+  color: var(--green-dark);
+  font-weight: 900;
+}
+
+.admin-bonus-editor select,
+.admin-bonus-editor input {
+  min-height: 44px;
+  min-width: 0;
+  border: 1px solid #cad9e8;
+  border-radius: 8px;
+  padding: 0 12px;
+  color: var(--navy);
+  background: #ffffff;
+  font-weight: 800;
+}
+
+.admin-bonus-editor .group-winner-grid {
+  padding: 0;
+}
+
+.inline-actions {
+  justify-content: flex-start;
+}
+
+.compact-editor {
+  padding: 16px 20px;
+  border-top: 0;
+  background: #fffdf5;
+}
+
+.compact-editor .group-winner-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .participant-tip-list {
   display: grid;
   gap: 9px;
@@ -1787,6 +1843,7 @@ tbody tr:nth-child(1) td:first-child {
 
   .bonus-main-grid,
   .group-winner-grid,
+  .bonus-select-grid,
   .groups-overview,
   .bonus-summary-grid {
     grid-template-columns: 1fr;

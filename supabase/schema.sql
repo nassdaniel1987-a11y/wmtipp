@@ -74,6 +74,14 @@ create table if not exists public.bonus_tips (
   saved_at timestamptz not null default now()
 );
 
+create table if not exists public.bonus_results (
+  id text primary key default 'official' check (id = 'official'),
+  champion text,
+  top_scorer text,
+  group_winners jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists public.results (
   match_id text primary key references public.matches(id) on delete cascade,
   score_a integer not null check (score_a between 0 and 30),
@@ -93,6 +101,7 @@ alter table public.invite_codes enable row level security;
 alter table public.participants enable row level security;
 alter table public.tips enable row level security;
 alter table public.bonus_tips enable row level security;
+alter table public.bonus_results enable row level security;
 alter table public.results enable row level security;
 alter table public.admins enable row level security;
 
@@ -103,6 +112,8 @@ grant select, insert, update, delete on public.invite_codes to authenticated;
 grant select, insert, update, delete on public.participants to authenticated;
 grant select, insert, update, delete on public.tips to authenticated;
 grant select, insert, update, delete on public.bonus_tips to authenticated;
+grant select on public.bonus_results to anon, authenticated;
+grant select, insert, update, delete on public.bonus_results to authenticated;
 grant select, insert, update, delete on public.results to authenticated;
 grant select on public.admins to authenticated;
 
@@ -170,6 +181,19 @@ create policy "admins can view bonus tips"
 on public.bonus_tips for select
 to authenticated
 using (public.is_admin());
+
+drop policy if exists "bonus results are readable" on public.bonus_results;
+create policy "bonus results are readable"
+on public.bonus_results for select
+to anon, authenticated
+using (true);
+
+drop policy if exists "admins can manage bonus results" on public.bonus_results;
+create policy "admins can manage bonus results"
+on public.bonus_results for all
+to authenticated
+using (public.is_admin())
+with check (public.is_admin());
 
 drop policy if exists "admins can view admins" on public.admins;
 create policy "admins can view admins"
