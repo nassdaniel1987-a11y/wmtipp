@@ -500,6 +500,7 @@ export default function App() {
           setParticipant(saved);
           setName(saved.name);
           window.localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
+          setActiveTab("start", { replace: true });
         }
       } catch {
         setCodeStatus("unknown");
@@ -546,7 +547,7 @@ export default function App() {
       setName(saved.name);
       setCodeStatus("claimed");
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
-      setActiveTab("tippen");
+      setActiveTab("start", { replace: true });
     } catch (error) {
       setAppStatus(error.message);
     }
@@ -749,7 +750,7 @@ export default function App() {
           <span>{appStatus}</span>
         </section>
 
-        <div className={`content-grid active-${activeTab}`}>
+        <div className={`content-grid active-${activeTab} ${participant ? "participant-active" : ""}`}>
           <aside className="join-panel panel">
             <StartPanel
               activeCode={activeCode}
@@ -2222,10 +2223,24 @@ function AdminPanel({
       <section className="print-sheet" aria-hidden="true">
         {printableCodes.map((row) => (
           <article className="print-code-card" key={row.id}>
+            <header>
+              <img src="/oesterfeld-logo-round.jpg" alt="" />
+              <div>
+                <span>WM-Tippspiel</span>
+                <strong>Österfeld-Edition</strong>
+              </div>
+            </header>
             <QrCodeImage value={getInviteUrl(row.code)} />
-            <strong>{row.code}</strong>
-            <span>{row.participant?.display_name || codeStatusLabels[row.status] || row.status}</span>
-            <small>{getInviteUrl(row.code)}</small>
+            <div className="print-code-main">
+              <span>{row.participant?.display_name || codeStatusLabels[row.status] || row.status}</span>
+              <strong>{row.code}</strong>
+              <small>{getInviteUrl(row.code)}</small>
+            </div>
+            <ol>
+              <li>Handykamera öffnen und QR-Code scannen.</li>
+              <li>Namen eintragen oder direkt loslegen.</li>
+              <li>Am PC: wmtipp.netlify.app öffnen und diesen Code eingeben.</li>
+            </ol>
           </article>
         ))}
       </section>

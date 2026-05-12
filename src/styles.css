@@ -266,6 +266,14 @@ input:disabled {
   min-width: 0;
 }
 
+.content-grid.active-start.participant-active {
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
+}
+
+.content-grid.active-start.participant-active .join-panel {
+  display: none;
+}
+
 .panel {
   border: 1px solid rgba(194, 210, 226, 0.95);
   border-radius: 8px;
@@ -2312,7 +2320,7 @@ tbody tr:nth-child(1) td:first-child {
     position: absolute;
     inset: 0;
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: 1fr;
     gap: 8mm;
     align-content: start;
     width: 100%;
@@ -2323,10 +2331,11 @@ tbody tr:nth-child(1) td:first-child {
   .print-code-card {
     display: grid;
     justify-items: center;
-    gap: 3mm;
-    min-height: 82mm;
-    padding: 7mm;
-    border: 1px solid #cfd9e5;
+    grid-template-rows: auto auto auto 1fr;
+    gap: 4mm;
+    min-height: 128mm;
+    padding: 8mm 10mm;
+    border: 1.5px solid #cfd9e5;
     border-radius: 4mm;
     break-inside: avoid;
     page-break-inside: avoid;
@@ -2335,29 +2344,91 @@ tbody tr:nth-child(1) td:first-child {
     text-align: center;
   }
 
+  .print-code-card header {
+    display: grid;
+    grid-template-columns: 18mm minmax(0, 1fr);
+    gap: 4mm;
+    align-items: center;
+    justify-self: stretch;
+    text-align: left;
+  }
+
+  .print-code-card header img {
+    width: 18mm;
+    height: 18mm;
+    border-radius: 50%;
+  }
+
+  .print-code-card header div {
+    display: grid;
+    gap: 1mm;
+  }
+
+  .print-code-card header span {
+    color: #a26a14;
+    font-size: 10pt;
+    font-weight: 900;
+    text-transform: uppercase;
+  }
+
+  .print-code-card header strong {
+    font-size: 16pt;
+    line-height: 1.05;
+  }
+
   .print-code-card .qr-image {
-    width: 38mm;
-    height: 38mm;
+    width: 54mm;
+    height: 54mm;
     border: 0;
   }
 
   .print-code-card .qr-image img {
-    width: 38mm;
-    height: 38mm;
+    width: 54mm;
+    height: 54mm;
   }
 
-  .print-code-card strong {
-    font-size: 15pt;
+  .print-code-main {
+    display: grid;
+    gap: 1.5mm;
+    justify-items: center;
   }
 
-  .print-code-card span {
-    font-size: 11pt;
+  .print-code-main span {
+    color: #52627a;
+    font-size: 12pt;
     font-weight: 700;
   }
 
-  .print-code-card small {
-    max-width: 72mm;
+  .print-code-main strong {
+    font-size: 22pt;
+    letter-spacing: 0.02em;
+  }
+
+  .print-code-main small {
+    max-width: 150mm;
     font-size: 8pt;
     overflow-wrap: anywhere;
+  }
+
+  .print-code-card ol {
+    justify-self: stretch;
+    margin: 0;
+    padding: 4mm 6mm 4mm 10mm;
+    border-radius: 3mm;
+    background: #f3f8ee;
+    color: #071b45;
+    text-align: left;
+    font-size: 11pt;
+    font-weight: 700;
+    line-height: 1.35;
+  }
+
+  .print-code-card li + li {
+    margin-top: 1.5mm;
+  }
+
+  .print-code-card:nth-child(2n) {
+    break-after: page;
+    page-break-after: always;
   }
 }
