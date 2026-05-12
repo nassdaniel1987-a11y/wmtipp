@@ -1,4 +1,4 @@
-# WM-Tippspiel
+# WM-Tippspiel Österfeld-Edition
 
 Klickbarer Prototyp für ein WM-Tippspiel einer Ganztagsschule.
 

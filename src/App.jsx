@@ -699,8 +699,13 @@ export default function App() {
     <div className="app-shell">
       <header className="topbar">
         <button type="button" className="brand" onClick={() => setActiveTab("start")}>
-          <span className="brand-ball">⚽</span>
-          <span>WM-Tippspiel</span>
+          <span className="brand-logo">
+            <img src="/oesterfeld-logo.jpg" alt="WM-Tippspiel Österfeld-Edition" />
+          </span>
+          <span>
+            <strong>WM-Tippspiel Österfeld-Edition</strong>
+            <small>WM 2026</small>
+          </span>
         </button>
 
         <nav className="main-nav" aria-label="Hauptnavigation">
@@ -1048,10 +1053,13 @@ function ScheduleSummary() {
       <header>
         <CalendarDays size={25} />
         <div>
-          <h2>Offizieller WM-Plan als Tippgrundlage</h2>
+          <h2>WM-Tippspiel Österfeld-Edition</h2>
           <p>{scheduleSource.label}</p>
         </div>
       </header>
+      <figure className="edition-logo-card">
+        <img src="/oesterfeld-logo.jpg" alt="Logo WM-Tippspiel Österfeld-Edition" />
+      </figure>
       <div className="summary-stats">
         <strong>72<span>Gruppenspiele</span></strong>
         <strong>12<span>Gruppen</span></strong>
