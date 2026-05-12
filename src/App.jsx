@@ -1873,35 +1873,40 @@ function RankingPanel({ ranking: rows, expanded = false, setActiveTab }) {
           <tr>
             <th>Platz</th>
             <th>Name</th>
-            {expanded && rankingMode === "total" && <th>Spiele</th>}
+            {expanded && rankingMode === "total" && <th>Tipps</th>}
+            {expanded && rankingMode === "total" && <th>Spielpunkte</th>}
             {expanded && rankingMode === "total" && <th>Bonus</th>}
+            {expanded && rankingMode === "average" && <th>Tipps</th>}
             {expanded && rankingMode === "average" && <th>Gewertet</th>}
             {expanded && rankingMode === "average" && <th>Schnitt</th>}
-            <th>{rankingMode === "average" ? "Gesamt" : "Punkte"}</th>
+            <th>{rankingMode === "average" ? "Spielpunkte" : "Gesamt"}</th>
           </tr>
         </thead>
         <tbody>
           {visibleRows.length === 0 && (
             <tr>
-              <td colSpan={expanded ? 5 : 3}>Noch keine Punkte vorhanden.</td>
+              <td colSpan={expanded ? 6 : 3}>Noch keine Punkte vorhanden.</td>
             </tr>
           )}
           {visibleRows.map((row, index) => (
             <tr key={`${row.name}-${index}`} className={row.isCurrent ? "current" : ""}>
               <td>{index + 1}</td>
               <td>{row.name}</td>
+              {expanded && rankingMode === "total" && <td>{row.tipCount ?? 0}</td>}
               {expanded && rankingMode === "total" && <td>{row.matchPoints ?? row.points}</td>}
               {expanded && rankingMode === "total" && <td>{row.bonusPoints ?? 0}</td>}
+              {expanded && rankingMode === "average" && <td>{row.tipCount ?? 0}</td>}
               {expanded && rankingMode === "average" && <td>{row.scoredTipCount ?? 0}</td>}
               {expanded && rankingMode === "average" && <td>{(row.averagePoints ?? 0).toFixed(2)}</td>}
-              <td>{row.points}</td>
+              <td>{rankingMode === "average" ? row.matchPoints ?? row.points : row.points}</td>
             </tr>
           ))}
         </tbody>
       </table>
       {expanded && rankingMode === "average" && (
         <p className="ranking-note">
-          Der Durchschnitt zählt nur Spielpunkte pro bereits gewertetem Tipp. Bonuspunkte sind hier nicht eingerechnet.
+          Tipps zeigt alle gespeicherten Spieltipps. Gewertet zählt nur Spiele mit eingetragenem Endergebnis.
+          Der Schnitt nutzt nur Spielpunkte pro gewertetem Tipp; Bonuspunkte sind nicht eingerechnet.
         </p>
       )}
       {!expanded && (
