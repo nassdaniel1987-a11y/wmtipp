@@ -1985,6 +1985,15 @@ tbody tr:nth-child(1) td:first-child {
     gap: 14px;
   }
 
+  .content-grid.active-start.participant-active {
+    grid-template-columns: 1fr;
+  }
+
+  .content-grid.active-start.participant-active .center-stage,
+  .content-grid.active-start.participant-active .side-stack {
+    grid-column: 1;
+  }
+
   .content-grid:not(.active-start) .join-panel {
     display: none;
   }
