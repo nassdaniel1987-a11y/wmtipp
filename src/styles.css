@@ -1010,6 +1010,115 @@ tbody tr:nth-child(1) td:first-child {
   background: #ffffff;
 }
 
+.info-screen {
+  display: grid;
+  gap: 22px;
+  padding: 26px;
+}
+
+.info-hero {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid #e1ebf4;
+}
+
+.info-hero svg {
+  color: var(--blue);
+}
+
+.info-hero h2,
+.info-hero p {
+  margin: 0;
+}
+
+.info-hero h2 {
+  font-size: clamp(1.45rem, 3vw, 2rem);
+}
+
+.info-hero p {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.rules-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.rules-grid article {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid #d7e2ee;
+  border-radius: 8px;
+  background: #fbfdff;
+}
+
+.rules-grid h3,
+.rules-grid dl,
+.rules-grid dt,
+.rules-grid dd {
+  margin: 0;
+}
+
+.rules-grid h3 {
+  color: var(--green-dark);
+}
+
+.rules-grid dl {
+  display: grid;
+  gap: 10px;
+}
+
+.rules-grid dl div {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding-top: 10px;
+  border-top: 1px solid #e5edf5;
+}
+
+.rules-grid dl div:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.rules-grid dt {
+  color: var(--blue);
+  font-weight: 950;
+}
+
+.rules-grid dd {
+  color: var(--muted);
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.rules-notes {
+  display: grid;
+  gap: 10px;
+}
+
+.rules-notes div {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 13px 14px;
+  border-radius: 8px;
+  background: #fff8df;
+  color: var(--navy);
+  font-weight: 800;
+}
+
+.rules-notes svg {
+  color: var(--gold);
+}
+
 .admin-panel {
   padding: 24px;
   overflow: hidden;
@@ -1844,9 +1953,19 @@ tbody tr:nth-child(1) td:first-child {
   .bonus-main-grid,
   .group-winner-grid,
   .bonus-select-grid,
+  .rules-grid,
   .groups-overview,
   .bonus-summary-grid {
     grid-template-columns: 1fr;
+  }
+
+  .info-screen {
+    padding: 18px;
+  }
+
+  .rules-grid dl div {
+    grid-template-columns: 1fr;
+    gap: 4px;
   }
 
   .bonus-actions .primary-button {

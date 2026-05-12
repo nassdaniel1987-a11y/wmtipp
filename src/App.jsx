@@ -9,6 +9,7 @@ import {
   CircleUserRound,
   Goal,
   House,
+  Info,
   ListFilter,
   LogOut,
   Medal,
@@ -39,6 +40,7 @@ const tabs = [
   { id: "start", label: "Start", icon: House },
   { id: "tippen", label: "Tippen", icon: Goal },
   { id: "rangliste", label: "Rangliste", icon: Trophy },
+  { id: "info", label: "Info", icon: Info },
   { id: "admin", label: "Admin", icon: ShieldCheck },
 ];
 const tabIds = new Set(tabs.map((tab) => tab.id));
@@ -792,6 +794,10 @@ export default function App() {
               <RankingPanel ranking={displayRanking} expanded />
             )}
 
+            {activeTab === "info" && (
+              <InfoScreen />
+            )}
+
             {activeTab === "admin" && (
               <AdminPanel
                 session={adminSession}
@@ -1490,6 +1496,77 @@ function RankingPanel({ ranking: rows, expanded = false, setActiveTab }) {
           Zur vollständigen Rangliste
         </button>
       )}
+    </section>
+  );
+}
+
+function InfoScreen() {
+  return (
+    <section className="info-screen panel">
+      <header className="info-hero">
+        <Info size={34} />
+        <div>
+          <h2>Regeln & Punkte</h2>
+          <p>So werden die Tipps im WM-Tippspiel bewertet.</p>
+        </div>
+      </header>
+
+      <div className="rules-grid">
+        <article>
+          <h3>Spieltipps</h3>
+          <dl>
+            <div>
+              <dt>4 Punkte</dt>
+              <dd>Exaktes Ergebnis richtig, zum Beispiel Tipp 2:1 und Ergebnis 2:1.</dd>
+            </div>
+            <div>
+              <dt>3 Punkte</dt>
+              <dd>Richtige Tendenz und richtige Tordifferenz, zum Beispiel Tipp 2:1 und Ergebnis 3:2.</dd>
+            </div>
+            <div>
+              <dt>2 Punkte</dt>
+              <dd>Richtige Tendenz, also Sieg, Niederlage oder Unentschieden richtig.</dd>
+            </div>
+            <div>
+              <dt>0 Punkte</dt>
+              <dd>Falsche Tendenz.</dd>
+            </div>
+          </dl>
+        </article>
+
+        <article>
+          <h3>Bonus-Tipps</h3>
+          <dl>
+            <div>
+              <dt>8 Punkte</dt>
+              <dd>Weltmeister richtig getippt.</dd>
+            </div>
+            <div>
+              <dt>6 Punkte</dt>
+              <dd>Torschützenkönig richtig getippt.</dd>
+            </div>
+            <div>
+              <dt>2 Punkte</dt>
+              <dd>Pro richtigem Gruppensieger.</dd>
+            </div>
+          </dl>
+        </article>
+      </div>
+
+      <div className="rules-notes">
+        <div>
+          <ShieldCheck size={22} />
+          <span>Spieltipps sind ab dem hinterlegten Spielstart gesperrt. Danach kann nur noch der Admin nachtragen oder korrigieren.</span>
+        </div>
+        <div>
+          <Trophy size={22} />
+          <span>Die Rangliste zählt Spielpunkte und Bonuspunkte zusammen. In der großen Rangliste sieht man beides getrennt.</span>
+        </div>
+        <div>
+          <QrCode size={22} />
+          <span>Mitmachen geht über einen QR-Code oder Anmeldecode vom Admin. Jeder Code gehört zu genau einem Teilnehmer.</span>
+        </div>
+      </div>
     </section>
   );
 }
