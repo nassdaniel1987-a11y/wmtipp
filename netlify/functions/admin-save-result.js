@@ -24,7 +24,7 @@ export default async (req) => {
       row.score_a > 30 ||
       row.score_b > 30
     ) {
-      return json({ error: "Ergebnis ist ungueltig." }, 400);
+      return json({ error: "Ergebnis ist ungültig." }, 400);
     }
 
     const { data, error } = await supabase

@@ -46,7 +46,7 @@ const groupFilters = ["alle", "deutschland", "A", "B", "C", "D", "E", "F", "G", 
 const codeStatusLabels = {
   free: "frei",
   claimed: "vergeben",
-  disabled: "ungueltig",
+  disabled: "ungültig",
 };
 
 function getInitialCode() {
@@ -104,7 +104,7 @@ function QrCodeImage({ value }) {
 
   return (
     <span className="qr-image">
-      {src ? <img src={src} alt={`QR-Code fuer ${value}`} /> : <QrCode size={42} />}
+      {src ? <img src={src} alt={`QR-Code für ${value}`} /> : <QrCode size={42} />}
     </span>
   );
 }
@@ -646,15 +646,15 @@ export default function App() {
           type="button"
           className="icon-button"
           onClick={adminSession ? handleAdminLogout : resetDevice}
-          aria-label={adminSession ? "Admin abmelden" : "Dieses Geraet zuruecksetzen"}
-          title={adminSession ? "Admin abmelden" : "Dieses Geraet zuruecksetzen"}
+          aria-label={adminSession ? "Admin abmelden" : "Dieses Gerät zurücksetzen"}
+          title={adminSession ? "Admin abmelden" : "Dieses Gerät zurücksetzen"}
         >
           <LogOut size={20} />
         </button>
       </header>
 
       <main className="stadium">
-        <section className="scoreboard-strip" aria-label="Turnieruebersicht">
+        <section className="scoreboard-strip" aria-label="Turnierübersicht">
           <span>WM 2026 · {matches.length} Gruppenspiele</span>
           <strong>{savedTipCount} von {matches.length} Tipps gespeichert</strong>
           <span>{appStatus}</span>
@@ -842,7 +842,7 @@ function StartPanel({
       : codeStatus === "free"
         ? "Freier Einladungscode"
         : codeStatus === "checking"
-          ? "Code wird geprueft"
+          ? "Code wird geprüft"
           : activeCode
             ? "Code nicht gefunden"
             : "Code vom QR-Zettel eingeben";
@@ -1030,7 +1030,7 @@ function TipScreen({
           </>
         ) : (
           <p className="fine-print">
-            Bonus-Tipps gelten fuer das ganze Turnier. Die Gruppentabellen werden
+            Bonus-Tipps gelten für das ganze Turnier. Die Gruppentabellen werden
             aus den eingetragenen Ergebnissen berechnet.
           </p>
         )}
@@ -1108,7 +1108,7 @@ function BonusTipsPanel({
               setBonusTips((current) => ({ ...current, champion: event.target.value, saved: false }))
             }
           >
-            <option value="">Bitte waehlen</option>
+            <option value="">Bitte wählen</option>
             {teamOptions.map((team) => (
               <option key={team.name} value={team.name}>{team.name}</option>
             ))}
@@ -1116,7 +1116,7 @@ function BonusTipsPanel({
         </label>
 
         <label>
-          Torschuetzenkoenig
+          Torschützenkönig
           <input
             value={bonusTips.topScorer}
             disabled={locked}
@@ -1138,7 +1138,7 @@ function BonusTipsPanel({
               disabled={locked}
               onChange={(event) => updateGroupWinner(group.groupKey, event.target.value)}
             >
-              <option value="">Bitte waehlen</option>
+              <option value="">Bitte wählen</option>
               {group.teams.map((team) => (
                 <option key={team.name} value={team.name}>{team.name}</option>
               ))}
@@ -1230,7 +1230,7 @@ function AdminBonusSummary({ bonusTip }) {
           <strong>{bonusTip.champion || "offen"}</strong>
         </div>
         <div>
-          <span>Torschuetzenkoenig</span>
+          <span>Torschützenkönig</span>
           <strong>{bonusTip.top_scorer || "offen"}</strong>
         </div>
         <div>
@@ -1335,7 +1335,7 @@ function TeamBlock({ flagCode, name }) {
 function ScoreControl({ value, onIncrease, onDecrease, disabled }) {
   return (
     <div className="score-control">
-      <button type="button" onClick={onIncrease} disabled={disabled} aria-label="Tor hinzufuegen">
+      <button type="button" onClick={onIncrease} disabled={disabled} aria-label="Tor hinzufügen">
         <ChevronUp size={22} />
       </button>
       <strong>{value}</strong>
@@ -1380,7 +1380,7 @@ function RankingPanel({ ranking: rows, expanded = false, setActiveTab }) {
       </table>
       {!expanded && (
         <button type="button" className="ghost-button" onClick={() => setActiveTab?.("rangliste")}>
-          Zur vollstaendigen Rangliste
+          Zur vollständigen Rangliste
         </button>
       )}
     </section>
@@ -1433,7 +1433,7 @@ function InfoBanner() {
     <aside className="info-banner">
       <Medal size={42} />
       <div>
-        <strong>Alles bereit fuer eure Tipprunde.</strong>
+        <strong>Alles bereit für eure Tipprunde.</strong>
         <span>Codes, Tipps, Ergebnisse und Rangliste werden zentral gespeichert.</span>
       </div>
     </aside>
@@ -1464,6 +1464,7 @@ function AdminPanel({
   const [resultFilter, setResultFilter] = useState("open");
   const [selectedParticipant, setSelectedParticipant] = useState(null);
   const [participantTipDrafts, setParticipantTipDrafts] = useState({});
+  const [selectedCodeIds, setSelectedCodeIds] = useState([]);
 
   const sortedResultMatches = useMemo(() => {
     const now = Date.now();
@@ -1544,29 +1545,52 @@ function AdminPanel({
   }
 
   async function deleteParticipant(participantId, displayName) {
-    if (!window.confirm(`${displayName} wirklich loeschen? Die Tipps und der QR-Code werden entfernt.`)) {
+    if (!window.confirm(`${displayName} wirklich löschen? Die Tipps und der QR-Code werden entfernt.`)) {
       return;
     }
 
     try {
       await onDeleteParticipant(participantId);
-      setAdminMessage(`${displayName} wurde geloescht.`);
+      setAdminMessage(`${displayName} wurde gelöscht.`);
     } catch (error) {
       setAdminMessage(error.message);
     }
   }
 
   async function deleteCode(codeId, code) {
-    if (!window.confirm(`${code} wirklich loeschen? Dieser QR-Code kann danach nicht mehr benutzt werden.`)) {
+    if (!window.confirm(`${code} wirklich löschen? Dieser QR-Code kann danach nicht mehr benutzt werden.`)) {
       return;
     }
 
     try {
       await onDeleteCode(codeId);
-      setAdminMessage(`${code} wurde geloescht.`);
+      setAdminMessage(`${code} wurde gelöscht.`);
     } catch (error) {
       setAdminMessage(error.message);
     }
+  }
+
+  const visibleCodes = adminData.codes.slice(0, 12);
+  const printableCodes = visibleCodes.filter((code) => selectedCodeIds.includes(code.id));
+
+  function togglePrintCode(codeId) {
+    setSelectedCodeIds((current) =>
+      current.includes(codeId)
+        ? current.filter((id) => id !== codeId)
+        : [...current, codeId],
+    );
+  }
+
+  function selectAllVisibleCodes() {
+    setSelectedCodeIds(visibleCodes.map((code) => code.id));
+  }
+
+  function printSelectedCodes() {
+    if (printableCodes.length === 0) {
+      setAdminMessage("Bitte erst QR-Codes zum Drucken auswählen.");
+      return;
+    }
+    window.print();
   }
 
   function openParticipant(participant) {
@@ -1607,7 +1631,7 @@ function AdminPanel({
         });
         return next;
       });
-      setAdminMessage(`Tipps fuer ${selectedParticipant.display_name} gespeichert.`);
+      setAdminMessage(`Tipps für ${selectedParticipant.display_name} gespeichert.`);
     } catch (error) {
       setAdminMessage(error.message);
     }
@@ -1697,24 +1721,53 @@ function AdminPanel({
 
       <h3>QR-Codes</h3>
       <p className="fine-print">
-        Diese QR-Codes koennen mit der Handykamera gescannt werden. Die Nummer
+        Diese QR-Codes können mit der Handykamera gescannt werden. Die Nummer
         darunter kann am PC manuell eingegeben werden.
       </p>
+      <div className="print-actions">
+        <button type="button" className="ghost-button" onClick={selectAllVisibleCodes}>
+          Sichtbare auswählen
+        </button>
+        <button type="button" className="ghost-button" onClick={() => setSelectedCodeIds([])}>
+          Auswahl leeren
+        </button>
+        <button type="button" className="primary-button compact" onClick={printSelectedCodes}>
+          Ausgewählte QR-Codes drucken
+        </button>
+      </div>
       <div className="admin-grid">
-        {adminData.codes.slice(0, 12).map((row) => (
+        {visibleCodes.map((row) => (
           <article key={row.id} className={`code-card ${row.status}`}>
+            <label className="print-select">
+              <input
+                type="checkbox"
+                checked={selectedCodeIds.includes(row.id)}
+                onChange={() => togglePrintCode(row.id)}
+              />
+              Drucken
+            </label>
             <QrCodeImage value={getInviteUrl(row.code)} />
             <strong>{row.code}</strong>
             <span>{row.participant?.display_name || codeStatusLabels[row.status] || row.status}</span>
             <small>{getInviteUrl(row.code)}</small>
             {row.status === "free" && !row.participant && (
               <button type="button" className="danger-button code-delete" onClick={() => deleteCode(row.id, row.code)}>
-                Code loeschen
+                Code löschen
               </button>
             )}
           </article>
         ))}
       </div>
+      <section className="print-sheet" aria-hidden="true">
+        {printableCodes.map((row) => (
+          <article className="print-code-card" key={row.id}>
+            <QrCodeImage value={getInviteUrl(row.code)} />
+            <strong>{row.code}</strong>
+            <span>{row.participant?.display_name || codeStatusLabels[row.status] || row.status}</span>
+            <small>{getInviteUrl(row.code)}</small>
+          </article>
+        ))}
+      </section>
 
       <h3>Teilnehmer</h3>
       <div className="participant-list">
@@ -1747,7 +1800,7 @@ function AdminPanel({
                 className="danger-button"
                 onClick={() => deleteParticipant(participant.id, participant.display_name)}
               >
-                Loeschen
+                Löschen
               </button>
             </div>
           );

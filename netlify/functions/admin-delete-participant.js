@@ -33,7 +33,7 @@ export default async (req) => {
 
     return json({ deletedParticipantId: participantId, deletedCodeId: participant.invite_code_id });
   } catch (error) {
-    return json({ error: error.message || "Nutzer konnte nicht geloescht werden." }, 401);
+    return json({ error: error.message || "Nutzer konnte nicht gelöscht werden." }, 401);
   }
 };
 

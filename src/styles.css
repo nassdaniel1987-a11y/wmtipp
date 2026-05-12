@@ -1042,6 +1042,19 @@ tbody tr:nth-child(1) td:first-child {
   margin-top: 20px;
 }
 
+.print-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.print-actions .ghost-button,
+.print-actions .primary-button {
+  width: auto;
+  margin: 0;
+}
+
 .admin-login,
 .admin-create,
 .admin-actions,
@@ -1378,6 +1391,7 @@ tbody tr:nth-child(1) td:first-child {
 }
 
 .code-card {
+  position: relative;
   display: grid;
   gap: 8px;
   min-height: 128px;
@@ -1385,6 +1399,21 @@ tbody tr:nth-child(1) td:first-child {
   border: 1px solid #d7e2ee;
   border-radius: 8px;
   background: #ffffff;
+}
+
+.print-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  width: fit-content;
+  color: var(--muted);
+  font-weight: 900;
+}
+
+.print-select input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--green);
 }
 
 .code-card strong {
@@ -1442,9 +1471,12 @@ tbody tr:nth-child(1) td:first-child {
   box-shadow: inset 4px 0 0 var(--yellow);
 }
 
-.code-card.disabled,
-.code-card.ungueltig {
+.code-card.disabled {
   box-shadow: inset 4px 0 0 #d92d20;
+}
+
+.print-sheet {
+  display: none;
 }
 
 @media (max-width: 1120px) {
@@ -1680,6 +1712,16 @@ tbody tr:nth-child(1) td:first-child {
     margin-top: 14px;
   }
 
+  .print-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .print-actions .ghost-button,
+  .print-actions .primary-button {
+    width: 100%;
+  }
+
   .admin-actions,
   .admin-stats,
   .participant-row,
@@ -1797,5 +1839,78 @@ tbody tr:nth-child(1) td:first-child {
 
   .admin-stats {
     grid-template-columns: 1fr;
+  }
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+
+  body {
+    background: #ffffff;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  .print-sheet,
+  .print-sheet * {
+    visibility: visible;
+  }
+
+  .print-sheet {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8mm;
+    align-content: start;
+    width: 100%;
+    padding: 0;
+    background: #ffffff;
+  }
+
+  .print-code-card {
+    display: grid;
+    justify-items: center;
+    gap: 3mm;
+    min-height: 82mm;
+    padding: 7mm;
+    border: 1px solid #cfd9e5;
+    border-radius: 4mm;
+    break-inside: avoid;
+    page-break-inside: avoid;
+    color: #071b45;
+    background: #ffffff;
+    text-align: center;
+  }
+
+  .print-code-card .qr-image {
+    width: 38mm;
+    height: 38mm;
+    border: 0;
+  }
+
+  .print-code-card .qr-image img {
+    width: 38mm;
+    height: 38mm;
+  }
+
+  .print-code-card strong {
+    font-size: 15pt;
+  }
+
+  .print-code-card span {
+    font-size: 11pt;
+    font-weight: 700;
+  }
+
+  .print-code-card small {
+    max-width: 72mm;
+    font-size: 8pt;
+    overflow-wrap: anywhere;
   }
 }

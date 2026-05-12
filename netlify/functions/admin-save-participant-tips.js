@@ -32,7 +32,7 @@ export default async (req) => {
           row.score_b > 12,
       )
     ) {
-      return json({ error: "Mindestens ein Tipp ist ungueltig." }, 400);
+      return json({ error: "Mindestens ein Tipp ist ungültig." }, 400);
     }
 
     const { data, error } = await supabase

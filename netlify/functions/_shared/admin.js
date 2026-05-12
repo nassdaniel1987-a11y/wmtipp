@@ -7,7 +7,7 @@ export async function requireAdmin(req) {
 
   const supabase = getServiceClient();
   const { data: userData, error: userError } = await supabase.auth.getUser(token);
-  if (userError || !userData.user) throw new Error("Admin-Login ist ungueltig.");
+  if (userError || !userData.user) throw new Error("Admin-Login ist ungültig.");
 
   const { data: admin, error: adminError } = await supabase
     .from("admins")

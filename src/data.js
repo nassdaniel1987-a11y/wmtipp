@@ -1,7 +1,7 @@
 import { displayTeamName } from "./teamNames.js";
 
 export const scheduleSource = {
-  label: "Spielplan-Stand: 10. Mai 2026, Anzeigezeiten fuer Deutschland",
+  label: "Spielplan-Stand: 10. Mai 2026, Anzeigezeiten für Deutschland",
   url: "https://worldcuphub.io/en/schedule",
 };
 

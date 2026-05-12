@@ -1,6 +1,6 @@
 # WM-Tippspiel
 
-Klickbarer Prototyp fuer ein WM-Tippspiel einer Ganztagsschule.
+Klickbarer Prototyp für ein WM-Tippspiel einer Ganztagsschule.
 
 ## Lokal starten
 
@@ -20,9 +20,9 @@ http://127.0.0.1:5173/?code=DEMO-001
 - Build command: `npm run build`
 - Publish directory: `dist`
 
-Die aktuelle Version nutzt Supabase fuer WM-Plan, QR-Codes, Teilnehmer, Tipps,
+Die aktuelle Version nutzt Supabase für WM-Plan, QR-Codes, Teilnehmer, Tipps,
 Ergebnisse und Rangliste. Der Browser merkt sich nur den aktivierten
-Teilnehmer auf diesem Geraet.
+Teilnehmer auf diesem Gerät.
 
 ## Supabase
 
@@ -36,9 +36,9 @@ VITE_SUPABASE_PUBLISHABLE_KEY
 
 Datenbank vorbereiten:
 
-1. In Supabase **SQL Editor** oeffnen.
-2. `supabase/schema.sql` ausfuehren.
-3. Danach `supabase/seed_matches.sql` ausfuehren.
+1. In Supabase **SQL Editor** öffnen.
+2. `supabase/schema.sql` ausführen.
+3. Danach `supabase/seed_matches.sql` ausführen.
 4. In Supabase **Authentication > Users** einen Admin-User anlegen.
 5. Die User-ID kopieren und im SQL Editor eintragen:
 
@@ -48,11 +48,11 @@ values ('USER_UUID_HERE', 'deine-admin-mail@example.com')
 on conflict (user_id) do update set email = excluded.email;
 ```
 
-Admin/QR-Code-Erstellung und Ergebnisverwaltung laufen ueber serverseitige
+Admin/QR-Code-Erstellung und Ergebnisverwaltung laufen über serverseitige
 Netlify Functions mit dem geheimen Supabase Service Role Key. Dieser Key darf
 nicht ins Frontend und nicht ins Repository.
 
-Netlify braucht zusaetzlich serverseitig:
+Netlify braucht zusätzlich serverseitig:
 
 ```text
 SUPABASE_SECRET_KEY
@@ -61,8 +61,8 @@ SUPABASE_SECRET_KEY
 Das ist der geheime Supabase Secret/Service-Role-Key. In Netlify bei dieser
 Variable **Contains secret values** aktivieren.
 
-Vollstaendiger lokaler Backend-Test geht ueber Netlify Functions, also nicht
-ueber `npm run dev`, sondern mit Netlify CLI:
+Vollständiger lokaler Backend-Test geht über Netlify Functions, also nicht
+über `npm run dev`, sondern mit Netlify CLI:
 
 ```bash
 netlify dev

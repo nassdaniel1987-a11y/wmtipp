@@ -1,5 +1,5 @@
--- Bonus-Tipps fuer Weltmeister, Torschuetzenkoenig und Gruppensieger.
--- In Supabase Dashboard > SQL Editor ausfuehren.
+-- Bonus-Tipps für Weltmeister, Torschützenkönig und Gruppensieger.
+-- In Supabase Dashboard > SQL Editor ausführen.
 
 create table if not exists public.bonus_tips (
   participant_id uuid primary key references public.participants(id) on delete cascade,

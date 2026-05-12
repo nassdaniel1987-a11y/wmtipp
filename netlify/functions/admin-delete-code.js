@@ -18,7 +18,7 @@ export default async (req) => {
     if (readError) throw readError;
     if (!inviteCode) return json({ error: "QR-Code wurde nicht gefunden." }, 404);
     if (inviteCode.status !== "free" || inviteCode.participant_id) {
-      return json({ error: "Nur freie QR-Codes koennen geloescht werden." }, 400);
+      return json({ error: "Nur freie QR-Codes können gelöscht werden." }, 400);
     }
 
     const { error: deleteError } = await supabase
@@ -30,7 +30,7 @@ export default async (req) => {
 
     return json({ deletedCodeId: codeId });
   } catch (error) {
-    return json({ error: error.message || "QR-Code konnte nicht geloescht werden." }, 401);
+    return json({ error: error.message || "QR-Code konnte nicht gelöscht werden." }, 401);
   }
 };
 
