@@ -556,6 +556,166 @@ p {
   font-weight: 700;
 }
 
+.participant-landing {
+  display: grid;
+  gap: 18px;
+  padding: 24px;
+}
+
+.landing-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 116px;
+  gap: 18px;
+  align-items: center;
+  padding: 18px;
+  border-radius: 8px;
+  color: #ffffff;
+  background:
+    radial-gradient(circle at 88% 20%, rgba(255, 217, 123, 0.24), transparent 34%),
+    linear-gradient(135deg, #071b45, #0b5eaa 55%, #12853f);
+}
+
+.landing-hero span {
+  color: #ffe08a;
+  font-weight: 900;
+}
+
+.landing-hero h2 {
+  margin-top: 4px;
+  color: #ffffff;
+  font-size: clamp(1.7rem, 4vw, 2.6rem);
+  line-height: 1.02;
+}
+
+.landing-hero p {
+  max-width: 560px;
+  margin-top: 8px;
+  color: #dff2ff;
+  font-weight: 750;
+}
+
+.landing-hero img {
+  width: 116px;
+  height: 116px;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.24);
+}
+
+.landing-progress {
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+  border: 1px solid #d7e2ee;
+  border-radius: 8px;
+  background: #fbfdff;
+}
+
+.landing-progress div:first-child,
+.landing-stats strong {
+  display: grid;
+  gap: 4px;
+}
+
+.landing-progress strong,
+.landing-stats strong {
+  color: var(--navy);
+  font-size: 1.35rem;
+}
+
+.landing-progress span,
+.landing-progress small,
+.landing-stats span,
+.next-open-panel p,
+.next-open-list small {
+  color: var(--muted);
+  font-weight: 750;
+}
+
+.progress-track {
+  height: 14px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e5edf5;
+}
+
+.progress-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--blue), var(--green));
+}
+
+.landing-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.landing-stats strong {
+  min-height: 82px;
+  align-content: center;
+  padding: 14px 16px;
+  border: 1px solid #d7e2ee;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #ffffff, #edf7ff);
+}
+
+.next-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.next-steps .primary-button {
+  margin: 0;
+}
+
+.ghost-action {
+  min-height: 46px;
+  padding: 0 16px;
+  border: 1px solid #c7d8ec;
+  border-radius: 8px;
+  color: var(--blue);
+  background: #ffffff;
+  font-weight: 900;
+}
+
+.next-open-panel {
+  display: grid;
+  gap: 12px;
+  padding-top: 4px;
+}
+
+.next-open-panel h3 {
+  margin: 0;
+}
+
+.next-open-list {
+  display: grid;
+  gap: 10px;
+}
+
+.next-open-list div {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border: 1px solid #d7e2ee;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.next-open-list span {
+  color: var(--muted);
+  font-weight: 850;
+}
+
+.next-open-list strong {
+  color: var(--navy);
+}
+
 .tip-toolbar {
   display: grid;
   gap: 16px;
@@ -1854,12 +2014,38 @@ tbody tr:nth-child(1) td:first-child {
 
   .hero-copy,
   .schedule-summary,
+  .participant-landing,
   .match-card,
   .ranking-panel,
   .upcoming-panel,
   .knockout-panel,
   .admin-panel {
     overflow: hidden;
+  }
+
+  .participant-landing {
+    padding: 16px;
+  }
+
+  .landing-hero,
+  .landing-stats,
+  .next-open-list div {
+    grid-template-columns: 1fr;
+  }
+
+  .landing-hero img {
+    width: 92px;
+    height: 92px;
+  }
+
+  .next-steps {
+    display: grid;
+  }
+
+  .next-steps .primary-button,
+  .ghost-action {
+    width: 100%;
+    justify-content: center;
   }
 
   .match-body {

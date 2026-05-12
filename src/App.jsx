@@ -768,20 +768,32 @@ export default function App() {
 
           <section className="center-stage">
             {activeTab === "start" && (
-              <>
-                <ScheduleSummary />
-                <MatchCard
-                  match={featuredMatch}
-                  tip={tips[featuredMatch.id]}
-                  result={resultsByMatch.get(featuredMatch.id)}
-                  changeScore={changeScore}
-                  saveTip={saveTip}
-                  lastSavedMatch={lastSavedMatch}
-                  locked={!participant}
-                  featured
+              participant ? (
+                <ParticipantLanding
+                  participant={participant}
+                  matches={matches}
+                  tips={tips}
+                  bonusTips={bonusTips}
+                  groupTables={groupTables}
+                  ranking={displayRanking}
+                  setActiveTab={setActiveTab}
                 />
-                <InfoBanner />
-              </>
+              ) : (
+                <>
+                  <ScheduleSummary />
+                  <MatchCard
+                    match={featuredMatch}
+                    tip={tips[featuredMatch.id]}
+                    result={resultsByMatch.get(featuredMatch.id)}
+                    changeScore={changeScore}
+                    saveTip={saveTip}
+                    lastSavedMatch={lastSavedMatch}
+                    locked
+                    featured
+                  />
+                  <InfoBanner />
+                </>
+              )
             )}
 
             {activeTab === "tippen" && (
@@ -1069,6 +1081,90 @@ function ScheduleSummary() {
   );
 }
 
+function ParticipantLanding({
+  participant,
+  matches,
+  tips,
+  bonusTips,
+  groupTables,
+  ranking,
+  setActiveTab,
+}) {
+  const savedTipCount = Object.values(tips).filter((tip) => tip.saved).length;
+  const openTipCount = Math.max(0, matches.length - savedTipCount);
+  const progress = matches.length ? Math.round((savedTipCount / matches.length) * 100) : 0;
+  const groupWinnerCount = countGroupWinnerDrafts(bonusTips);
+  const bonusTotal = 2 + groupTables.length;
+  const bonusDone =
+    (bonusTips.champion ? 1 : 0) +
+    (bonusTips.topScorer ? 1 : 0) +
+    groupWinnerCount;
+  const currentRank = ranking.find((row) => row.isCurrent || row.name === participant.name);
+  const nextOpenMatches = matches
+    .filter((match) => !tips[match.id]?.saved)
+    .slice(0, 4);
+
+  return (
+    <section className="participant-landing panel">
+      <header className="landing-hero">
+        <div>
+          <span>Willkommen zurück</span>
+          <h2>{participant.name}</h2>
+          <p>Hier siehst du, was schon erledigt ist und was als nächstes ansteht.</p>
+        </div>
+        <img src="/oesterfeld-logo-round.jpg" alt="" aria-hidden="true" />
+      </header>
+
+      <div className="landing-progress">
+        <div>
+          <strong>{savedTipCount} von {matches.length}</strong>
+          <span>Spieltipps gespeichert</span>
+        </div>
+        <div className="progress-track" aria-label={`${progress} Prozent der Tipps gespeichert`}>
+          <span style={{ width: `${progress}%` }}></span>
+        </div>
+        <small>{openTipCount === 0 ? "Alle Gruppenspiele sind getippt." : `${openTipCount} Spieltipps sind noch offen.`}</small>
+      </div>
+
+      <div className="landing-stats">
+        <strong>{currentRank?.points ?? 0}<span>Punkte</span></strong>
+        <strong>{currentRank?.averagePoints?.toFixed?.(2) ?? "0.00"}<span>Schnitt</span></strong>
+        <strong>{bonusDone} / {bonusTotal}<span>Bonus-Tipps</span></strong>
+      </div>
+
+      <div className="next-steps">
+        <button type="button" className="primary-button compact" onClick={() => setActiveTab("tippen")}>
+          Offene Tipps bearbeiten
+          <ChevronRight size={18} />
+        </button>
+        <button type="button" className="ghost-action" onClick={() => setActiveTab("rangliste")}>
+          Rangliste ansehen
+        </button>
+        <button type="button" className="ghost-action" onClick={() => setActiveTab("info")}>
+          Regeln lesen
+        </button>
+      </div>
+
+      <section className="next-open-panel">
+        <h3>Nächste offene Tipps</h3>
+        {nextOpenMatches.length === 0 ? (
+          <p>Für die Gruppenphase ist gerade nichts mehr offen.</p>
+        ) : (
+          <div className="next-open-list">
+            {nextOpenMatches.map((match) => (
+              <div key={match.id}>
+                <span>Spiel {match.matchNumber}</span>
+                <strong>{match.teamA} - {match.teamB}</strong>
+                <small>{formatDate(match.date)} · {match.time} Uhr</small>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+    </section>
+  );
+}
+
 function TipScreen({
   filteredMatches,
   groupFilter,
@@ -1340,6 +1436,10 @@ function GroupsOverview({ groupTables }) {
 
 function countGroupWinnerTips(bonusTip) {
   return Object.values(bonusTip?.group_winners ?? {}).filter(Boolean).length;
+}
+
+function countGroupWinnerDrafts(bonusTips) {
+  return Object.values(bonusTips?.groupWinners ?? {}).filter(Boolean).length;
 }
 
 function isBonusTipStarted(bonusTip) {
