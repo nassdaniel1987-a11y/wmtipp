@@ -55,6 +55,51 @@ const bonusPointValues = {
   topScorer: 6,
   groupWinner: 2,
 };
+const TEST_PARTICIPANT = {
+  id: "test-participant",
+  name: "Testkind",
+  code: "TEST-MODUS",
+};
+const TEST_EXPECTED = {
+  matchPoints: 11,
+  bonusPoints: 22,
+  totalPoints: 33,
+  scoredTipCount: 5,
+  savedTipCount: 8,
+  averagePoints: 2.2,
+};
+const TEST_RANKING_ROWS = [
+  {
+    name: "Agapi",
+    points: 20,
+    matchPoints: 14,
+    bonusPoints: 6,
+    tipCount: 8,
+    scoredTipCount: 5,
+    averagePoints: 2.8,
+  },
+  {
+    name: "Clemens",
+    points: 12,
+    matchPoints: 10,
+    bonusPoints: 2,
+    tipCount: 6,
+    scoredTipCount: 5,
+    averagePoints: 2,
+  },
+];
+const TEST_SCENARIOS = [
+  { label: "Exaktes Ergebnis", tipA: 2, tipB: 1, resultA: 2, resultB: 1, points: 4 },
+  { label: "Tendenz + Tordifferenz", tipA: 2, tipB: 1, resultA: 3, resultB: 2, points: 3 },
+  { label: "Richtige Tendenz", tipA: 1, tipB: 0, resultA: 2, resultB: 0, points: 2 },
+  { label: "Falsche Tendenz", tipA: 0, tipB: 1, resultA: 2, resultB: 0, points: 0 },
+  { label: "Remis-Tendenz", tipA: 1, tipB: 1, resultA: 2, resultB: 2, points: 2 },
+];
+
+function getIsTestMode() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get("test") === "1" || params.get("mode") === "test";
+}
 
 function getInitialCode() {
   const params = new URLSearchParams(window.location.search);
@@ -211,6 +256,70 @@ function createInitialBonusTips(matches, savedBonusTip = null) {
   };
 }
 
+function createTestTips(matches) {
+  const tips = createInitialTips(matches);
+  TEST_SCENARIOS.forEach((scenario, index) => {
+    const match = matches[index];
+    if (!match) return;
+    tips[match.id] = {
+      scoreA: scenario.tipA,
+      scoreB: scenario.tipB,
+      saved: true,
+    };
+  });
+  matches.slice(TEST_SCENARIOS.length, TEST_EXPECTED.savedTipCount).forEach((match, index) => {
+    tips[match.id] = {
+      scoreA: index % 3,
+      scoreB: 0,
+      saved: true,
+    };
+  });
+  return tips;
+}
+
+function createTestResults(matches) {
+  return TEST_SCENARIOS.map((scenario, index) => {
+    const match = matches[index];
+    if (!match) return null;
+    return {
+      match_id: match.id,
+      score_a: scenario.resultA,
+      score_b: scenario.resultB,
+      status: "final",
+      updated_at: new Date().toISOString(),
+    };
+  }).filter(Boolean);
+}
+
+function createTestBonusTips(matches) {
+  const bonusTips = createInitialBonusTips(matches);
+  const groups = getGroups(matches);
+  return {
+    ...bonusTips,
+    champion: "Deutschland",
+    topScorer: "Jamal Musiala",
+    groupWinners: {
+      ...bonusTips.groupWinners,
+      ...Object.fromEntries(groups.slice(0, 4).map((group) => [group.groupKey, group.teams[0]?.name ?? ""])),
+    },
+    saved: true,
+  };
+}
+
+function createTestBonusResults(matches) {
+  const bonusResults = createInitialBonusResults(matches);
+  const groups = getGroups(matches);
+  return {
+    ...bonusResults,
+    champion: "Deutschland",
+    topScorer: "Jamal Musiala",
+    groupWinners: {
+      ...bonusResults.groupWinners,
+      ...Object.fromEntries(groups.slice(0, 4).map((group) => [group.groupKey, group.teams[0]?.name ?? ""])),
+    },
+  };
+}
+
 function createInitialBonusResults(matches, savedBonusResults = null) {
   const groups = getGroups(matches);
   const savedGroupWinners = savedBonusResults?.group_winners ?? savedBonusResults?.groupWinners ?? {};
@@ -307,6 +416,7 @@ function pointsFor(tip, result) {
   const tipTrend = Math.sign(tipGoalDiff);
   const resultTrend = Math.sign(resultGoalDiff);
   if (tipTrend !== resultTrend) return 0;
+  if (tipTrend === 0) return 2;
   return tipGoalDiff === resultGoalDiff ? 3 : 2;
 }
 
@@ -339,24 +449,26 @@ function getGroupLeaderSuggestions(groupTables) {
 }
 
 export default function App() {
-  const [scannedCode, setScannedCode] = useState(getInitialCode);
+  const isTestMode = useMemo(() => getIsTestMode(), []);
+  const [scannedCode, setScannedCode] = useState(() => (isTestMode ? TEST_PARTICIPANT.code : getInitialCode()));
   const savedParticipant = useMemo(() => loadSavedParticipant(), []);
   const [activeTab, setActiveTabState] = useState(getTabFromHash);
-  const [participant, setParticipant] = useState(savedParticipant);
-  const [name, setName] = useState(savedParticipant?.name ?? "");
+  const initialParticipant = isTestMode ? TEST_PARTICIPANT : savedParticipant;
+  const [participant, setParticipant] = useState(initialParticipant);
+  const [name, setName] = useState(initialParticipant?.name ?? "");
   const [manualCode, setManualCode] = useState("");
   const [matches, setMatches] = useState(bundledMatches);
-  const [results, setResults] = useState([]);
-  const [tips, setTips] = useState(createInitialTips(bundledMatches));
-  const [bonusTips, setBonusTips] = useState(createInitialBonusTips(bundledMatches));
-  const [bonusResults, setBonusResults] = useState(createInitialBonusResults(bundledMatches));
+  const [results, setResults] = useState(() => (isTestMode ? createTestResults(bundledMatches) : []));
+  const [tips, setTips] = useState(() => (isTestMode ? createTestTips(bundledMatches) : createInitialTips(bundledMatches)));
+  const [bonusTips, setBonusTips] = useState(() => (isTestMode ? createTestBonusTips(bundledMatches) : createInitialBonusTips(bundledMatches)));
+  const [bonusResults, setBonusResults] = useState(() => (isTestMode ? createTestBonusResults(bundledMatches) : createInitialBonusResults(bundledMatches)));
   const [bonusMessage, setBonusMessage] = useState("");
-  const [ranking, setRanking] = useState([]);
+  const [ranking, setRanking] = useState(() => (isTestMode ? TEST_RANKING_ROWS : []));
   const [lastSavedMatch, setLastSavedMatch] = useState("");
   const [groupFilter, setGroupFilter] = useState("alle");
   const [searchTerm, setSearchTerm] = useState("");
-  const [appStatus, setAppStatus] = useState("Spielplan wird geladen...");
-  const [codeStatus, setCodeStatus] = useState(scannedCode ? "checking" : "missing");
+  const [appStatus, setAppStatus] = useState(isTestMode ? "Testmodus aktiv" : "Spielplan wird geladen...");
+  const [codeStatus, setCodeStatus] = useState(isTestMode ? "claimed" : scannedCode ? "checking" : "missing");
   const [adminSession, setAdminSession] = useState(null);
   const [adminData, setAdminData] = useState({ codes: [], participants: [], tips: [], bonusTips: [], bonusResults: null, results: [] });
 
@@ -450,6 +562,20 @@ export default function App() {
 
   useEffect(() => {
     async function bootstrap() {
+      if (isTestMode) {
+        setMatches(bundledMatches);
+        setResults(createTestResults(bundledMatches));
+        setTips(createTestTips(bundledMatches));
+        setBonusTips(createTestBonusTips(bundledMatches));
+        setBonusResults(createTestBonusResults(bundledMatches));
+        setRanking(TEST_RANKING_ROWS);
+        setCodeStatus("claimed");
+        setAppStatus("Testmodus aktiv");
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(TEST_PARTICIPANT));
+        setActiveTab("start", { replace: true });
+        return;
+      }
+
       try {
         const [dbMatches, dbResults, rankPayload, bonusPayload, session] = await Promise.all([
           loadDbMatches(),
@@ -474,10 +600,15 @@ export default function App() {
     }
 
     bootstrap();
-  }, []);
+  }, [isTestMode, setActiveTab]);
 
   useEffect(() => {
     async function resolveParticipant() {
+      if (isTestMode) {
+        setCodeStatus("claimed");
+        return;
+      }
+
       if (!activeCode) {
         setCodeStatus("missing");
         return;
@@ -508,10 +639,11 @@ export default function App() {
     }
 
     resolveParticipant();
-  }, [activeCode, participant?.id]);
+  }, [activeCode, participant?.id, isTestMode]);
 
   useEffect(() => {
     async function loadParticipantTips() {
+      if (isTestMode) return;
       if (!participant?.id) return;
       try {
         const [tipPayload, bonusPayload] = await Promise.all([
@@ -526,12 +658,23 @@ export default function App() {
     }
 
     loadParticipantTips();
-  }, [participant?.id, matches]);
+  }, [participant?.id, matches, isTestMode]);
 
   async function saveParticipant(event) {
     event.preventDefault();
     const cleanName = name.trim();
     if (!cleanName || !activeCode) return;
+
+    if (isTestMode) {
+      const saved = { ...TEST_PARTICIPANT, name: cleanName };
+      setParticipant(saved);
+      setName(saved.name);
+      setCodeStatus("claimed");
+      setAppStatus("Testmodus aktiv");
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
+      setActiveTab("start", { replace: true });
+      return;
+    }
 
     try {
       const payload = await apiPost("/api/claim-code", {
@@ -554,6 +697,23 @@ export default function App() {
   }
 
   function resetDevice() {
+    if (isTestMode) {
+      setScannedCode(TEST_PARTICIPANT.code);
+      setParticipant(TEST_PARTICIPANT);
+      setName(TEST_PARTICIPANT.name);
+      setManualCode("");
+      setLastSavedMatch("");
+      setTips(createTestTips(matches));
+      setBonusTips(createTestBonusTips(matches));
+      setBonusMessage("");
+      setGroupFilter("alle");
+      setSearchTerm("");
+      setCodeStatus("claimed");
+      setAppStatus("Testmodus zurückgesetzt.");
+      setActiveTab("start");
+      return;
+    }
+
     window.localStorage.removeItem(STORAGE_KEY);
     const nextUrl = new URL(window.location.href);
     nextUrl.searchParams.delete("code");
@@ -598,6 +758,13 @@ export default function App() {
       return;
     }
 
+    if (isTestMode) {
+      setBonusTips((current) => ({ ...current, saved: true }));
+      setBonusMessage("Test-Bonus gespeichert. Rangliste bleibt lokal berechnet.");
+      await refreshRanking();
+      return;
+    }
+
     try {
       const payload = await apiPost("/api/save-bonus-tips", {
         participantId: participant.id,
@@ -614,6 +781,11 @@ export default function App() {
   }
 
   async function refreshRanking() {
+    if (isTestMode) {
+      setRanking(TEST_RANKING_ROWS);
+      return;
+    }
+
     const payload = await apiGet("/api/ranking").catch(() => ({ ranking: [] }));
     setRanking(payload.ranking ?? []);
   }
@@ -621,6 +793,19 @@ export default function App() {
   async function saveTipRows(matchIds) {
     if (!participant?.id) {
       setAppStatus("Bitte zuerst QR-Code aktivieren und Namen eintragen.");
+      return;
+    }
+
+    if (isTestMode) {
+      setTips((current) => {
+        const next = { ...current };
+        matchIds.forEach((matchId) => {
+          next[matchId] = { ...next[matchId], saved: true };
+        });
+        return next;
+      });
+      setAppStatus("Test-Tipp gespeichert. Punkte werden lokal neu berechnet.");
+      await refreshRanking();
       return;
     }
 
@@ -770,15 +955,27 @@ export default function App() {
           <section className="center-stage">
             {activeTab === "start" && (
               participant ? (
-                <ParticipantLanding
-                  participant={participant}
-                  matches={matches}
-                  tips={tips}
-                  bonusTips={bonusTips}
-                  groupTables={groupTables}
-                  ranking={displayRanking}
-                  setActiveTab={setActiveTab}
-                />
+                <>
+                  <ParticipantLanding
+                    participant={participant}
+                    matches={matches}
+                    tips={tips}
+                    bonusTips={bonusTips}
+                    groupTables={groupTables}
+                    ranking={displayRanking}
+                    setActiveTab={setActiveTab}
+                  />
+                  {isTestMode && (
+                    <TestModePanel
+                      matches={matches}
+                      tips={tips}
+                      resultsByMatch={resultsByMatch}
+                      bonusPoints={currentBonusPoints}
+                      totalPoints={currentPoints}
+                      averagePoints={currentAveragePoints}
+                    />
+                  )}
+                </>
               ) : (
                 <>
                   <ScheduleSummary />
@@ -1162,6 +1359,58 @@ function ParticipantLanding({
           </div>
         )}
       </section>
+    </section>
+  );
+}
+
+function TestModePanel({ matches, tips, resultsByMatch, bonusPoints, totalPoints, averagePoints }) {
+  const scenarioRows = TEST_SCENARIOS.map((scenario, index) => {
+    const match = matches[index];
+    const tip = match ? tips[match.id] : null;
+    const result = match ? resultsByMatch.get(match.id) : null;
+    return {
+      ...scenario,
+      matchLabel: match ? `Spiel ${match.matchNumber}` : `Fall ${index + 1}`,
+      actualPoints: tip ? pointsFor(tip, result) : 0,
+    };
+  });
+  const matchPoints = scenarioRows.reduce((sum, row) => sum + row.actualPoints, 0);
+  const allChecksOk =
+    matchPoints === TEST_EXPECTED.matchPoints &&
+    bonusPoints === TEST_EXPECTED.bonusPoints &&
+    totalPoints === TEST_EXPECTED.totalPoints &&
+    Number(averagePoints.toFixed(2)) === TEST_EXPECTED.averagePoints;
+
+  return (
+    <section className="test-mode-panel panel" aria-label="Testmodus Auswertung">
+      <header>
+        <ShieldCheck size={24} />
+        <div>
+          <h2>Testmodus aktiv</h2>
+          <p>Dieser Durchlauf prüft Ergebniswertung, Bonuspunkte, Schnitt und Rangliste ohne echte Datenbank-Änderungen.</p>
+        </div>
+        <strong className={allChecksOk ? "ok" : "warning"}>{allChecksOk ? "Alles greift" : "Bitte prüfen"}</strong>
+      </header>
+
+      <div className="test-score-grid">
+        <strong>{matchPoints}<span>Spielpunkte</span></strong>
+        <strong>{bonusPoints}<span>Bonuspunkte</span></strong>
+        <strong>{totalPoints}<span>Gesamtpunkte</span></strong>
+        <strong>{averagePoints.toFixed(2)}<span>Schnitt</span></strong>
+      </div>
+
+      <div className="test-case-list">
+        {scenarioRows.map((row) => (
+          <div key={row.matchLabel}>
+            <span>{row.matchLabel}</span>
+            <strong>{row.label}</strong>
+            <small>
+              Tipp {row.tipA}:{row.tipB}, Ergebnis {row.resultA}:{row.resultB}
+            </small>
+            <b>{row.actualPoints} Pkt.</b>
+          </div>
+        ))}
+      </div>
     </section>
   );
 }

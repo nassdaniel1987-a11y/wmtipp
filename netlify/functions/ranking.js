@@ -19,6 +19,7 @@ function pointsFor(tip, result) {
   const tipTrend = Math.sign(tipGoalDiff);
   const resultTrend = Math.sign(resultGoalDiff);
   if (tipTrend !== resultTrend) return 0;
+  if (tipTrend === 0) return 2;
   if (tipGoalDiff === resultGoalDiff) return 3;
 
   return 2;

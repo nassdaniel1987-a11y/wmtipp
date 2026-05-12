@@ -724,6 +724,109 @@ p {
   color: var(--navy);
 }
 
+.test-mode-panel {
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+  border-color: #bed7f1;
+  background:
+    linear-gradient(180deg, rgba(237, 247, 255, 0.92), rgba(255, 255, 255, 0.96)),
+    #ffffff;
+}
+
+.test-mode-panel header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+}
+
+.test-mode-panel header svg {
+  color: var(--green);
+}
+
+.test-mode-panel h2,
+.test-mode-panel p {
+  margin: 0;
+}
+
+.test-mode-panel p,
+.test-case-list small {
+  color: var(--muted);
+  font-weight: 750;
+  line-height: 1.4;
+}
+
+.test-mode-panel header > strong {
+  align-self: center;
+  padding: 8px 10px;
+  border-radius: 999px;
+  font-size: 0.84rem;
+}
+
+.test-mode-panel header > strong.ok {
+  color: #0d6b34;
+  background: #e6f8ee;
+}
+
+.test-mode-panel header > strong.warning {
+  color: #9b341f;
+  background: #fff1df;
+}
+
+.test-score-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.test-score-grid strong {
+  display: grid;
+  gap: 4px;
+  min-height: 72px;
+  align-content: center;
+  padding: 12px;
+  border: 1px solid #d3e1ef;
+  border-radius: 8px;
+  color: var(--navy);
+  background: #ffffff;
+}
+
+.test-score-grid span {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.test-case-list {
+  display: grid;
+  gap: 8px;
+}
+
+.test-case-list div {
+  display: grid;
+  grid-template-columns: 70px minmax(0, 1fr) minmax(170px, auto) 58px;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid #d7e2ee;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.test-case-list span {
+  color: var(--blue);
+  font-weight: 900;
+}
+
+.test-case-list strong {
+  color: var(--navy);
+}
+
+.test-case-list b {
+  color: var(--green-dark);
+  text-align: right;
+}
+
 .tip-toolbar {
   display: grid;
   gap: 16px;
@@ -2046,6 +2149,9 @@ tbody tr:nth-child(1) td:first-child {
 
   .landing-hero,
   .landing-stats,
+  .test-mode-panel header,
+  .test-score-grid,
+  .test-case-list div,
   .next-open-list div {
     grid-template-columns: 1fr;
   }
@@ -2053,6 +2159,12 @@ tbody tr:nth-child(1) td:first-child {
   .landing-hero img {
     width: 92px;
     height: 92px;
+  }
+
+  .test-mode-panel header > strong,
+  .test-case-list b {
+    justify-self: start;
+    text-align: left;
   }
 
   .next-steps {

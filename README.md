@@ -15,6 +15,27 @@ Demo-Link:
 http://127.0.0.1:5173/?code=DEMO-001
 ```
 
+Testmodus ohne Datenbank-Änderungen:
+
+```text
+http://127.0.0.1:5173/?test=1#start
+```
+
+Der Testmodus legt lokal einen Beispielteilnehmer an und prüft sichtbar:
+Spielpunkte, Bonuspunkte, Gesamtpunkte, Schnitt und Rangliste.
+
+Automatischer Smoke-Test:
+
+```bash
+npm run test:smoke
+```
+
+Falls `npm` lokal hakt, geht auch:
+
+```bash
+node node_modules\@playwright\test\cli.js test tests/smoke.spec.js
+```
+
 ## Netlify
 
 - Build command: `npm run build`
@@ -26,7 +47,7 @@ Teilnehmer auf diesem Gerät.
 
 ## Supabase
 
-Lokale Variablen stehen in `.env.local`. Fuer Netlify muessen dieselben Werte
+Lokale Variablen stehen in `.env.local`. Für Netlify müssen dieselben Werte
 unter **Site configuration > Environment variables** angelegt werden:
 
 ```text
