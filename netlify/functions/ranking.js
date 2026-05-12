@@ -69,14 +69,27 @@ export default async (req) => {
     const totals = new Map(
       (participants.data ?? []).map((participant) => [
         participant.id,
-        { name: participant.display_name, points: 0, matchPoints: 0, bonusPoints: 0 },
+        {
+          name: participant.display_name,
+          points: 0,
+          matchPoints: 0,
+          bonusPoints: 0,
+          tipCount: 0,
+          scoredTipCount: 0,
+          averagePoints: 0,
+        },
       ]),
     );
 
     (tips.data ?? []).forEach((tip) => {
       const row = totals.get(tip.participant_id);
       if (!row) return;
-      const points = pointsFor(tip, resultsByMatch.get(tip.match_id));
+      row.tipCount += 1;
+      const result = resultsByMatch.get(tip.match_id);
+      const points = pointsFor(tip, result);
+      if (result?.status === "final") {
+        row.scoredTipCount += 1;
+      }
       row.matchPoints += points;
       row.points += points;
     });
@@ -85,6 +98,7 @@ export default async (req) => {
       const points = bonusPointsFor(bonusTipByParticipant.get(participantId), officialBonusResult);
       row.bonusPoints = points;
       row.points += points;
+      row.averagePoints = row.scoredTipCount > 0 ? row.matchPoints / row.scoredTipCount : 0;
     });
 
     const ranking = Array.from(totals.values()).sort((a, b) => b.points - a.points || a.name.localeCompare(b.name));

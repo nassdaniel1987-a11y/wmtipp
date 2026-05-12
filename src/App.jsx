@@ -339,7 +339,7 @@ function getGroupLeaderSuggestions(groupTables) {
 }
 
 export default function App() {
-  const scannedCode = getInitialCode();
+  const [scannedCode, setScannedCode] = useState(getInitialCode);
   const savedParticipant = useMemo(() => loadSavedParticipant(), []);
   const [activeTab, setActiveTabState] = useState(getTabFromHash);
   const [participant, setParticipant] = useState(savedParticipant);
@@ -402,11 +402,17 @@ export default function App() {
     });
   }, [matches, groupFilter, searchTerm]);
 
+  const currentScoredTipCount = Object.entries(tips).filter(([matchId, tip]) => {
+    return tip.saved && resultsByMatch.get(matchId)?.status === "final";
+  }).length;
+  const currentTipCount = Object.values(tips).filter((tip) => tip.saved).length;
   const currentMatchPoints = Object.entries(tips).reduce((sum, [matchId, tip]) => {
+    if (!tip.saved) return sum;
     return sum + pointsFor(tip, resultsByMatch.get(matchId));
   }, 0);
   const currentBonusPoints = bonusPointsFor(bonusTips, bonusResults);
   const currentPoints = currentMatchPoints + currentBonusPoints;
+  const currentAveragePoints = currentScoredTipCount > 0 ? currentMatchPoints / currentScoredTipCount : 0;
 
   const displayRanking = useMemo(() => {
     const rows = participant
@@ -417,12 +423,15 @@ export default function App() {
             points: currentPoints,
             matchPoints: currentMatchPoints,
             bonusPoints: currentBonusPoints,
+            tipCount: currentTipCount,
+            scoredTipCount: currentScoredTipCount,
+            averagePoints: currentAveragePoints,
             isCurrent: true,
           },
         ]
       : ranking;
     return rows.sort((a, b) => b.points - a.points || a.name.localeCompare(b.name));
-  }, [ranking, participant, currentPoints, currentMatchPoints, currentBonusPoints]);
+  }, [ranking, participant, currentPoints, currentMatchPoints, currentBonusPoints, currentTipCount, currentScoredTipCount, currentAveragePoints]);
   const teamOptions = useMemo(() => getTeamOptions(matches), [matches]);
   const groupTables = useMemo(() => buildGroupTables(matches, resultsByMatch), [matches, resultsByMatch]);
 
@@ -545,6 +554,10 @@ export default function App() {
 
   function resetDevice() {
     window.localStorage.removeItem(STORAGE_KEY);
+    const nextUrl = new URL(window.location.href);
+    nextUrl.searchParams.delete("code");
+    window.history.replaceState(null, "", `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash || "#start"}`);
+    setScannedCode("");
     setParticipant(null);
     setName("");
     setManualCode("");
@@ -1456,7 +1469,22 @@ function ScoreControl({ value, onIncrease, onDecrease, disabled }) {
 }
 
 function RankingPanel({ ranking: rows, expanded = false, setActiveTab }) {
-  const visibleRows = expanded ? rows : rows.slice(0, 10);
+  const [rankingMode, setRankingMode] = useState("total");
+  const sortedRows = useMemo(() => {
+    const nextRows = [...rows];
+    if (expanded && rankingMode === "average") {
+      return nextRows.sort(
+        (first, second) =>
+          (second.averagePoints ?? 0) - (first.averagePoints ?? 0) ||
+          (second.scoredTipCount ?? 0) - (first.scoredTipCount ?? 0) ||
+          second.points - first.points ||
+          first.name.localeCompare(second.name, "de"),
+      );
+    }
+    return nextRows.sort((first, second) => second.points - first.points || first.name.localeCompare(second.name, "de"));
+  }, [rows, expanded, rankingMode]);
+  const visibleRows = expanded ? sortedRows : sortedRows.slice(0, 10);
+
   return (
     <section className={`ranking-panel panel ${expanded ? "expanded" : ""}`}>
       <header className="section-title">
@@ -1464,14 +1492,34 @@ function RankingPanel({ ranking: rows, expanded = false, setActiveTab }) {
         <h2>Rangliste</h2>
         <span>Top 10</span>
       </header>
+      {expanded && (
+        <div className="ranking-tabs">
+          <button
+            type="button"
+            className={rankingMode === "total" ? "active" : ""}
+            onClick={() => setRankingMode("total")}
+          >
+            Gesamtpunkte
+          </button>
+          <button
+            type="button"
+            className={rankingMode === "average" ? "active" : ""}
+            onClick={() => setRankingMode("average")}
+          >
+            Durchschnitt
+          </button>
+        </div>
+      )}
       <table>
         <thead>
           <tr>
             <th>Platz</th>
             <th>Name</th>
-            {expanded && <th>Spiele</th>}
-            {expanded && <th>Bonus</th>}
-            <th>Punkte</th>
+            {expanded && rankingMode === "total" && <th>Spiele</th>}
+            {expanded && rankingMode === "total" && <th>Bonus</th>}
+            {expanded && rankingMode === "average" && <th>Gewertet</th>}
+            {expanded && rankingMode === "average" && <th>Schnitt</th>}
+            <th>{rankingMode === "average" ? "Gesamt" : "Punkte"}</th>
           </tr>
         </thead>
         <tbody>
@@ -1484,13 +1532,20 @@ function RankingPanel({ ranking: rows, expanded = false, setActiveTab }) {
             <tr key={`${row.name}-${index}`} className={row.isCurrent ? "current" : ""}>
               <td>{index + 1}</td>
               <td>{row.name}</td>
-              {expanded && <td>{row.matchPoints ?? row.points}</td>}
-              {expanded && <td>{row.bonusPoints ?? 0}</td>}
+              {expanded && rankingMode === "total" && <td>{row.matchPoints ?? row.points}</td>}
+              {expanded && rankingMode === "total" && <td>{row.bonusPoints ?? 0}</td>}
+              {expanded && rankingMode === "average" && <td>{row.scoredTipCount ?? 0}</td>}
+              {expanded && rankingMode === "average" && <td>{(row.averagePoints ?? 0).toFixed(2)}</td>}
               <td>{row.points}</td>
             </tr>
           ))}
         </tbody>
       </table>
+      {expanded && rankingMode === "average" && (
+        <p className="ranking-note">
+          Der Durchschnitt zählt nur Spielpunkte pro bereits gewertetem Tipp. Bonuspunkte sind hier nicht eingerechnet.
+        </p>
+      )}
       {!expanded && (
         <button type="button" className="ghost-button" onClick={() => setActiveTab?.("rangliste")}>
           Zur vollständigen Rangliste
