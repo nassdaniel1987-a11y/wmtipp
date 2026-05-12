@@ -700,7 +700,7 @@ export default function App() {
       <header className="topbar">
         <button type="button" className="brand" onClick={() => setActiveTab("start")}>
           <span className="brand-logo">
-            <img src="/oesterfeld-logo.jpg" alt="WM-Tippspiel Österfeld-Edition" />
+            <img src="/oesterfeld-logo-round.jpg" alt="WM-Tippspiel Österfeld-Edition" />
           </span>
           <span>
             <strong>WM-Tippspiel Österfeld-Edition</strong>
@@ -1058,7 +1058,7 @@ function ScheduleSummary() {
         </div>
       </header>
       <figure className="edition-logo-card">
-        <img src="/oesterfeld-logo.jpg" alt="Logo WM-Tippspiel Österfeld-Edition" />
+        <img src="/oesterfeld-logo-round.jpg" alt="Logo WM-Tippspiel Österfeld-Edition" />
       </figure>
       <div className="summary-stats">
         <strong>72<span>Gruppenspiele</span></strong>

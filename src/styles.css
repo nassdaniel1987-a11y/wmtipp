@@ -98,12 +98,12 @@ input:disabled {
 
 .brand-logo {
   display: block;
-  width: 62px;
-  height: 62px;
+  width: 64px;
+  height: 64px;
   border-radius: 50%;
   overflow: hidden;
   background: #071b45;
-  box-shadow: inset 0 0 0 1px rgba(255, 217, 123, 0.7), 0 8px 18px rgba(7, 27, 69, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(255, 217, 123, 0.7), 0 8px 18px rgba(7, 27, 69, 0.16);
 }
 
 .brand-logo img {
@@ -111,8 +111,8 @@ input:disabled {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: 50% 39%;
-  transform: scale(1.55);
+  object-position: center;
+  transform: scale(1.08);
 }
 
 .brand > span:last-child {
@@ -515,16 +515,20 @@ p {
   margin: 18px 0 0;
   border-radius: 8px;
   overflow: hidden;
-  background: #071b45;
+  background:
+    radial-gradient(circle at 50% 45%, rgba(255, 217, 123, 0.16), transparent 42%),
+    linear-gradient(135deg, #071b45, #0f2c59);
   box-shadow: inset 0 0 0 1px rgba(255, 217, 123, 0.58), 0 14px 28px rgba(7, 27, 69, 0.14);
 }
 
 .edition-logo-card img {
   display: block;
-  width: 100%;
-  max-height: 260px;
-  object-fit: cover;
+  width: min(100%, 360px);
+  max-height: 340px;
+  margin: 0 auto;
+  object-fit: contain;
   object-position: center;
+  padding: 14px;
 }
 
 .summary-stats {
@@ -1762,7 +1766,8 @@ tbody tr:nth-child(1) td:first-child {
   }
 
   .edition-logo-card img {
-    max-height: 210px;
+    max-height: 250px;
+    padding: 10px;
   }
 
   .icon-button {
