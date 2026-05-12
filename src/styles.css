@@ -1857,6 +1857,63 @@ tbody tr:nth-child(1) td:first-child {
   justify-content: flex-start;
 }
 
+.official-results-panel {
+  display: grid;
+  gap: 14px;
+  margin: 12px 0 18px;
+  padding: 16px;
+  border: 1px solid #d7e2ee;
+  border-radius: 8px;
+  background: #fbfdff;
+}
+
+.official-results-panel > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.official-results-panel strong {
+  color: var(--navy);
+}
+
+.official-result-preview {
+  display: grid;
+  gap: 8px;
+}
+
+.official-result-preview > span {
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.official-result-preview div {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1.4fr) 52px minmax(100px, auto);
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid #d7e2ee;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.official-result-preview div.warning {
+  border-color: #f0c36b;
+  background: #fff8df;
+}
+
+.official-result-preview b {
+  color: var(--green-dark);
+  text-align: center;
+}
+
+.official-result-preview small {
+  color: var(--muted);
+  font-weight: 800;
+  text-align: right;
+}
+
 .compact-editor {
   padding: 16px 20px;
   border-top: 0;
@@ -2152,6 +2209,7 @@ tbody tr:nth-child(1) td:first-child {
   .test-mode-panel header,
   .test-score-grid,
   .test-case-list div,
+  .official-result-preview div,
   .next-open-list div {
     grid-template-columns: 1fr;
   }
@@ -2162,7 +2220,9 @@ tbody tr:nth-child(1) td:first-child {
   }
 
   .test-mode-panel header > strong,
-  .test-case-list b {
+  .test-case-list b,
+  .official-result-preview b,
+  .official-result-preview small {
     justify-self: start;
     text-align: left;
   }

@@ -881,6 +881,34 @@ export default function App() {
     await refreshRanking();
   }
 
+  async function handlePreviewOfficialResults() {
+    return apiGetWithAuth("/api/admin-official-results", adminSession?.access_token);
+  }
+
+  async function handleImportOfficialResults(matchIds) {
+    const payload = await apiPost(
+      "/api/admin-official-results",
+      { matchIds },
+      adminSession?.access_token,
+    );
+    const imported = payload.imported ?? [];
+    if (imported.length) {
+      setResults((current) => [
+        ...imported,
+        ...current.filter((result) => !imported.some((item) => item.match_id === result.match_id)),
+      ]);
+      setAdminData((current) => ({
+        ...current,
+        results: [
+          ...imported,
+          ...current.results.filter((result) => !imported.some((item) => item.match_id === result.match_id)),
+        ],
+      }));
+      await refreshRanking();
+    }
+    return payload;
+  }
+
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -1135,6 +1163,8 @@ export default function App() {
                   return payload;
                 }}
                 onSaveResult={handleSaveResult}
+                onPreviewOfficialResults={handlePreviewOfficialResults}
+                onImportOfficialResults={handleImportOfficialResults}
               />
             )}
           </section>
@@ -2061,6 +2091,8 @@ function AdminPanel({
   onSaveParticipantBonusTips,
   onSaveBonusResults,
   onSaveResult,
+  onPreviewOfficialResults,
+  onImportOfficialResults,
 }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -2074,6 +2106,8 @@ function AdminPanel({
   const [participantBonusDraft, setParticipantBonusDraft] = useState(createInitialBonusTips(matches));
   const [bonusResultDraft, setBonusResultDraft] = useState(createInitialBonusResults(matches, bonusResults));
   const [selectedCodeIds, setSelectedCodeIds] = useState([]);
+  const [officialPreview, setOfficialPreview] = useState(null);
+  const [officialLoading, setOfficialLoading] = useState(false);
 
   useEffect(() => {
     setBonusResultDraft(createInitialBonusResults(matches, bonusResults));
@@ -2274,6 +2308,43 @@ function AdminPanel({
       setAdminMessage("Offizielle Bonus-Ergebnisse gespeichert.");
     } catch (error) {
       setAdminMessage(error.message);
+    }
+  }
+
+  async function previewOfficialResults() {
+    setOfficialLoading(true);
+    try {
+      const payload = await onPreviewOfficialResults();
+      setOfficialPreview(payload);
+      setAdminMessage(
+        payload.candidates.length
+          ? `${payload.candidates.length} offizielle Ergebnisse gefunden. Bitte prüfen und übernehmen.`
+          : "Keine fertigen offiziellen Ergebnisse gefunden.",
+      );
+    } catch (error) {
+      setOfficialPreview(null);
+      setAdminMessage(error.message);
+    } finally {
+      setOfficialLoading(false);
+    }
+  }
+
+  async function importOfficialResults() {
+    const candidates = officialPreview?.candidates?.filter((candidate) => !candidate.alreadySaved) ?? [];
+    if (candidates.length === 0) {
+      setAdminMessage("Es gibt gerade keine neuen Ergebnisse zum Übernehmen.");
+      return;
+    }
+
+    setOfficialLoading(true);
+    try {
+      const payload = await onImportOfficialResults(candidates.map((candidate) => candidate.matchId));
+      setOfficialPreview(payload);
+      setAdminMessage(`${payload.imported?.length ?? 0} Ergebnisse übernommen.`);
+    } catch (error) {
+      setAdminMessage(error.message);
+    } finally {
+      setOfficialLoading(false);
     }
   }
 
@@ -2538,6 +2609,55 @@ function AdminPanel({
       </div>
 
       <h3>Ergebnisse</h3>
+      <section className="official-results-panel">
+        <div>
+          <strong>Offizielle Ergebnisse abrufen</strong>
+          <p className="fine-print">
+            Die Ergebnisse werden erst als Vorschau geladen. Übernommen wird nur nach deiner Bestätigung.
+          </p>
+        </div>
+        <div className="admin-actions inline-actions">
+          <button type="button" className="ghost-button" onClick={previewOfficialResults} disabled={officialLoading}>
+            Ergebnisse abrufen
+          </button>
+          <button
+            type="button"
+            className="primary-button compact"
+            onClick={importOfficialResults}
+            disabled={officialLoading || !officialPreview?.candidates?.some((candidate) => !candidate.alreadySaved)}
+          >
+            Gefundene übernehmen
+          </button>
+        </div>
+        {officialPreview && (
+          <div className="official-result-preview">
+            <span>{officialPreview.source} · {new Date(officialPreview.fetchedAt).toLocaleString("de-DE")}</span>
+            {officialPreview.candidates.length === 0 ? (
+              <p className="fine-print">Keine fertigen Spiele gefunden, die zum lokalen WM-Plan passen.</p>
+            ) : (
+              officialPreview.candidates.slice(0, 8).map((candidate) => (
+                <div key={candidate.matchId} className={candidate.wouldOverwrite ? "warning" : ""}>
+                  <strong>Spiel {candidate.matchNumber}</strong>
+                  <span>{displayTeamName(candidate.teamA)} - {displayTeamName(candidate.teamB)}</span>
+                  <b>{candidate.scoreA}:{candidate.scoreB}</b>
+                  <small>
+                    {candidate.alreadySaved
+                      ? "schon gespeichert"
+                      : candidate.wouldOverwrite
+                        ? "würde vorhandenes Ergebnis überschreiben"
+                        : "neu"}
+                  </small>
+                </div>
+              ))
+            )}
+            {officialPreview.unmatched?.length > 0 && (
+              <p className="fine-print">
+                {officialPreview.unmatched.length} externe Spiele konnten nicht automatisch zugeordnet werden.
+              </p>
+            )}
+          </div>
+        )}
+      </section>
       <div className="result-toolbar">
         <span>{sortedResultMatches.length} Spiele angezeigt</span>
         <div className="segmented-control">

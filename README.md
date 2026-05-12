@@ -82,6 +82,18 @@ SUPABASE_SECRET_KEY
 Das ist der geheime Supabase Secret/Service-Role-Key. In Netlify bei dieser
 Variable **Contains secret values** aktivieren.
 
+Für den halbautomatischen Ergebnis-Abruf im Adminbereich kann zusätzlich ein
+API-Key von football-data.org eingetragen werden:
+
+```text
+FOOTBALL_DATA_API_KEY
+FOOTBALL_DATA_COMPETITION=WC
+FOOTBALL_DATA_SEASON=2026
+```
+
+Ohne `FOOTBALL_DATA_API_KEY` bleibt die manuelle Ergebnis-Eingabe normal nutzbar;
+der Abruf-Button zeigt dann nur eine passende Fehlermeldung.
+
 Vollständiger lokaler Backend-Test geht über Netlify Functions, also nicht
 über `npm run dev`, sondern mit Netlify CLI:
 
