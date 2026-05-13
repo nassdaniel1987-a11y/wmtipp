@@ -2686,14 +2686,23 @@ tbody tr:nth-child(1) td:first-child {
   }
 
   .print-code-main strong {
-    font-size: 22pt;
+    display: flex;
+    align-items: baseline;
+    gap: 2mm;
+    width: 100%;
+    max-width: 78mm;
+    min-width: 0;
+    white-space: nowrap;
+    font-size: 19pt;
     line-height: 1;
     letter-spacing: 0.02em;
-    overflow-wrap: anywhere;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .print-code-main strong::before {
-    content: "ADMIT ONE  ·  ";
+    content: "ADMIT ONE ·";
+    flex: 0 0 auto;
     color: #ffffff;
     font-size: 9pt;
     letter-spacing: 0.08em;
