@@ -2088,7 +2088,25 @@ tbody tr:nth-child(1) td:first-child {
   }
 
   .content-grid {
-    grid-template-columns: minmax(260px, 0.42fr) minmax(420px, 1fr);
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .content-grid.active-start.participant-active {
+    grid-template-columns: 1fr;
+  }
+
+  .content-grid.active-start.participant-active .center-stage,
+  .content-grid.active-start.participant-active .side-stack {
+    grid-column: 1;
+  }
+
+  .content-grid:not(.active-start) .join-panel {
+    display: none;
+  }
+
+  .join-panel {
+    min-height: auto;
   }
 
   .side-stack {
