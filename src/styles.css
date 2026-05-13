@@ -2562,7 +2562,7 @@ tbody tr:nth-child(1) td:first-child {
   .print-code-card {
     display: grid;
     position: relative;
-    grid-template-columns: 45mm minmax(0, 1fr) 34mm;
+    grid-template-columns: 42mm minmax(0, 1fr) 42mm;
     grid-template-rows: 24mm 47mm 1fr;
     gap: 4mm 6mm;
     height: 130mm;
@@ -2574,8 +2574,9 @@ tbody tr:nth-child(1) td:first-child {
     overflow: hidden;
     color: #12233f;
     background:
+      repeating-conic-gradient(from -18deg at calc(100% - 21mm) 35mm, rgba(255, 255, 255, 0.16) 0deg 3deg, transparent 3deg 12deg),
       radial-gradient(circle at 16% 88%, rgba(255, 255, 255, 0.36) 0 18mm, transparent 19mm),
-      radial-gradient(circle at 84% 12%, rgba(255, 231, 91, 0.45) 0 31mm, transparent 32mm),
+      radial-gradient(circle at calc(100% - 21mm) 34mm, rgba(255, 231, 91, 0.44) 0 31mm, transparent 32mm),
       linear-gradient(155deg, rgba(35, 148, 56, 0.18) 0 28%, transparent 29%),
       linear-gradient(20deg, transparent 0 48%, rgba(255, 238, 94, 0.36) 49% 59%, transparent 60%),
       linear-gradient(135deg, #b5df45 0%, #6fbd42 45%, #2f9a50 100%);
@@ -2598,7 +2599,7 @@ tbody tr:nth-child(1) td:first-child {
     content: "";
     position: absolute;
     top: 0;
-    right: 34mm;
+    right: 42mm;
     bottom: 0;
     width: 0;
     border-left: 1.2px dashed rgba(7, 27, 69, 0.5);
@@ -2639,7 +2640,7 @@ tbody tr:nth-child(1) td:first-child {
 
   .print-code-card header strong {
     color: #12233f;
-    font-size: 17pt;
+    font-size: 16pt;
     line-height: 1.05;
   }
 
@@ -2650,8 +2651,8 @@ tbody tr:nth-child(1) td:first-child {
     grid-row: 2;
     justify-self: start;
     align-self: center;
-    width: 42mm;
-    height: 42mm;
+    width: 40mm;
+    height: 40mm;
     border: 0;
     border-radius: 2mm;
     background: #ffffff;
@@ -2659,8 +2660,8 @@ tbody tr:nth-child(1) td:first-child {
   }
 
   .print-code-card .qr-image img {
-    width: 42mm;
-    height: 42mm;
+    width: 40mm;
+    height: 40mm;
   }
 
   .print-code-main {
@@ -2690,21 +2691,21 @@ tbody tr:nth-child(1) td:first-child {
     align-items: baseline;
     gap: 1.6mm;
     width: 100%;
-    max-width: 88mm;
+    max-width: 82mm;
     min-width: 0;
     white-space: nowrap;
-    font-size: 18pt;
+    font-size: 15.8pt;
     line-height: 1;
     letter-spacing: 0.02em;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    overflow: visible;
+    text-overflow: clip;
   }
 
   .print-code-main strong::before {
     content: "ADMIT ONE ·";
     flex: 0 0 auto;
     color: #ffffff;
-    font-size: 9pt;
+    font-size: 8pt;
     letter-spacing: 0.08em;
     text-shadow: 0 1px 0 rgba(7, 27, 69, 0.25);
   }
@@ -2768,15 +2769,15 @@ tbody tr:nth-child(1) td:first-child {
 
   .ticket-watermark {
     position: absolute;
-    top: 11mm;
-    right: 7mm;
+    top: 15mm;
+    right: 8mm;
     z-index: 1;
-    width: 25mm;
-    height: 25mm;
+    width: 30mm;
+    height: 30mm;
     border-radius: 50%;
     object-fit: cover;
-    opacity: 0.92;
-    border: 1.4mm solid rgba(255, 224, 138, 0.95);
+    opacity: 0.96;
+    border: 1.7mm solid rgba(255, 224, 138, 0.98);
     background: #071b45;
     box-shadow:
       0 0 0 0.7mm rgba(7, 27, 69, 0.35),
@@ -2786,16 +2787,16 @@ tbody tr:nth-child(1) td:first-child {
   }
 
   .print-code-card > .print-code-main + ol::after {
-    content: "WM 2026\AÖSTERFELD-EDITION";
+    content: "WM 2026\AÖSTERFELD\A────  ★  ★  ★  ────";
     white-space: pre;
     position: absolute;
-    right: -34mm;
+    right: -42mm;
     top: -25mm;
-    width: 29mm;
+    width: 39mm;
     color: #071b45;
-    font-size: 7.2pt;
+    font-size: 10.5pt;
     font-weight: 950;
-    line-height: 1.18;
+    line-height: 1.25;
     text-align: center;
     letter-spacing: 0.03em;
   }
