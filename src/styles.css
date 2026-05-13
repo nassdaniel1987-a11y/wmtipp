@@ -2768,29 +2768,36 @@ tbody tr:nth-child(1) td:first-child {
 
   .ticket-watermark {
     position: absolute;
-    top: 8mm;
-    right: 6mm;
-    z-index: 0;
-    width: 28mm;
-    height: 28mm;
+    top: 11mm;
+    right: 7mm;
+    z-index: 1;
+    width: 25mm;
+    height: 25mm;
     border-radius: 50%;
     object-fit: cover;
-    opacity: 0.34;
-    filter: grayscale(0.1);
+    opacity: 0.92;
+    border: 1.4mm solid rgba(255, 224, 138, 0.95);
+    background: #071b45;
+    box-shadow:
+      0 0 0 0.7mm rgba(7, 27, 69, 0.35),
+      0 2mm 6mm rgba(7, 27, 69, 0.22),
+      inset 0 0 0 0.5mm rgba(255, 255, 255, 0.35);
+    filter: saturate(1.08) contrast(1.05);
   }
 
   .print-code-card > .print-code-main + ol::after {
-    content: "WM 2026\AÖSTERFELD";
+    content: "WM 2026\AÖSTERFELD-EDITION";
     white-space: pre;
     position: absolute;
     right: -34mm;
-    top: -53mm;
+    top: -25mm;
     width: 29mm;
     color: #071b45;
-    font-size: 8pt;
+    font-size: 7.2pt;
     font-weight: 950;
-    line-height: 1.15;
+    line-height: 1.18;
     text-align: center;
+    letter-spacing: 0.03em;
   }
 
   .print-code-card:nth-child(2n) {
