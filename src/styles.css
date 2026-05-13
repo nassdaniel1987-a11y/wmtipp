@@ -2688,12 +2688,12 @@ tbody tr:nth-child(1) td:first-child {
   .print-code-main strong {
     display: flex;
     align-items: baseline;
-    gap: 2mm;
+    gap: 1.6mm;
     width: 100%;
-    max-width: 78mm;
+    max-width: 88mm;
     min-width: 0;
     white-space: nowrap;
-    font-size: 19pt;
+    font-size: 18pt;
     line-height: 1;
     letter-spacing: 0.02em;
     overflow: hidden;
@@ -2766,15 +2766,30 @@ tbody tr:nth-child(1) td:first-child {
     counter-increment: ticket-seat;
   }
 
+  .ticket-watermark {
+    position: absolute;
+    top: 8mm;
+    right: 6mm;
+    z-index: 0;
+    width: 28mm;
+    height: 28mm;
+    border-radius: 50%;
+    object-fit: cover;
+    opacity: 0.34;
+    filter: grayscale(0.1);
+  }
+
   .print-code-card > .print-code-main + ol::after {
-    content: "WM 2026  ·  ÖSTERFELD";
+    content: "WM 2026\AÖSTERFELD";
+    white-space: pre;
     position: absolute;
     right: -34mm;
-    top: -77mm;
+    top: -53mm;
     width: 29mm;
     color: #071b45;
-    font-size: 9pt;
+    font-size: 8pt;
     font-weight: 950;
+    line-height: 1.15;
     text-align: center;
   }
 

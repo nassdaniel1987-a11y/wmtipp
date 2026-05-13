@@ -2617,6 +2617,7 @@ function AdminPanel({
                 <strong>Österfeld-Edition</strong>
               </div>
             </header>
+            <img className="ticket-watermark" src="/oesterfeld-logo-round.jpg" alt="" />
             <QrCodeImage value={getInviteUrl(row.code)} />
             <div className="print-code-main">
               <span>{row.participant?.display_name || codeStatusLabels[row.status] || row.status}</span>
