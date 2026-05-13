@@ -403,9 +403,45 @@ function formatDate(date) {
   }).format(new Date(`${date}T12:00:00`));
 }
 
+function formatDateTime(value) {
+  if (!value) return "noch offen";
+  return new Intl.DateTimeFormat("de-DE", {
+    weekday: "short",
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
 function isLockedForUsers(match) {
   if (!match?.kickoffAt) return false;
   return new Date(match.kickoffAt).getTime() <= Date.now();
+}
+
+function getTournamentDeadline(matches) {
+  const timestamps = matches
+    .map((match) => match.kickoffAt)
+    .filter(Boolean)
+    .map((value) => new Date(value).getTime())
+    .filter(Number.isFinite);
+  if (!timestamps.length) return null;
+  return new Date(Math.min(...timestamps)).toISOString();
+}
+
+function getGroupDeadline(matches, groupKey) {
+  const timestamps = matches
+    .filter((match) => match.groupKey === groupKey)
+    .map((match) => match.kickoffAt)
+    .filter(Boolean)
+    .map((value) => new Date(value).getTime())
+    .filter(Number.isFinite);
+  if (!timestamps.length) return null;
+  return new Date(Math.min(...timestamps)).toISOString();
+}
+
+function isDeadlinePassed(deadline) {
+  return deadline ? new Date(deadline).getTime() <= Date.now() : false;
 }
 
 function pointsFor(tip, result) {
@@ -1535,10 +1571,10 @@ function TipScreen({
             </button>
           </>
         ) : (
-          <p className="fine-print">
-            Bonus-Tipps gelten für das ganze Turnier. Die Gruppentabellen werden
-            aus den eingetragenen Ergebnissen berechnet.
-          </p>
+        <p className="fine-print">
+            Bonus-Tipps haben eigene Fristen. Weltmeister und Torschützenkönig
+            schließen zum Turnierstart, Gruppensieger zum ersten Spiel der jeweiligen Gruppe.
+        </p>
         )}
       </section>
 
@@ -1577,6 +1613,7 @@ function TipScreen({
 }
 
 function BonusTipsPanel({
+  matches,
   teamOptions,
   groupTables,
   bonusTips,
@@ -1585,6 +1622,12 @@ function BonusTipsPanel({
   bonusMessage,
   locked,
 }) {
+  const tournamentDeadline = getTournamentDeadline(matches);
+  const mainBonusLocked = locked || isDeadlinePassed(tournamentDeadline);
+  const lockedGroupCount = groupTables.filter((group) => isDeadlinePassed(getGroupDeadline(matches, group.groupKey))).length;
+  const allGroupsLocked = lockedGroupCount === groupTables.length;
+  const allBonusLocked = mainBonusLocked && allGroupsLocked;
+
   function updateGroupWinner(groupKey, value) {
     setBonusTips((current) => ({
       ...current,
@@ -1603,13 +1646,18 @@ function BonusTipsPanel({
         <h2>Bonus-Tipps</h2>
         <span>{bonusTips.saved ? "gespeichert" : "offen"}</span>
       </header>
+      <p className="bonus-deadline-note">
+        Weltmeister und Torschützenkönig sind bis Turnierstart tippbar
+        {tournamentDeadline ? ` (${formatDateTime(tournamentDeadline)} Uhr).` : "."}
+        {" "}Gruppensieger sind bis zum ersten Spiel der jeweiligen Gruppe tippbar.
+      </p>
 
       <div className="bonus-main-grid">
-        <label>
+        <label className={mainBonusLocked ? "locked" : ""}>
           Weltmeister
           <select
             value={bonusTips.champion}
-            disabled={locked}
+            disabled={mainBonusLocked}
             onChange={(event) =>
               setBonusTips((current) => ({ ...current, champion: event.target.value, saved: false }))
             }
@@ -1619,42 +1667,52 @@ function BonusTipsPanel({
               <option key={team.name} value={team.name}>{team.name}</option>
             ))}
           </select>
+          {mainBonusLocked && <small>Gesperrt: Turnierstart erreicht.</small>}
         </label>
 
-        <label>
+        <label className={mainBonusLocked ? "locked" : ""}>
           Torschützenkönig
           <input
             value={bonusTips.topScorer}
-            disabled={locked}
+            disabled={mainBonusLocked}
             onChange={(event) =>
               setBonusTips((current) => ({ ...current, topScorer: event.target.value, saved: false }))
             }
             placeholder="Name des Spielers"
           />
+          {mainBonusLocked && <small>Gesperrt: Turnierstart erreicht.</small>}
         </label>
       </div>
 
       <h3>Gruppensieger</h3>
       <div className="group-winner-grid">
-        {groupTables.map((group) => (
-          <label key={group.groupKey}>
-            Gruppe {group.groupKey}
-            <select
-              value={bonusTips.groupWinners[group.groupKey] ?? ""}
-              disabled={locked}
-              onChange={(event) => updateGroupWinner(group.groupKey, event.target.value)}
-            >
-              <option value="">Bitte wählen</option>
-              {group.teams.map((team) => (
-                <option key={team.name} value={team.name}>{team.name}</option>
-              ))}
-            </select>
-          </label>
-        ))}
+        {groupTables.map((group) => {
+          const groupDeadline = getGroupDeadline(matches, group.groupKey);
+          const groupLocked = locked || isDeadlinePassed(groupDeadline);
+
+          return (
+            <label key={group.groupKey} className={groupLocked ? "locked" : ""}>
+              Gruppe {group.groupKey}
+              <select
+                value={bonusTips.groupWinners[group.groupKey] ?? ""}
+                disabled={groupLocked}
+                onChange={(event) => updateGroupWinner(group.groupKey, event.target.value)}
+              >
+                <option value="">Bitte wählen</option>
+                {group.teams.map((team) => (
+                  <option key={team.name} value={team.name}>{team.name}</option>
+                ))}
+              </select>
+              <small>
+                {groupLocked ? "Gesperrt seit" : "Tippbar bis"} {formatDateTime(groupDeadline)} Uhr
+              </small>
+            </label>
+          );
+        })}
       </div>
 
       <div className="bonus-actions">
-        <button type="button" className="primary-button compact" disabled={locked} onClick={saveBonusTips}>
+        <button type="button" className="primary-button compact" disabled={allBonusLocked} onClick={saveBonusTips}>
           Bonus-Tipps speichern
           <Check size={18} />
         </button>
@@ -2005,6 +2063,10 @@ function InfoScreen() {
         <div>
           <ShieldCheck size={22} />
           <span>Spieltipps sind ab dem hinterlegten Spielstart gesperrt. Danach kann nur noch der Admin nachtragen oder korrigieren.</span>
+        </div>
+        <div>
+          <Medal size={22} />
+          <span>Weltmeister und Torschützenkönig schließen zum Turnierstart. Gruppensieger schließen mit dem ersten Spiel der jeweiligen Gruppe.</span>
         </div>
         <div>
           <Trophy size={22} />

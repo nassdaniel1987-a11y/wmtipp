@@ -922,6 +922,17 @@ p {
   margin: 20px 22px 0;
 }
 
+.bonus-deadline-note {
+  margin: 18px 22px 0;
+  padding: 12px 14px;
+  border: 1px solid #d7e2ee;
+  border-radius: 8px;
+  color: var(--muted);
+  background: #fbfdff;
+  font-weight: 750;
+  line-height: 1.45;
+}
+
 .bonus-main-grid,
 .group-winner-grid {
   display: grid;
@@ -942,6 +953,16 @@ p {
   gap: 8px;
   color: var(--green-dark);
   font-weight: 900;
+}
+
+.bonus-panel label.locked {
+  color: #7a8498;
+}
+
+.bonus-panel label small {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
 }
 
 .bonus-panel select,
