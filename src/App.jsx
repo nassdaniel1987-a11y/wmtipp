@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import QRCode from "qrcode";
 import {
   CalendarDays,
   Check,
@@ -133,15 +132,18 @@ function QrCodeImage({ value }) {
   useEffect(() => {
     let cancelled = false;
 
-    QRCode.toDataURL(value, {
-      errorCorrectionLevel: "M",
-      margin: 1,
-      scale: 7,
-      color: {
-        dark: "#071b45",
-        light: "#ffffff",
-      },
-    })
+    import("qrcode")
+      .then(({ default: QRCode }) =>
+        QRCode.toDataURL(value, {
+          errorCorrectionLevel: "M",
+          margin: 1,
+          scale: 7,
+          color: {
+            dark: "#071b45",
+            light: "#ffffff",
+          },
+        }),
+      )
       .then((dataUrl) => {
         if (!cancelled) setSrc(dataUrl);
       })
@@ -577,7 +579,7 @@ export default function App() {
             isCurrent: true,
           },
         ]
-      : ranking;
+      : [...ranking];
     return rows.sort((a, b) => b.points - a.points || a.name.localeCompare(b.name));
   }, [ranking, participant, currentPoints, currentMatchPoints, currentBonusPoints, currentTipCount, currentScoredTipCount, currentAveragePoints]);
   const teamOptions = useMemo(() => getTeamOptions(matches), [matches]);

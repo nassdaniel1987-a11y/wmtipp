@@ -1041,6 +1041,15 @@ p {
   overflow: hidden;
 }
 
+.match-card,
+.group-table,
+.code-card,
+.result-row,
+.participant-row {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 260px;
+}
+
 .match-header {
   display: flex;
   justify-content: space-between;
