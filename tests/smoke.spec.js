@@ -45,6 +45,10 @@ test("test mode keeps tips editable without touching Supabase", async ({ page })
   await page.getByRole("button", { name: /Offene Tipps bearbeiten/ }).click();
   await expect(page).toHaveURL(/#tippen$/);
   await expect(page.getByRole("heading", { name: "WM-Plan tippen" })).toBeVisible();
+  await expect(page.getByText("anonym ausgewertet")).toHaveCount(0);
+  await page.getByRole("button", { name: /Community-Trend anzeigen/ }).first().click();
+  await expect(page.getByText("anonym ausgewertet").first()).toBeVisible();
+  await expect(page.getByText("Häufigster Tipp").first()).toBeVisible();
   await page.getByRole("button", { name: /Sichtbare Tipps speichern/ }).click();
   await expect(page.getByText("Test-Tipp gespeichert")).toBeVisible();
 });

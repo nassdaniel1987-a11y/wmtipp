@@ -94,6 +94,13 @@ const TEST_SCENARIOS = [
   { label: "Falsche Tendenz", tipA: 0, tipB: 1, resultA: 2, resultB: 0, points: 0 },
   { label: "Remis-Tendenz", tipA: 1, tipB: 1, resultA: 2, resultB: 2, points: 2 },
 ];
+const TEST_TREND_ROWS = [
+  { score_a: 2, score_b: 1 },
+  { score_a: 2, score_b: 1 },
+  { score_a: 1, score_b: 0 },
+  { score_a: 1, score_b: 1 },
+  { score_a: 0, score_b: 2 },
+];
 
 function getIsTestMode() {
   const params = new URLSearchParams(window.location.search);
@@ -277,6 +284,54 @@ function createTestTips(matches) {
     };
   });
   return tips;
+}
+
+function buildTipTrend(rows) {
+  const total = rows.length;
+  const trend = {
+    total,
+    homeWin: 0,
+    draw: 0,
+    awayWin: 0,
+    homeWinPercent: 0,
+    drawPercent: 0,
+    awayWinPercent: 0,
+    commonScore: null,
+  };
+
+  if (total === 0) return trend;
+
+  const scoreCounts = new Map();
+  rows.forEach((row) => {
+    const scoreA = Number(row.score_a);
+    const scoreB = Number(row.score_b);
+    if (scoreA > scoreB) trend.homeWin += 1;
+    if (scoreA === scoreB) trend.draw += 1;
+    if (scoreA < scoreB) trend.awayWin += 1;
+
+    const key = `${scoreA}:${scoreB}`;
+    scoreCounts.set(key, (scoreCounts.get(key) ?? 0) + 1);
+  });
+
+  trend.homeWinPercent = Math.round((trend.homeWin / total) * 100);
+  trend.drawPercent = Math.round((trend.draw / total) * 100);
+  trend.awayWinPercent = Math.max(0, 100 - trend.homeWinPercent - trend.drawPercent);
+  trend.commonScore = Array.from(scoreCounts.entries())
+    .sort((first, second) => second[1] - first[1] || first[0].localeCompare(second[0]))[0]?.[0] ?? null;
+
+  return trend;
+}
+
+function createTestTipTrends(matches) {
+  const trends = {};
+  matches.slice(0, 4).forEach((match, index) => {
+    const rows = TEST_TREND_ROWS.map((row, rowIndex) => ({
+      score_a: (row.score_a + index + rowIndex) % 4,
+      score_b: row.score_b,
+    }));
+    trends[match.id] = buildTipTrend(rows);
+  });
+  return trends;
 }
 
 function createTestResults(matches) {
@@ -502,6 +557,7 @@ export default function App() {
   const [bonusResults, setBonusResults] = useState(() => (isTestMode ? createTestBonusResults(bundledMatches) : createInitialBonusResults(bundledMatches)));
   const [bonusMessage, setBonusMessage] = useState("");
   const [ranking, setRanking] = useState(() => (isTestMode ? TEST_RANKING_ROWS : []));
+  const [tipTrends, setTipTrends] = useState(() => (isTestMode ? createTestTipTrends(bundledMatches) : {}));
   const [lastSavedMatch, setLastSavedMatch] = useState("");
   const [groupFilter, setGroupFilter] = useState("alle");
   const [searchTerm, setSearchTerm] = useState("");
@@ -607,6 +663,7 @@ export default function App() {
         setBonusTips(createTestBonusTips(bundledMatches));
         setBonusResults(createTestBonusResults(bundledMatches));
         setRanking(TEST_RANKING_ROWS);
+        setTipTrends(createTestTipTrends(bundledMatches));
         setCodeStatus("claimed");
         setAppStatus("Testmodus aktiv");
         window.localStorage.setItem(STORAGE_KEY, JSON.stringify(TEST_PARTICIPANT));
@@ -615,11 +672,12 @@ export default function App() {
       }
 
       try {
-        const [dbMatches, dbResults, rankPayload, bonusPayload, session] = await Promise.all([
+        const [dbMatches, dbResults, rankPayload, bonusPayload, trendPayload, session] = await Promise.all([
           loadDbMatches(),
           loadResults(),
           apiGet("/api/ranking").catch(() => ({ ranking: [] })),
           apiGet("/api/bonus-results").catch(() => ({ bonusResults: null })),
+          apiGet("/api/tip-trends").catch(() => ({ trends: {} })),
           getAdminSession(),
         ]);
 
@@ -627,6 +685,7 @@ export default function App() {
         setMatches(nextMatches);
         setResults(dbResults);
         setRanking(rankPayload.ranking ?? []);
+        setTipTrends(trendPayload.trends ?? {});
         setAdminSession(session);
         setTips(createInitialTips(nextMatches));
         setBonusTips(createInitialBonusTips(nextMatches));
@@ -828,6 +887,16 @@ export default function App() {
     setRanking(payload.ranking ?? []);
   }
 
+  async function refreshTipTrends() {
+    if (isTestMode) {
+      setTipTrends(createTestTipTrends(matches));
+      return;
+    }
+
+    const payload = await apiGet("/api/tip-trends").catch(() => ({ trends: {} }));
+    setTipTrends(payload.trends ?? {});
+  }
+
   async function saveTipRows(matchIds) {
     if (!participant?.id) {
       setAppStatus("Bitte zuerst QR-Code aktivieren und Namen eintragen.");
@@ -844,6 +913,7 @@ export default function App() {
       });
       setAppStatus("Test-Tipp gespeichert. Punkte werden lokal neu berechnet.");
       await refreshRanking();
+      await refreshTipTrends();
       return;
     }
 
@@ -867,6 +937,7 @@ export default function App() {
       });
       setAppStatus("Tipp gespeichert.");
       await refreshRanking();
+      await refreshTipTrends();
     } catch (error) {
       setAppStatus(error.message);
     }
@@ -1049,6 +1120,7 @@ export default function App() {
                     match={featuredMatch}
                     tip={tips[featuredMatch.id]}
                     result={resultsByMatch.get(featuredMatch.id)}
+                    trend={tipTrends[featuredMatch.id]}
                     changeScore={changeScore}
                     saveTip={saveTip}
                     lastSavedMatch={lastSavedMatch}
@@ -1080,6 +1152,7 @@ export default function App() {
                 saveTip={saveTip}
                 saveVisibleTips={saveVisibleTips}
                 lastSavedMatch={lastSavedMatch}
+                tipTrends={tipTrends}
                 locked={!participant}
               />
             )}
@@ -1136,6 +1209,7 @@ export default function App() {
                       (code) => code.id !== payload.deletedCodeId,
                     ),
                   }));
+                  await refreshTipTrends();
                   return payload;
                 }}
                 onDeleteCode={async (codeId) => {
@@ -1168,6 +1242,7 @@ export default function App() {
                     ],
                   }));
                   await refreshRanking();
+                  await refreshTipTrends();
                   return payload;
                 }}
                 onSaveParticipantBonusTips={async (participantId, participantBonusTips) => {
@@ -1502,6 +1577,7 @@ function TipScreen({
   saveTip,
   saveVisibleTips,
   lastSavedMatch,
+  tipTrends,
   locked,
 }) {
   const [tipView, setTipView] = useState("spiele");
@@ -1591,6 +1667,7 @@ function TipScreen({
               changeScore={changeScore}
               saveTip={saveTip}
               lastSavedMatch={lastSavedMatch}
+              trend={tipTrends[match.id]}
               locked={locked}
             />
           ))}
@@ -1819,12 +1896,15 @@ function MatchCard({
   changeScore,
   saveTip,
   lastSavedMatch,
+  trend,
   locked,
   featured,
 }) {
+  const [showTrend, setShowTrend] = useState(false);
   if (!match || !tip) return null;
   const lockedByKickoff = isLockedForUsers(match);
   const isLocked = locked || lockedByKickoff;
+  const trendTotal = trend?.total ?? 0;
 
   return (
     <article className={`match-card panel ${featured ? "featured" : ""}`}>
@@ -1880,7 +1960,41 @@ function MatchCard({
               ? "Tipp gespeichert"
               : "Noch nicht gespeichert"}
         </span>
+        <button
+          type="button"
+          className="trend-toggle"
+          onClick={() => setShowTrend((current) => !current)}
+        >
+          Community-Trend {showTrend ? "ausblenden" : "anzeigen"}
+        </button>
       </footer>
+
+      {showTrend && (
+        <section className="tip-trend" aria-label={`Community-Trend für ${match.teamA} gegen ${match.teamB}`}>
+          <div>
+            <strong>{trendTotal} Tipps</strong>
+            <span>anonym ausgewertet</span>
+          </div>
+          {trendTotal > 0 ? (
+            <>
+              <div className="trend-bars">
+                <span style={{ "--value": `${trend.homeWinPercent}%` }}>
+                  {match.teamA} <b>{trend.homeWinPercent}%</b>
+                </span>
+                <span style={{ "--value": `${trend.drawPercent}%` }}>
+                  Remis <b>{trend.drawPercent}%</b>
+                </span>
+                <span style={{ "--value": `${trend.awayWinPercent}%` }}>
+                  {match.teamB} <b>{trend.awayWinPercent}%</b>
+                </span>
+              </div>
+              {trend.commonScore && <p>Häufigster Tipp: <strong>{trend.commonScore}</strong></p>}
+            </>
+          ) : (
+            <p>Noch keine Community-Tipps für dieses Spiel gespeichert.</p>
+          )}
+        </section>
+      )}
     </article>
   );
 }

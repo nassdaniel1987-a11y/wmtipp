@@ -1196,6 +1196,71 @@ p {
   font-weight: 800;
 }
 
+.trend-toggle {
+  min-height: 42px;
+  padding: 0 14px;
+  border: 1px solid #cad9e8;
+  border-radius: 8px;
+  color: var(--blue);
+  background: #ffffff;
+  font-weight: 800;
+}
+
+.tip-trend {
+  display: grid;
+  gap: 12px;
+  padding: 0 18px 22px;
+  background: #f8fbff;
+}
+
+.tip-trend > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border: 1px solid #d8e7f4;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.tip-trend > div:first-child span,
+.tip-trend p {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.trend-bars {
+  display: grid;
+  gap: 8px;
+}
+
+.trend-bars span {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  overflow: hidden;
+  padding: 10px 12px;
+  border: 1px solid #d8e7f4;
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--navy);
+  font-weight: 800;
+}
+
+.trend-bars span::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--value);
+  background: linear-gradient(90deg, rgba(15, 122, 63, 0.18), rgba(242, 193, 78, 0.28));
+}
+
+.trend-bars span > * {
+  position: relative;
+}
+
 .info-banner {
   display: flex;
   align-items: center;
@@ -2357,6 +2422,7 @@ tbody tr:nth-child(1) td:first-child {
   }
 
   .match-actions .save-tip,
+  .match-actions .trend-toggle,
   .match-actions .ghost-button {
     width: 100%;
     justify-content: center;
