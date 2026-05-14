@@ -1213,18 +1213,6 @@ p {
   background: #f8fbff;
 }
 
-.tip-trend > div:first-child {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  align-items: center;
-  padding: 12px 14px;
-  border: 1px solid #d8e7f4;
-  border-radius: 8px;
-  background: #ffffff;
-}
-
-.tip-trend > div:first-child span,
 .tip-trend p {
   color: var(--muted);
   font-weight: 700;

@@ -10,28 +10,21 @@ function buildTrend(rows) {
     homeWinPercent: 0,
     drawPercent: 0,
     awayWinPercent: 0,
-    commonScore: null,
   };
 
   if (total === 0) return trend;
 
-  const scoreCounts = new Map();
   rows.forEach((row) => {
     const scoreA = Number(row.score_a);
     const scoreB = Number(row.score_b);
     if (scoreA > scoreB) trend.homeWin += 1;
     if (scoreA === scoreB) trend.draw += 1;
     if (scoreA < scoreB) trend.awayWin += 1;
-
-    const key = `${scoreA}:${scoreB}`;
-    scoreCounts.set(key, (scoreCounts.get(key) ?? 0) + 1);
   });
 
   trend.homeWinPercent = Math.round((trend.homeWin / total) * 100);
   trend.drawPercent = Math.round((trend.draw / total) * 100);
   trend.awayWinPercent = Math.max(0, 100 - trend.homeWinPercent - trend.drawPercent);
-  trend.commonScore = Array.from(scoreCounts.entries())
-    .sort((first, second) => second[1] - first[1] || first[0].localeCompare(second[0]))[0]?.[0] ?? null;
 
   return trend;
 }

@@ -296,28 +296,21 @@ function buildTipTrend(rows) {
     homeWinPercent: 0,
     drawPercent: 0,
     awayWinPercent: 0,
-    commonScore: null,
   };
 
   if (total === 0) return trend;
 
-  const scoreCounts = new Map();
   rows.forEach((row) => {
     const scoreA = Number(row.score_a);
     const scoreB = Number(row.score_b);
     if (scoreA > scoreB) trend.homeWin += 1;
     if (scoreA === scoreB) trend.draw += 1;
     if (scoreA < scoreB) trend.awayWin += 1;
-
-    const key = `${scoreA}:${scoreB}`;
-    scoreCounts.set(key, (scoreCounts.get(key) ?? 0) + 1);
   });
 
   trend.homeWinPercent = Math.round((trend.homeWin / total) * 100);
   trend.drawPercent = Math.round((trend.draw / total) * 100);
   trend.awayWinPercent = Math.max(0, 100 - trend.homeWinPercent - trend.drawPercent);
-  trend.commonScore = Array.from(scoreCounts.entries())
-    .sort((first, second) => second[1] - first[1] || first[0].localeCompare(second[0]))[0]?.[0] ?? null;
 
   return trend;
 }
@@ -1904,7 +1897,7 @@ function MatchCard({
   if (!match || !tip) return null;
   const lockedByKickoff = isLockedForUsers(match);
   const isLocked = locked || lockedByKickoff;
-  const trendTotal = trend?.total ?? 0;
+  const hasTrend = (trend?.total ?? 0) > 0;
 
   return (
     <article className={`match-card panel ${featured ? "featured" : ""}`}>
@@ -1971,11 +1964,7 @@ function MatchCard({
 
       {showTrend && (
         <section className="tip-trend" aria-label={`Community-Trend für ${match.teamA} gegen ${match.teamB}`}>
-          <div>
-            <strong>{trendTotal} Tipps</strong>
-            <span>anonym ausgewertet</span>
-          </div>
-          {trendTotal > 0 ? (
+          {hasTrend ? (
             <>
               <div className="trend-bars">
                 <span style={{ "--value": `${trend.homeWinPercent}%` }}>
@@ -1988,10 +1977,9 @@ function MatchCard({
                   {match.teamB} <b>{trend.awayWinPercent}%</b>
                 </span>
               </div>
-              {trend.commonScore && <p>Häufigster Tipp: <strong>{trend.commonScore}</strong></p>}
             </>
           ) : (
-            <p>Noch keine Community-Tipps für dieses Spiel gespeichert.</p>
+            <p>Noch keine Prozent-Tendenz für dieses Spiel verfügbar.</p>
           )}
         </section>
       )}
