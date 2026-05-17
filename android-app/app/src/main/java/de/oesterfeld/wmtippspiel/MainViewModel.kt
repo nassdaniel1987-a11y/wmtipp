@@ -59,6 +59,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
 
     init {
+        updateInstaller.clearCachedUpdates()
         checkForUpdate()
         _uiState.value.storedParticipant?.let(::loadDashboard)
     }

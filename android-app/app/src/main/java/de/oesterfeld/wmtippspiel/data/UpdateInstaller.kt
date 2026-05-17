@@ -1,52 +1,51 @@
 package de.oesterfeld.wmtippspiel.data
 
-import android.app.DownloadManager
 import android.content.Context
 import android.content.Intent
-import android.database.Cursor
 import android.net.Uri
 import android.os.Build
-import android.os.Environment
 import android.provider.Settings
-import androidx.core.content.getSystemService
+import androidx.core.content.FileProvider
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import java.io.File
 
-class UpdateInstaller(private val context: Context) {
+class UpdateInstaller(
+    private val context: Context,
+    private val client: OkHttpClient = OkHttpClient(),
+) {
     suspend fun downloadAndOpenInstaller(update: AppUpdate, onProgress: (Int?) -> Unit) = withContext(Dispatchers.IO) {
         ensureInstallPermission()
-        val manager = context.getSystemService<DownloadManager>()
-            ?: error("Download-Manager ist nicht verfügbar.")
-        val request = DownloadManager.Request(Uri.parse(update.apkUrl))
-            .setTitle("WM-Tippspiel ${update.versionName}")
-            .setDescription("Update wird heruntergeladen")
-            .setMimeType(APK_MIME)
-            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-            .setDestinationInExternalPublicDir(
-                Environment.DIRECTORY_DOWNLOADS,
-                "wmtippspiel-${update.versionName}.apk",
-            )
-        val downloadId = manager.enqueue(request)
-
-        while (true) {
-            manager.query(DownloadManager.Query().setFilterById(downloadId)).use { cursor ->
-                if (!cursor.moveToFirst()) error("Download konnte nicht gefunden werden.")
-                when (cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))) {
-                    DownloadManager.STATUS_SUCCESSFUL -> {
-                        val apkUri = manager.getUriForDownloadedFile(downloadId)
-                            ?: error("Heruntergeladene Datei konnte nicht geöffnet werden.")
-                        openInstaller(apkUri)
-                        onProgress(100)
-                        return@withContext
+        clearCachedUpdates()
+        val targetDir = File(context.cacheDir, UPDATE_DIR).apply { mkdirs() }
+        val targetFile = File(targetDir, "wmtippspiel-${update.versionName}.apk")
+        client.newCall(Request.Builder().url(update.apkUrl).get().build()).execute().use { response ->
+            if (!response.isSuccessful) error("Update-Download fehlgeschlagen.")
+            val body = response.body ?: error("Update-Download fehlgeschlagen.")
+            val total = body.contentLength()
+            body.byteStream().use { input ->
+                targetFile.outputStream().use { output ->
+                    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                    var downloaded = 0L
+                    while (true) {
+                        val read = input.read(buffer)
+                        if (read == -1) break
+                        output.write(buffer, 0, read)
+                        downloaded += read
+                        onProgress(if (total > 0) ((downloaded * 100) / total).toInt() else null)
                     }
-
-                    DownloadManager.STATUS_FAILED -> error("Update-Download fehlgeschlagen.")
-                    else -> onProgress(cursor.progressPercent())
                 }
             }
-            delay(500)
         }
+        val apkUri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", targetFile)
+        openInstaller(apkUri)
+        onProgress(100)
+    }
+
+    fun clearCachedUpdates() {
+        File(context.cacheDir, UPDATE_DIR).deleteRecursively()
     }
 
     private fun ensureInstallPermission() {
@@ -67,13 +66,8 @@ class UpdateInstaller(private val context: Context) {
         context.startActivity(intent)
     }
 
-    private fun Cursor.progressPercent(): Int? {
-        val downloaded = getLong(getColumnIndexOrThrow(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR))
-        val total = getLong(getColumnIndexOrThrow(DownloadManager.COLUMN_TOTAL_SIZE_BYTES))
-        return if (total > 0) ((downloaded * 100) / total).toInt() else null
-    }
-
     private companion object {
         const val APK_MIME = "application/vnd.android.package-archive"
+        const val UPDATE_DIR = "updates"
     }
 }

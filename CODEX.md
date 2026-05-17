@@ -27,6 +27,7 @@ Die App wird privat über Netlify verteilt:
   - live unter `https://wmtipp.netlify.app/app-update.json`
 
 Die Android-App prüft `app-update.json`. Wenn dort ein höherer `versionCode` als lokal installiert ist, zeigt sie einen Update-Hinweis an und lädt die APK von Netlify.
+Update-APKs werden innerhalb des App-Caches geladen und beim nächsten App-Start wieder bereinigt; neue Updates landen nicht mehr dauerhaft im öffentlichen Download-Ordner.
 
 ## Release-Signierung
 

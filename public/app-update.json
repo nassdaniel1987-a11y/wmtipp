@@ -1,6 +1,6 @@
 {
-  "versionCode": 7,
-  "versionName": "0.1.6",
+  "versionCode": 8,
+  "versionName": "0.1.7",
   "apkUrl": "https://wmtipp.netlify.app/downloads/wmtippspiel-latest.apk",
-  "notes": "Tipp-Erinnerungen lassen sich jetzt direkt aktivieren."
+  "notes": "Updates werden jetzt temporär gespeichert und räumen sich selbst auf."
 }
