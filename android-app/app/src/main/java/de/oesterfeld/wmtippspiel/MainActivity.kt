@@ -512,7 +512,7 @@ private fun InfoScreen() {
         item { InfoCard(Icons.Default.SportsSoccer, "Spieltipps", listOf("4 Punkte: exaktes Ergebnis", "3 Punkte: Tendenz + Tordifferenz", "2 Punkte: richtige Tendenz", "0 Punkte: falsche Tendenz")) }
         item { InfoCard(Icons.Default.MilitaryTech, "Bonus-Tipps", listOf("8 Punkte: Weltmeister", "6 Punkte: Torschützenkönig", "2 Punkte: pro richtigem Gruppensieger")) }
         item { InfoCard(Icons.Default.Shield, "Wichtig", listOf("Spieltipps sind ab Spielstart gesperrt.", "Weltmeister und Torschützenkönig schließen zum Turnierstart.", "Gruppensieger schließen mit dem ersten Spiel der Gruppe.", "Jeder QR-Code gehört genau einem Teilnehmer.")) }
-        item { InfoCard(Icons.Default.Android, "App", listOf("Version ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")) }
+        item { InfoCard(Icons.Default.Android, "App", listOf("Version ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})", "Update-Test aktiv")) }
     }
 }
 
