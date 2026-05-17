@@ -8,6 +8,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.Instant
 
@@ -18,6 +20,8 @@ data class MainUiState(
     val storedParticipant: StoredParticipant? = null,
     val matches: List<Match> = emptyList(),
     val drafts: Map<String, TipDraft> = emptyMap(),
+    val tipSaveStatuses: Map<String, TipSaveStatus> = emptyMap(),
+    val tipSaveErrors: Map<String, String> = emptyMap(),
     val bonusTip: BonusTip = BonusTip(),
     val bonusResults: BonusResult? = null,
     val ranking: List<RankingRow> = emptyList(),
@@ -37,6 +41,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val api = TippspielApi()
     private val participantStore = ParticipantStore(application)
     private val updateInstaller = UpdateInstaller(application)
+    private val autosaveJobs = mutableMapOf<String, Job>()
     private val _uiState = MutableStateFlow(MainUiState(storedParticipant = participantStore.load()))
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
 
@@ -100,21 +105,65 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun updateDraft(matchId: String, scoreA: String? = null, scoreB: String? = null) {
         val current = _uiState.value.drafts[matchId] ?: TipDraft(matchId)
         val next = current.copy(scoreA = scoreA ?: current.scoreA, scoreB = scoreB ?: current.scoreB, saved = false)
-        _uiState.update { it.copy(drafts = it.drafts + (matchId to next), message = null) }
+        _uiState.update {
+            it.copy(
+                drafts = it.drafts + (matchId to next),
+                tipSaveStatuses = it.tipSaveStatuses + (matchId to TipSaveStatus.Pending),
+                tipSaveErrors = it.tipSaveErrors - matchId,
+                message = null,
+            )
+        }
+        scheduleAutosave(matchId)
     }
 
-    fun saveTip(matchId: String) {
+    fun adjustScore(matchId: String, homeTeam: Boolean, delta: Int) {
+        val current = _uiState.value.drafts[matchId] ?: TipDraft(matchId)
+        val raw = if (homeTeam) current.scoreA else current.scoreB
+        val currentValue = raw.toIntOrNull() ?: if (delta > 0) 0 else 1
+        val nextValue = (currentValue + delta).coerceIn(0, 12).toString()
+        if (homeTeam) updateDraft(matchId, scoreA = nextValue) else updateDraft(matchId, scoreB = nextValue)
+    }
+
+    private fun saveTip(matchId: String) {
         val participant = _uiState.value.storedParticipant ?: return
         val draft = _uiState.value.drafts[matchId] ?: TipDraft(matchId)
-        if (!draft.isValid) {
-            _uiState.update { it.copy(message = "Bitte gib für beide Teams eine Zahl von 0 bis 12 ein.") }
-            return
-        }
-        launchBusy {
-            val saved = api.saveTip(participant.id, Tip(matchId, draft.scoreA.toInt(), draft.scoreB.toInt()))
-            val updated = saved.associate { tip -> tip.matchId to TipDraft(tip.matchId, tip.scoreA.toString(), tip.scoreB.toString(), saved = true) }
-            _uiState.update { it.copy(drafts = it.drafts + updated, message = "Tipp gespeichert.") }
-            refreshSupportingData()
+        if (!draft.isValid) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(tipSaveStatuses = it.tipSaveStatuses + (matchId to TipSaveStatus.Saving)) }
+            runCatching {
+                api.saveTip(participant.id, Tip(matchId, draft.scoreA.toInt(), draft.scoreB.toInt()))
+            }.onSuccess { saved ->
+                val updated = saved.associate { tip -> tip.matchId to TipDraft(tip.matchId, tip.scoreA.toString(), tip.scoreB.toString(), saved = true) }
+                _uiState.update { state ->
+                    val current = state.drafts[matchId]
+                    if (current?.scoreA == draft.scoreA && current.scoreB == draft.scoreB) {
+                        state.copy(
+                            drafts = state.drafts + updated,
+                            tipSaveStatuses = state.tipSaveStatuses + (matchId to TipSaveStatus.Saved),
+                            tipSaveErrors = state.tipSaveErrors - matchId,
+                        )
+                    } else {
+                        state
+                    }
+                }
+                val current = _uiState.value.drafts[matchId]
+                if (current?.scoreA != draft.scoreA || current.scoreB != draft.scoreB) {
+                    scheduleAutosave(matchId)
+                }
+                refreshSupportingData()
+            }.onFailure { error ->
+                _uiState.update { state ->
+                    val current = state.drafts[matchId]
+                    if (current?.scoreA == draft.scoreA && current.scoreB == draft.scoreB) {
+                        state.copy(
+                            tipSaveStatuses = state.tipSaveStatuses + (matchId to TipSaveStatus.Error),
+                            tipSaveErrors = state.tipSaveErrors + (matchId to (error.message ?: "Speichern fehlgeschlagen.")),
+                        )
+                    } else {
+                        state
+                    }
+                }
+            }
         }
     }
 
@@ -146,16 +195,31 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         val loadedBonus = api.loadBonusTip(participant.id)
         val defaultGroupWinners = groups.associateWith { "" }
+        val saveStatuses = drafts.mapValues { (_, draft) -> if (draft.saved) TipSaveStatus.Saved else TipSaveStatus.Idle }
         _uiState.update {
             it.copy(
                 storedParticipant = participant,
                 matches = matches,
                 drafts = drafts,
+                tipSaveStatuses = saveStatuses,
+                tipSaveErrors = emptyMap(),
                 bonusTip = loadedBonus?.copy(groupWinners = defaultGroupWinners + loadedBonus.groupWinners)
                     ?: BonusTip(groupWinners = defaultGroupWinners),
             )
         }
         refreshSupportingData()
+    }
+
+    private fun scheduleAutosave(matchId: String) {
+        autosaveJobs.remove(matchId)?.cancel()
+        val match = _uiState.value.matches.find { it.id == matchId } ?: return
+        if (isMatchLocked(match)) return
+        autosaveJobs[matchId] = viewModelScope.launch {
+            delay(650)
+            if (_uiState.value.drafts[matchId]?.isValid == true) {
+                saveTip(matchId)
+            }
+        }
     }
 
     private suspend fun refreshSupportingData() {

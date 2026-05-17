@@ -257,7 +257,14 @@ private fun TipsScreen(state: MainUiState, vm: MainViewModel) {
                 }
             }
             items(filtered, key = Match::id) { match ->
-                MatchEditorCard(match, state.drafts[match.id] ?: TipDraft(match.id), state.trends[match.id], vm)
+                MatchEditorCard(
+                    match = match,
+                    draft = state.drafts[match.id] ?: TipDraft(match.id),
+                    saveStatus = state.tipSaveStatuses[match.id] ?: TipSaveStatus.Idle,
+                    saveError = state.tipSaveErrors[match.id],
+                    trend = state.trends[match.id],
+                    vm = vm,
+                )
             }
         } else {
             item { BonusEditor(state, vm) }
@@ -267,7 +274,7 @@ private fun TipsScreen(state: MainUiState, vm: MainViewModel) {
 }
 
 @Composable
-private fun MatchEditorCard(match: Match, draft: TipDraft, trend: TipTrend?, vm: MainViewModel) {
+private fun MatchEditorCard(match: Match, draft: TipDraft, saveStatus: TipSaveStatus, saveError: String?, trend: TipTrend?, vm: MainViewModel) {
     val locked = vm.isMatchLocked(match)
     var showTrend by remember(match.id) { mutableStateOf(false) }
     ElevatedCard(
@@ -326,21 +333,27 @@ private fun MatchEditorCard(match: Match, draft: TipDraft, trend: TipTrend?, vm:
                         TrendRow(trend)
                     }
                 }
-                Spacer(Modifier.height(12.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    ScoreField(displayTeamName(match.teamA), draft.scoreA, { vm.updateDraft(match.id, scoreA = it) }, Modifier.weight(1f), locked)
-                    ScoreField(displayTeamName(match.teamB), draft.scoreB, { vm.updateDraft(match.id, scoreB = it) }, Modifier.weight(1f), locked)
-            }
-            Spacer(Modifier.height(12.dp))
-                Button(
-                    { vm.saveTip(match.id) },
-                    enabled = !locked && draft.isValid,
-                    colors = ButtonDefaults.buttonColors(containerColor = if (draft.saved) Green else Navy),
-                ) {
-                    Icon(if (draft.saved) Icons.Default.CheckCircle else Icons.Default.Save, null)
-                    Spacer(Modifier.width(8.dp))
-                    Text(if (draft.saved) "Gespeichert" else "Tipp speichern")
+                Spacer(Modifier.height(14.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    ScoreStepperRow(
+                        mark = match.teamMarkA,
+                        teamName = displayTeamName(match.teamA),
+                        score = draft.scoreA,
+                        locked = locked,
+                        onMinus = { vm.adjustScore(match.id, homeTeam = true, delta = -1) },
+                        onPlus = { vm.adjustScore(match.id, homeTeam = true, delta = 1) },
+                    )
+                    ScoreStepperRow(
+                        mark = match.teamMarkB,
+                        teamName = displayTeamName(match.teamB),
+                        score = draft.scoreB,
+                        locked = locked,
+                        onMinus = { vm.adjustScore(match.id, homeTeam = false, delta = -1) },
+                        onPlus = { vm.adjustScore(match.id, homeTeam = false, delta = 1) },
+                    )
                 }
+                Spacer(Modifier.height(10.dp))
+                TipSaveStatusRow(saveStatus, saveError, draft)
                 if (locked) Text("Gesperrt: Spiel hat bereits begonnen.", color = Orange, style = MaterialTheme.typography.bodySmall)
             }
         }
@@ -348,8 +361,50 @@ private fun MatchEditorCard(match: Match, draft: TipDraft, trend: TipTrend?, vm:
 }
 
 @Composable
-private fun ScoreField(label: String, value: String, onChange: (String) -> Unit, modifier: Modifier, locked: Boolean) {
-    OutlinedTextField(value, { raw -> if (raw.length <= 2 && raw.all(Char::isDigit)) onChange(raw) }, modifier, label = { Text(label) }, singleLine = true, enabled = !locked, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+private fun ScoreStepperRow(mark: String, teamName: String, score: String, locked: Boolean, onMinus: () -> Unit, onPlus: () -> Unit) {
+    Surface(shape = RoundedCornerShape(18.dp), color = SurfaceSoft, border = BorderStroke(1.dp, Line)) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            TeamMark(mark, teamName)
+            Text(teamName, modifier = Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
+            ScoreStepButton(Icons.Default.Remove, enabled = !locked && (score.toIntOrNull() ?: 1) > 0, onClick = onMinus)
+            Surface(shape = RoundedCornerShape(12.dp), color = Color.White, border = BorderStroke(1.dp, Line)) {
+                Text(
+                    score.ifBlank { "–" },
+                    modifier = Modifier.width(42.dp).padding(vertical = 8.dp),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    fontWeight = FontWeight.Bold,
+                    color = Navy,
+                )
+            }
+            ScoreStepButton(Icons.Default.Add, enabled = !locked && (score.toIntOrNull() ?: 0) < 12, onClick = onPlus)
+        }
+    }
+}
+
+@Composable
+private fun ScoreStepButton(icon: ImageVector, enabled: Boolean, onClick: () -> Unit) {
+    FilledTonalIconButton(onClick = onClick, enabled = enabled, colors = IconButtonDefaults.filledTonalIconButtonColors(containerColor = Blue.copy(alpha = .09f), contentColor = Blue)) {
+        Icon(icon, null)
+    }
+}
+
+@Composable
+private fun TipSaveStatusRow(status: TipSaveStatus, error: String?, draft: TipDraft) {
+    val (icon, text, color) = when {
+        error != null || status == TipSaveStatus.Error -> Triple(Icons.Default.ErrorOutline, error ?: "Speichern fehlgeschlagen.", Orange)
+        status == TipSaveStatus.Saving -> Triple(Icons.Default.Sync, "Wird gespeichert…", Blue)
+        status == TipSaveStatus.Pending && draft.isValid -> Triple(Icons.Default.Schedule, "Wird gleich gespeichert…", Muted)
+        status == TipSaveStatus.Saved || draft.saved -> Triple(Icons.Default.CheckCircle, "Gespeichert", Green)
+        else -> Triple(Icons.Default.Edit, "Noch kein vollständiger Tipp", Muted)
+    }
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+        Icon(icon, null, tint = color, modifier = Modifier.size(17.dp))
+        Text(text, color = color, style = MaterialTheme.typography.bodySmall)
+    }
 }
 
 @Composable

@@ -131,6 +131,8 @@ cd android-app
 - Tabs: Start, Tippen, Rangliste, Info
 - Start-Dashboard mit Fortschritt
 - Tippkarten mit Flaggenbildern, Such-/Gruppenfilter, einklappbarem Community-Trend
+- Mobile Toreingabe je Teamzeile über `Minus · Zahl · Plus` statt Formularfeldern
+- Tipps werden nach Änderungen automatisch mit kurzem Debounce gespeichert; der Status erscheint inline in der Karte
 - Bonus-Tipps mit kompakter Gruppenübersicht
 - Rangliste mit Gesamtpunkten und Durchschnitt
 - Info-Bereich mit Punktehinweisen und App-Version

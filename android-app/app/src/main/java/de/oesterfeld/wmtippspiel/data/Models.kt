@@ -24,6 +24,14 @@ data class TipDraft(val matchId: String, val scoreA: String = "", val scoreB: St
     val isValid: Boolean get() = scoreA.toIntOrNull() in 0..12 && scoreB.toIntOrNull() in 0..12
 }
 
+enum class TipSaveStatus {
+    Idle,
+    Pending,
+    Saving,
+    Saved,
+    Error,
+}
+
 data class BonusTip(
     val champion: String = "",
     val topScorer: String = "",
