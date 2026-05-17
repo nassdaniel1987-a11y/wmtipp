@@ -147,4 +147,5 @@ cd android-app
 - Firebase-Dateien bleiben lokal/geheim:
   - `android-app/app/google-services.json` ist per `.gitignore` ausgeschlossen.
   - Netlify braucht `FIREBASE_SERVICE_ACCOUNT_JSON` als geheime Umgebungsvariable.
+  - Für manuelle End-to-End-Tests gibt es `/api/send-test-push`; dieser Endpunkt erwartet zusätzlich `TEST_PUSH_SECRET`.
 - Admin-Funktionen bleiben Web-only.
