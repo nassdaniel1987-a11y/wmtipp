@@ -90,6 +90,25 @@ create table if not exists public.results (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.participant_devices (
+  id uuid primary key default gen_random_uuid(),
+  participant_id uuid not null references public.participants(id) on delete cascade,
+  fcm_token text not null unique,
+  platform text not null check (platform in ('android')),
+  notifications_enabled boolean not null default false,
+  last_seen_at timestamptz not null default now(),
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.push_reminders (
+  id uuid primary key default gen_random_uuid(),
+  participant_id uuid not null references public.participants(id) on delete cascade,
+  match_id text not null references public.matches(id) on delete cascade,
+  reminder_type text not null check (reminder_type in ('24h', '3h')),
+  sent_at timestamptz not null default now(),
+  unique (participant_id, match_id, reminder_type)
+);
+
 create table if not exists public.admins (
   user_id uuid primary key references auth.users(id) on delete cascade,
   email text not null,
@@ -103,6 +122,8 @@ alter table public.tips enable row level security;
 alter table public.bonus_tips enable row level security;
 alter table public.bonus_results enable row level security;
 alter table public.results enable row level security;
+alter table public.participant_devices enable row level security;
+alter table public.push_reminders enable row level security;
 alter table public.admins enable row level security;
 
 grant select on public.matches to anon, authenticated;
@@ -115,6 +136,8 @@ grant select, insert, update, delete on public.bonus_tips to authenticated;
 grant select on public.bonus_results to anon, authenticated;
 grant select, insert, update, delete on public.bonus_results to authenticated;
 grant select, insert, update, delete on public.results to authenticated;
+grant select, insert, update, delete on public.participant_devices to authenticated;
+grant select, insert, update, delete on public.push_reminders to authenticated;
 grant select on public.admins to authenticated;
 
 create or replace function public.is_admin()
@@ -200,6 +223,20 @@ create policy "admins can view admins"
 on public.admins for select
 to authenticated
 using (public.is_admin());
+
+drop policy if exists "admins can manage participant devices" on public.participant_devices;
+create policy "admins can manage participant devices"
+on public.participant_devices for all
+to authenticated
+using (public.is_admin())
+with check (public.is_admin());
+
+drop policy if exists "admins can manage push reminders" on public.push_reminders;
+create policy "admins can manage push reminders"
+on public.push_reminders for all
+to authenticated
+using (public.is_admin())
+with check (public.is_admin());
 
 -- Participant QR-code actions should ideally run through Netlify Functions
 -- with the Supabase secret/service role key, so users cannot enumerate codes.

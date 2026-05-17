@@ -90,6 +90,16 @@ class TippspielApi(
             .toAppUpdate()
     }
 
+    suspend fun registerDevice(participantId: String, token: String, enabled: Boolean) = withContext(Dispatchers.IO) {
+        val body = JSONObject()
+            .put("participantId", participantId)
+            .put("token", token)
+            .put("platform", "android")
+            .put("notificationsEnabled", enabled)
+            .toString().toRequestBody(JSON)
+        executeObject(Request.Builder().url("$baseUrl/api/register-device").post(body).build())
+    }
+
     private fun executeObject(request: Request): JSONObject {
         client.newCall(request).execute().use { response ->
             val raw = response.body?.string().orEmpty()

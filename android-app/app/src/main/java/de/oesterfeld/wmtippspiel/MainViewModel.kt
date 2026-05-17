@@ -1,6 +1,7 @@
 package de.oesterfeld.wmtippspiel
 
 import android.app.Application
+import android.content.Intent
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import de.oesterfeld.wmtippspiel.data.*
@@ -12,6 +13,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.Instant
+import de.oesterfeld.wmtippspiel.notifications.PushNotifications
 
 enum class AppTab { Start, Tippen, Rangliste, Info }
 
@@ -34,6 +36,10 @@ data class MainUiState(
     val availableUpdate: AppUpdate? = null,
     val updateProgress: Int? = null,
     val isDownloadingUpdate: Boolean = false,
+    val notificationsEnabled: Boolean = false,
+    val notificationPromptSeen: Boolean = false,
+    val pushConfigured: Boolean = false,
+    val showNotificationPrompt: Boolean = false,
     val message: String? = null,
 )
 
@@ -42,7 +48,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val participantStore = ParticipantStore(application)
     private val updateInstaller = UpdateInstaller(application)
     private val autosaveJobs = mutableMapOf<String, Job>()
-    private val _uiState = MutableStateFlow(MainUiState(storedParticipant = participantStore.load()))
+    private val _uiState = MutableStateFlow(
+        MainUiState(
+            storedParticipant = participantStore.load(),
+            notificationsEnabled = participantStore.notificationsEnabled(),
+            notificationPromptSeen = participantStore.notificationPromptSeen(),
+            pushConfigured = PushNotifications.isConfigured(application),
+        ),
+    )
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
 
     init {
@@ -54,7 +67,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val participant = api.claimCode(code.trim(), name.trim())
         participantStore.save(participant, code.trim())
         val stored = StoredParticipant(participant.id, participant.displayName, code.trim())
-        _uiState.update { it.copy(storedParticipant = stored) }
+        _uiState.update { it.copy(storedParticipant = stored, showNotificationPrompt = !it.notificationPromptSeen) }
         loadDashboard(stored)
     }
 
@@ -65,7 +78,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         } else {
             participantStore.save(participant, code.trim())
             val stored = StoredParticipant(participant.id, participant.displayName, code.trim())
-            _uiState.update { it.copy(storedParticipant = stored) }
+            _uiState.update { it.copy(storedParticipant = stored, showNotificationPrompt = !it.notificationPromptSeen) }
             loadDashboard(stored)
         }
     }
@@ -74,6 +87,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setSearchTerm(value: String) = _uiState.update { it.copy(searchTerm = value) }
     fun setGroupFilter(value: String) = _uiState.update { it.copy(groupFilter = value) }
     fun refresh() { _uiState.value.storedParticipant?.let(::loadDashboard) }
+    fun handleIntent(intent: Intent?) {
+        if (intent?.getStringExtra(PushNotifications.openTabExtra) == PushNotifications.tipsTabValue) {
+            selectTab(AppTab.Tippen)
+        }
+    }
     fun checkForUpdate() {
         viewModelScope.launch {
             runCatching { api.loadAppUpdate() }
@@ -183,6 +201,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun logout() { participantStore.clear(); _uiState.value = MainUiState() }
 
+    fun dismissNotificationPrompt() {
+        participantStore.setNotificationPromptSeen()
+        _uiState.update { it.copy(notificationPromptSeen = true, showNotificationPrompt = false) }
+    }
+
+    fun enableNotifications() {
+        participantStore.setNotificationPromptSeen()
+        participantStore.setNotificationsEnabled(true)
+        _uiState.update { it.copy(notificationPromptSeen = true, notificationsEnabled = true, showNotificationPrompt = false) }
+        syncDeviceRegistration()
+    }
+
+    fun setNotificationsEnabled(enabled: Boolean) {
+        participantStore.setNotificationsEnabled(enabled)
+        _uiState.update { it.copy(notificationsEnabled = enabled) }
+        syncDeviceRegistration()
+    }
+
     fun isMatchLocked(match: Match): Boolean = match.kickoffAt?.let { runCatching { Instant.parse(it).isBefore(Instant.now()) }.getOrDefault(false) } ?: false
 
     private fun loadDashboard(participant: StoredParticipant) = launchBusy {
@@ -208,6 +244,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             )
         }
         refreshSupportingData()
+        if (_uiState.value.notificationsEnabled) syncDeviceRegistration()
     }
 
     private fun scheduleAutosave(matchId: String) {
@@ -231,6 +268,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             .associateBy(MatchResult::matchId)
         val groupTables = buildGroupTables(_uiState.value.matches, results)
         _uiState.update { it.copy(ranking = ranking, trends = trends, bonusResults = bonusResults, results = results, groupTables = groupTables) }
+    }
+
+    private fun syncDeviceRegistration() {
+        val participant = _uiState.value.storedParticipant ?: return
+        PushNotifications.fetchToken(
+            getApplication(),
+            onToken = { token ->
+                participantStore.setFcmToken(token)
+                viewModelScope.launch {
+                    runCatching { api.registerDevice(participant.id, token, _uiState.value.notificationsEnabled) }
+                }
+            },
+        )
     }
 
     private fun launchBusy(block: suspend () -> Unit) {

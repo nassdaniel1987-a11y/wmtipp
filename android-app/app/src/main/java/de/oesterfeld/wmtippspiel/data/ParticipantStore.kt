@@ -24,6 +24,13 @@ class ParticipantStore(context: Context) {
     fun clear() {
         prefs.edit().clear().apply()
     }
+
+    fun notificationsEnabled(): Boolean = prefs.getBoolean("notifications_enabled", false)
+    fun setNotificationsEnabled(enabled: Boolean) = prefs.edit().putBoolean("notifications_enabled", enabled).apply()
+    fun notificationPromptSeen(): Boolean = prefs.getBoolean("notification_prompt_seen", false)
+    fun setNotificationPromptSeen() = prefs.edit().putBoolean("notification_prompt_seen", true).apply()
+    fun fcmToken(): String? = prefs.getString("fcm_token", null)
+    fun setFcmToken(token: String) = prefs.edit().putString("fcm_token", token).apply()
 }
 
 data class StoredParticipant(

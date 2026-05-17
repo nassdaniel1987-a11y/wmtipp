@@ -1,6 +1,6 @@
 {
-  "versionCode": 3,
-  "versionName": "0.1.2",
+  "versionCode": 4,
+  "versionName": "0.1.3",
   "apkUrl": "https://wmtipp.netlify.app/downloads/wmtippspiel-latest.apk",
-  "notes": "Neue mobile Toreingabe mit Plus/Minus-Steuerung und automatischem Speichern."
+  "notes": "Push-Erinnerungen für offene Tipps vorbereitet."
 }

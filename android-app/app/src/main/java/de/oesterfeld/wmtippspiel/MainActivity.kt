@@ -1,10 +1,17 @@
 package de.oesterfeld.wmtippspiel
 
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -52,6 +59,13 @@ class MainActivity : ComponentActivity() {
                 TippspielApp(state, viewModel)
             }
         }
+        viewModel.handleIntent(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        viewModel.handleIntent(intent)
     }
 }
 
@@ -74,9 +88,12 @@ private fun TippspielApp(state: MainUiState, vm: MainViewModel) {
                 AppTab.Start -> StartScreen(state, vm)
                 AppTab.Tippen -> TipsScreen(state, vm)
                 AppTab.Rangliste -> RankingScreen(state)
-                AppTab.Info -> InfoScreen()
+                AppTab.Info -> InfoScreen(state, vm)
             }
         }
+    }
+    if (state.showNotificationPrompt) {
+        NotificationPromptDialog(state.pushConfigured, vm::enableNotifications, vm::dismissNotificationPrompt)
     }
 }
 
@@ -561,13 +578,75 @@ private fun RankingScreen(state: MainUiState) {
 }
 
 @Composable
-private fun InfoScreen() {
+private fun InfoScreen(state: MainUiState, vm: MainViewModel) {
     LazyColumn(contentPadding = PaddingValues(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item { HeroSection(Icons.Default.Info, "Regeln & Punkte", "So wird im WM-Tippspiel gezählt") }
         item { InfoCard(Icons.Default.SportsSoccer, "Spieltipps", listOf("4 Punkte: exaktes Ergebnis", "3 Punkte: Tendenz + Tordifferenz", "2 Punkte: richtige Tendenz", "0 Punkte: falsche Tendenz")) }
         item { InfoCard(Icons.Default.MilitaryTech, "Bonus-Tipps", listOf("8 Punkte: Weltmeister", "6 Punkte: Torschützenkönig", "2 Punkte: pro richtigem Gruppensieger")) }
         item { InfoCard(Icons.Default.Shield, "Wichtig", listOf("Spieltipps sind ab Spielstart gesperrt.", "Weltmeister und Torschützenkönig schließen zum Turnierstart.", "Gruppensieger schließen mit dem ersten Spiel der Gruppe.", "Jeder QR-Code gehört genau einem Teilnehmer.")) }
         item { InfoCard(Icons.Default.Android, "App", listOf("Version ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})", "Update-Test aktiv")) }
+        item { NotificationSettingsCard(state, vm) }
+    }
+}
+
+@Composable
+private fun NotificationPromptDialog(pushConfigured: Boolean, onEnable: () -> Unit, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted || Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) onEnable() else onDismiss()
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { Icon(Icons.Default.NotificationsActive, null) },
+        title = { Text("Tipp-Erinnerungen aktivieren?") },
+        text = {
+            Text(
+                if (pushConfigured) "Wir erinnern dich 24 Stunden und 3 Stunden vor Anpfiff, wenn noch ein Tipp fehlt."
+                else "Push ist vorbereitet, aber noch nicht mit Firebase verbunden. Sobald die Einrichtung abgeschlossen ist, kannst du Erinnerungen aktivieren.",
+            )
+        },
+        confirmButton = {
+            Button(
+                enabled = pushConfigured,
+                onClick = {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+                    ) {
+                        permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    } else {
+                        onEnable()
+                    }
+                },
+            ) { Text("Aktivieren") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Später") } },
+    )
+}
+
+@Composable
+private fun NotificationSettingsCard(state: MainUiState, vm: MainViewModel) {
+    Card(colors = CardDefaults.cardColors(containerColor = Color.White), border = BorderStroke(1.dp, Line)) {
+        Row(
+            Modifier.fillMaxWidth().padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Icon(Icons.Default.NotificationsActive, null, tint = Green)
+            Column(Modifier.weight(1f)) {
+                Text("Tipp-Erinnerungen", fontWeight = FontWeight.Bold)
+                Text(
+                    if (state.pushConfigured) "24 Stunden und 3 Stunden vor offenen Spielen"
+                    else "Noch nicht mit Firebase verbunden",
+                    color = Muted,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            Switch(
+                checked = state.notificationsEnabled,
+                enabled = state.pushConfigured,
+                onCheckedChange = vm::setNotificationsEnabled,
+            )
+        }
     }
 }
 

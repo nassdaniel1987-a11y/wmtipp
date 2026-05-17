@@ -140,5 +140,11 @@ cd android-app
 ## Hinweise für spätere Erweiterungen
 
 - `TeamMark` ist absichtlich allgemein gehalten, damit bei einem späteren Wechsel von WM auf Bundesliga statt Flaggen Vereinslogos verwendet werden können.
-- Push-Benachrichtigungen sind noch nicht umgesetzt.
+- Push-Benachrichtigungen sind code-seitig vorbereitet:
+  - Android registriert FCM-Geräte und bietet Tipp-Erinnerungen in den Info-Einstellungen an.
+  - `netlify/functions/send-tip-reminders.js` prüft alle 15 Minuten auf offene Tipps 24h bzw. 3h vor Anpfiff.
+  - Für die Aktivierung fehlen nur noch Firebase-Konfiguration und produktive Supabase-Schema-Anwendung.
+- Firebase-Dateien bleiben lokal/geheim:
+  - `android-app/app/google-services.json` ist per `.gitignore` ausgeschlossen.
+  - Netlify braucht `FIREBASE_SERVICE_ACCOUNT_JSON` als geheime Umgebungsvariable.
 - Admin-Funktionen bleiben Web-only.
