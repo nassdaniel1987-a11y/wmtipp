@@ -5,4 +5,9 @@
         <item name="android:statusBarColor">#F7F8FC</item>
         <item name="android:navigationBarColor">#F7F8FC</item>
     </style>
+    <style name="Theme.WmTippspiel.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#F7F8FC</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/oesterfeld_logo_round</item>
+        <item name="postSplashScreenTheme">@style/Theme.WmTippspiel</item>
+    </style>
 </resources>
