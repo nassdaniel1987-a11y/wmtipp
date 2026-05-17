@@ -79,3 +79,10 @@ data class GroupTable(
     val groupKey: String,
     val rows: List<GroupStanding>,
 )
+
+data class AppUpdate(
+    val versionCode: Int,
+    val versionName: String,
+    val apkUrl: String,
+    val notes: String = "",
+)

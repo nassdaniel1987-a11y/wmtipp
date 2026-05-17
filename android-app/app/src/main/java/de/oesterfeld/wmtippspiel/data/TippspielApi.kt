@@ -85,6 +85,11 @@ class TippspielApi(
             .getJSONArray("results").mapObjects { it.toResult() }
     }
 
+    suspend fun loadAppUpdate(): AppUpdate = withContext(Dispatchers.IO) {
+        executeObject(Request.Builder().url(BuildConfig.UPDATE_MANIFEST_URL).get().build())
+            .toAppUpdate()
+    }
+
     private fun executeObject(request: Request): JSONObject {
         client.newCall(request).execute().use { response ->
             val raw = response.body?.string().orEmpty()
@@ -114,6 +119,12 @@ class TippspielApi(
     )
     private fun JSONObject.toTrend() = TipTrend(getInt("total"), getInt("homeWinPercent"), getInt("drawPercent"), getInt("awayWinPercent"))
     private fun JSONObject.toResult() = MatchResult(getString("match_id"), getInt("score_a"), getInt("score_b"), optString("status", "final"))
+    private fun JSONObject.toAppUpdate() = AppUpdate(
+        versionCode = getInt("versionCode"),
+        versionName = getString("versionName"),
+        apkUrl = getString("apkUrl"),
+        notes = optString("notes"),
+    )
     private fun JSONObject?.toStringMap(): Map<String, String> = this?.keys()?.asSequence()?.associateWith { optString(it) } ?: emptyMap()
     private inline fun <T> JSONArray.mapObjects(transform: (JSONObject) -> T): List<T> = List(length()) { transform(getJSONObject(it)) }
     private companion object { val JSON = "application/json; charset=utf-8".toMediaType() }

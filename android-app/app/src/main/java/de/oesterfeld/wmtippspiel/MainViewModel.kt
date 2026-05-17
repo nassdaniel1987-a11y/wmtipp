@@ -27,16 +27,23 @@ data class MainUiState(
     val selectedTab: AppTab = AppTab.Start,
     val searchTerm: String = "",
     val groupFilter: String = "alle",
+    val availableUpdate: AppUpdate? = null,
+    val updateProgress: Int? = null,
+    val isDownloadingUpdate: Boolean = false,
     val message: String? = null,
 )
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val api = TippspielApi()
     private val participantStore = ParticipantStore(application)
+    private val updateInstaller = UpdateInstaller(application)
     private val _uiState = MutableStateFlow(MainUiState(storedParticipant = participantStore.load()))
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
 
-    init { _uiState.value.storedParticipant?.let(::loadDashboard) }
+    init {
+        checkForUpdate()
+        _uiState.value.storedParticipant?.let(::loadDashboard)
+    }
 
     fun activate(code: String, name: String) = launchBusy {
         val participant = api.claimCode(code.trim(), name.trim())
@@ -62,6 +69,33 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setSearchTerm(value: String) = _uiState.update { it.copy(searchTerm = value) }
     fun setGroupFilter(value: String) = _uiState.update { it.copy(groupFilter = value) }
     fun refresh() { _uiState.value.storedParticipant?.let(::loadDashboard) }
+    fun checkForUpdate() {
+        viewModelScope.launch {
+            runCatching { api.loadAppUpdate() }
+                .onSuccess { update ->
+                    _uiState.update {
+                        it.copy(
+                            availableUpdate = update.takeIf { candidate -> candidate.versionCode > BuildConfig.VERSION_CODE },
+                        )
+                    }
+                }
+        }
+    }
+
+    fun downloadUpdate() {
+        val update = _uiState.value.availableUpdate ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isDownloadingUpdate = true, updateProgress = 0, message = null) }
+            runCatching {
+                updateInstaller.downloadAndOpenInstaller(update) { progress ->
+                    _uiState.update { state -> state.copy(updateProgress = progress) }
+                }
+            }.onFailure { error ->
+                _uiState.update { it.copy(message = error.message ?: "Update konnte nicht gestartet werden.") }
+            }
+            _uiState.update { it.copy(isDownloadingUpdate = false) }
+        }
+    }
 
     fun updateDraft(matchId: String, scoreA: String? = null, scoreB: String? = null) {
         val current = _uiState.value.drafts[matchId] ?: TipDraft(matchId)

@@ -68,6 +68,7 @@ private fun TippspielApp(state: MainUiState, vm: MainViewModel) {
     ) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
             TopHeader(state, vm::refresh, vm::logout)
+            state.availableUpdate?.let { UpdateBanner(it, state.isDownloadingUpdate, state.updateProgress, vm::downloadUpdate) }
             state.message?.let { MessageBanner(it) }
             when (state.selectedTab) {
                 AppTab.Start -> StartScreen(state, vm)
@@ -133,6 +134,44 @@ private fun TopHeader(state: MainUiState, onRefresh: () -> Unit, onLogout: () ->
 }
 
 @Composable private fun MessageBanner(message: String) { Text(message, Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 4.dp), color = MaterialTheme.colorScheme.secondary) }
+
+@Composable
+private fun UpdateBanner(update: AppUpdate, isDownloading: Boolean, progress: Int?, onUpdate: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 4.dp),
+        colors = CardDefaults.cardColors(containerColor = Yellow.copy(alpha = .2f)),
+        border = BorderStroke(1.dp, Yellow),
+    ) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Icon(Icons.Default.SystemUpdate, null, tint = Navy)
+                Column(Modifier.weight(1f)) {
+                    Text("Update verfügbar: Version ${update.versionName}", fontWeight = FontWeight.Bold, color = Navy)
+                    if (update.notes.isNotBlank()) Text(update.notes, color = Muted, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+            if (isDownloading) {
+                LinearProgressIndicator(
+                    progress = { (progress ?: 0) / 100f },
+                    modifier = Modifier.fillMaxWidth(),
+                    color = Navy,
+                    trackColor = Color.White.copy(alpha = .5f),
+                )
+                Text(
+                    progress?.let { "$it % heruntergeladen" } ?: "Download läuft …",
+                    color = Muted,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            } else {
+                Button(onClick = onUpdate, colors = ButtonDefaults.buttonColors(containerColor = Navy)) {
+                    Icon(Icons.Default.Download, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Update herunterladen")
+                }
+            }
+        }
+    }
+}
 
 @Composable
 private fun StartScreen(state: MainUiState, vm: MainViewModel) {
