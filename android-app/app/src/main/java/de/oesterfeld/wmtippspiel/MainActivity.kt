@@ -93,7 +93,7 @@ private fun TippspielApp(state: MainUiState, vm: MainViewModel) {
         }
     }
     if (state.showNotificationPrompt) {
-        NotificationPromptDialog(state.pushConfigured, vm::enableNotifications, vm::dismissNotificationPrompt)
+        NotificationPromptDialog(vm::enableNotifications, vm::dismissNotificationPrompt)
     }
 }
 
@@ -590,7 +590,7 @@ private fun InfoScreen(state: MainUiState, vm: MainViewModel) {
 }
 
 @Composable
-private fun NotificationPromptDialog(pushConfigured: Boolean, onEnable: () -> Unit, onDismiss: () -> Unit) {
+private fun NotificationPromptDialog(onEnable: () -> Unit, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted || Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) onEnable() else onDismiss()
@@ -599,15 +599,9 @@ private fun NotificationPromptDialog(pushConfigured: Boolean, onEnable: () -> Un
         onDismissRequest = onDismiss,
         icon = { Icon(Icons.Default.NotificationsActive, null) },
         title = { Text("Tipp-Erinnerungen aktivieren?") },
-        text = {
-            Text(
-                if (pushConfigured) "Wir erinnern dich 24 Stunden und 3 Stunden vor Anpfiff, wenn noch ein Tipp fehlt."
-                else "Push ist vorbereitet, aber noch nicht mit Firebase verbunden. Sobald die Einrichtung abgeschlossen ist, kannst du Erinnerungen aktivieren.",
-            )
-        },
+        text = { Text("Wir erinnern dich 24 Stunden und 3 Stunden vor Anpfiff, wenn noch ein Tipp fehlt.") },
         confirmButton = {
             Button(
-                enabled = pushConfigured,
                 onClick = {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
                         ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
@@ -635,15 +629,13 @@ private fun NotificationSettingsCard(state: MainUiState, vm: MainViewModel) {
             Column(Modifier.weight(1f)) {
                 Text("Tipp-Erinnerungen", fontWeight = FontWeight.Bold)
                 Text(
-                    if (state.pushConfigured) "24 Stunden und 3 Stunden vor offenen Spielen"
-                    else "Noch nicht mit Firebase verbunden",
+                    "24 Stunden und 3 Stunden vor offenen Spielen",
                     color = Muted,
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
             Switch(
                 checked = state.notificationsEnabled,
-                enabled = state.pushConfigured,
                 onCheckedChange = vm::setNotificationsEnabled,
             )
         }

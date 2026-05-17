@@ -30,10 +30,6 @@ object PushNotifications {
     }.getOrDefault(false)
 
     fun fetchToken(context: Context, onToken: (String) -> Unit, onFailure: (() -> Unit)? = null) {
-        if (!isConfigured(context)) {
-            onFailure?.invoke()
-            return
-        }
         FirebaseMessaging.getInstance().token
             .addOnSuccessListener(onToken)
             .addOnFailureListener { onFailure?.invoke() }

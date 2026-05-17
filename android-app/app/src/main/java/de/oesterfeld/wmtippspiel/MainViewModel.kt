@@ -280,6 +280,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     runCatching { api.registerDevice(participant.id, token, _uiState.value.notificationsEnabled) }
                 }
             },
+            onFailure = {
+                _uiState.update { it.copy(message = "Push konnte noch nicht aktiviert werden. Bitte versuche es später erneut.") }
+            },
         )
     }
 
