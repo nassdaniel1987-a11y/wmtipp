@@ -1,6 +1,6 @@
 {
-  "versionCode": 8,
-  "versionName": "0.1.7",
+  "versionCode": 9,
+  "versionName": "0.1.8",
   "apkUrl": "https://wmtipp.netlify.app/downloads/wmtippspiel-latest.apk",
-  "notes": "Updates werden jetzt temporär gespeichert und räumen sich selbst auf."
+  "notes": "Kleines Test-Update für den neuen temporären Update-Download."
 }
