@@ -1,6 +1,6 @@
 import { getServiceClient, json } from "./_shared/supabase.js";
 import { getFirebaseMessaging } from "./_shared/firebase-admin.js";
-import { buildReminderMessage, findReminderTargets } from "./_shared/tip-reminders.js";
+import { buildReminderMessage, disableInvalidTokens, findReminderTargets } from "./_shared/tip-reminders.js";
 
 export default async (req) => {
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -36,6 +36,7 @@ export default async (req) => {
     const response = await getFirebaseMessaging().sendEach(
       targets.map((target) => buildReminderMessage(match, reminderType, target.fcm_token)),
     );
+    const disabledInvalidTokens = await disableInvalidTokens(supabase, targets, response);
     return json({
       ok: true,
       mode: "send",
@@ -44,6 +45,7 @@ export default async (req) => {
       requested: targets.length,
       successCount: response.successCount,
       failureCount: response.failureCount,
+      disabledInvalidTokens,
     });
   } catch (error) {
     return json({ error: error.message || "Reminder-Test fehlgeschlagen." }, 500);

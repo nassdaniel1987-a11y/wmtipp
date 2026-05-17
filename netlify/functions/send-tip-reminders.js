@@ -1,6 +1,6 @@
 import { getServiceClient, json } from "./_shared/supabase.js";
 import { getFirebaseMessaging } from "./_shared/firebase-admin.js";
-import { buildReminderMessage, findReminderTargets, reminderWindows } from "./_shared/tip-reminders.js";
+import { buildReminderMessage, disableInvalidTokens, findReminderTargets, reminderWindows } from "./_shared/tip-reminders.js";
 
 const toleranceMinutes = 15;
 
@@ -28,6 +28,7 @@ export default async () => {
         const responses = await messaging.sendEach(
           targets.map((target) => buildReminderMessage(match, window.key, target.fcm_token)),
         );
+        await disableInvalidTokens(supabase, targets, responses);
         const successfulRows = [
           ...new Map(
             targets

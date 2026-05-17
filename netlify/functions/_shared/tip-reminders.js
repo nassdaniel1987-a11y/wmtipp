@@ -34,3 +34,20 @@ export function buildReminderMessage(match, reminderType, token) {
     token,
   };
 }
+
+export async function disableInvalidTokens(supabase, targets, responses) {
+  const invalidTokens = targets
+    .filter((_, index) =>
+      ["messaging/registration-token-not-registered", "messaging/invalid-registration-token"].includes(
+        responses.responses[index]?.error?.code,
+      ),
+    )
+    .map((target) => target.fcm_token);
+  if (!invalidTokens.length) return 0;
+  const { error } = await supabase
+    .from("participant_devices")
+    .update({ notifications_enabled: false, last_seen_at: new Date().toISOString() })
+    .in("fcm_token", invalidTokens);
+  if (error) throw error;
+  return invalidTokens.length;
+}

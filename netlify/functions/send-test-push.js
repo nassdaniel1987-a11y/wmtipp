@@ -1,5 +1,6 @@
 import { getServiceClient, json } from "./_shared/supabase.js";
 import { getFirebaseMessaging } from "./_shared/firebase-admin.js";
+import { disableInvalidTokens } from "./_shared/tip-reminders.js";
 
 export default async (req) => {
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -30,12 +31,14 @@ export default async (req) => {
         token: device.fcm_token,
       })),
     );
+    const disabledInvalidTokens = await disableInvalidTokens(supabase, devices, response);
 
     return json({
       ok: true,
       requested: devices.length,
       successCount: response.successCount,
       failureCount: response.failureCount,
+      disabledInvalidTokens,
     });
   } catch (error) {
     return json({ error: error.message || "Test-Push fehlgeschlagen." }, 500);
