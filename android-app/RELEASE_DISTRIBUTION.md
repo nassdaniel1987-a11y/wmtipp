@@ -21,11 +21,13 @@ Den Keystore unbedingt dauerhaft sichern. Ohne denselben Schlüssel akzeptiert A
 
 ## Release-Ablauf
 
-1. `versionCode` und `versionName` in `app/build.gradle.kts` erhöhen.
-2. Release-APK mit eurem festen Keystore bauen.
-3. APK als `public/downloads/wmtippspiel-latest.apk` ablegen.
-4. `public/app-update.json` auf dieselbe Version anheben.
+1. `VERSION_CODE` und `VERSION_NAME` in `version.properties` erhöhen.
+2. Im Projektwurzelordner `npm run sync:android-update-manifest` ausführen.
+3. Release-APK mit eurem festen Keystore bauen.
+4. APK als `public/downloads/wmtippspiel-latest.apk` ablegen.
 5. Webprojekt deployen.
+
+`version.properties` ist die zentrale Quelle für die Android-Version. Gradle liest sie direkt ein; das Sync-Skript überträgt dieselben Werte in `public/app-update.json`.
 
 ## Vor der ersten echten Verteilung
 

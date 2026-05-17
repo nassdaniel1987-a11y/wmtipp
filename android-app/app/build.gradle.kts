@@ -12,6 +12,9 @@ val keystoreProperties = Properties().apply {
         keystorePropertiesFile.inputStream().use(::load)
     }
 }
+val versionProperties = Properties().apply {
+    rootProject.file("version.properties").inputStream().use(::load)
+}
 
 android {
     namespace = "de.oesterfeld.wmtippspiel"
@@ -21,8 +24,8 @@ android {
         applicationId = "de.oesterfeld.wmtippspiel"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = versionProperties.getProperty("VERSION_CODE").toInt()
+        versionName = versionProperties.getProperty("VERSION_NAME")
 
         val apiBaseUrl = providers.gradleProperty("WM_API_BASE_URL")
             .orElse("https://wmtipp.netlify.app")
