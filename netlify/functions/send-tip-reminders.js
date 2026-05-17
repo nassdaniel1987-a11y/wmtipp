@@ -1,10 +1,7 @@
 import { getServiceClient, json } from "./_shared/supabase.js";
 import { getFirebaseMessaging } from "./_shared/firebase-admin.js";
+import { buildReminderMessage, findReminderTargets, reminderWindows } from "./_shared/tip-reminders.js";
 
-const windows = [
-  { key: "24h", targetHours: 24 },
-  { key: "3h", targetHours: 3 },
-];
 const toleranceMinutes = 15;
 
 export default async () => {
@@ -14,7 +11,7 @@ export default async () => {
     const messaging = getFirebaseMessaging();
     let sent = 0;
 
-    for (const window of windows) {
+    for (const window of reminderWindows) {
       const lower = new Date(now.getTime() + (window.targetHours * 60 - toleranceMinutes) * 60_000).toISOString();
       const upper = new Date(now.getTime() + window.targetHours * 60 * 60_000).toISOString();
       const { data: matches, error: matchError } = await supabase
@@ -25,33 +22,11 @@ export default async () => {
       if (matchError) throw matchError;
 
       for (const match of matches ?? []) {
-        const { data: devices, error } = await supabase
-          .from("participant_devices")
-          .select("participant_id, fcm_token")
-          .eq("notifications_enabled", true);
-        if (error) throw error;
-        const participantIds = [...new Set((devices ?? []).map((device) => device.participant_id))];
-        if (!participantIds.length) continue;
-        const [{ data: tips, error: tipError }, { data: reminders, error: reminderReadError }] = await Promise.all([
-          supabase.from("tips").select("participant_id").eq("match_id", match.id).in("participant_id", participantIds),
-          supabase.from("push_reminders").select("participant_id").eq("match_id", match.id).eq("reminder_type", window.key).in("participant_id", participantIds),
-        ]);
-        if (tipError) throw tipError;
-        if (reminderReadError) throw reminderReadError;
-        const tipped = new Set((tips ?? []).map((row) => row.participant_id));
-        const reminded = new Set((reminders ?? []).map((row) => row.participant_id));
-        const targets = (devices ?? []).filter((row) => !tipped.has(row.participant_id) && !reminded.has(row.participant_id));
+        const targets = await findReminderTargets(supabase, match, window.key);
         if (!targets.length) continue;
 
         const responses = await messaging.sendEach(
-          targets.map((target) => ({
-            notification: {
-              title: "Tipp fehlt noch",
-              body: `${match.team_a} – ${match.team_b} startet in ${window.key === "24h" ? "24 Stunden" : "3 Stunden"}.`,
-            },
-            data: { openTab: "Tippen", matchId: match.id },
-            token: target.fcm_token,
-          })),
+          targets.map((target) => buildReminderMessage(match, window.key, target.fcm_token)),
         );
         const successfulRows = [
           ...new Map(
