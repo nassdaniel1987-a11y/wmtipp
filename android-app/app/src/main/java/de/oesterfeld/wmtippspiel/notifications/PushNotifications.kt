@@ -25,8 +25,7 @@ object PushNotifications {
     const val tipsTabValue = "Tippen"
 
     fun isConfigured(context: Context): Boolean = runCatching {
-        FirebaseApp.initializeApp(context)
-        FirebaseApp.getApps(context).isNotEmpty()
+        FirebaseApp.getApps(context).isNotEmpty() || FirebaseApp.initializeApp(context) != null
     }.getOrDefault(false)
 
     fun fetchToken(context: Context, onToken: (String) -> Unit, onFailure: (() -> Unit)? = null) {

@@ -1,6 +1,6 @@
 {
-  "versionCode": 4,
-  "versionName": "0.1.3",
+  "versionCode": 5,
+  "versionName": "0.1.4",
   "apkUrl": "https://wmtipp.netlify.app/downloads/wmtippspiel-latest.apk",
-  "notes": "Push-Erinnerungen für offene Tipps vorbereitet."
+  "notes": "Korrektur der Firebase-Erkennung für Tipp-Erinnerungen."
 }
