@@ -30,7 +30,8 @@ body {
 }
 
 button,
-input {
+input,
+a {
   font: inherit;
 }
 
@@ -250,6 +251,66 @@ input:disabled {
 .scoreboard-strip span {
   color: #cfe4ff;
   font-size: 0.92rem;
+}
+
+.app-download-strip {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  max-width: 1380px;
+  margin: 0 auto 22px;
+  padding: 14px 16px;
+  border: 1px solid rgba(216, 228, 240, 0.95);
+  border-radius: 12px;
+  color: var(--navy);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 12px 28px rgba(7, 27, 69, 0.1);
+}
+
+.app-download-strip > div {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.app-download-strip svg {
+  flex: 0 0 auto;
+  color: var(--green);
+}
+
+.app-download-strip span {
+  display: grid;
+  gap: 2px;
+}
+
+.app-download-strip strong {
+  font-size: 1rem;
+}
+
+.app-download-strip small {
+  color: var(--muted);
+}
+
+.app-download-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 999px;
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--navy), var(--blue));
+  font-weight: 850;
+  text-decoration: none;
+  white-space: nowrap;
+  box-shadow: 0 10px 22px rgba(13, 78, 166, 0.18);
+}
+
+.app-download-button:hover {
+  filter: brightness(1.04);
 }
 
 .content-grid {
@@ -2238,6 +2299,21 @@ tbody tr:nth-child(1) td:first-child {
     margin-bottom: 14px;
     padding: 9px 12px;
     text-align: center;
+  }
+
+  .app-download-strip {
+    display: grid;
+    gap: 12px;
+    margin-bottom: 14px;
+    padding: 14px;
+  }
+
+  .app-download-strip > div {
+    align-items: flex-start;
+  }
+
+  .app-download-button {
+    width: 100%;
   }
 
   .content-grid,

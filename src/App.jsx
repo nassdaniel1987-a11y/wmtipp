@@ -6,6 +6,7 @@ import {
   ChevronRight,
   ChevronUp,
   CircleUserRound,
+  Download,
   Goal,
   House,
   Info,
@@ -35,6 +36,7 @@ import {
 import { displayTeamName } from "./teamNames.js";
 
 const STORAGE_KEY = "wm-tippspiel-participant";
+const ANDROID_APK_URL = "/downloads/wmtippspiel-latest.apk";
 const tabs = [
   { id: "start", label: "Start", icon: House },
   { id: "tippen", label: "Tippen", icon: Goal },
@@ -1063,6 +1065,19 @@ export default function App() {
           <span>WM 2026 · {matches.length} Gruppenspiele</span>
           <strong>{savedTipCount} von {matches.length} Tipps gespeichert</strong>
           <span>{appStatus}</span>
+        </section>
+
+        <section className="app-download-strip" aria-label="Android-App herunterladen">
+          <div>
+            <Download size={20} />
+            <span>
+              <strong>Android-App verfügbar</strong>
+              <small>Tipps direkt auf dem Handy abgeben und Updates bequem in der App laden.</small>
+            </span>
+          </div>
+          <a className="app-download-button" href={ANDROID_APK_URL} download>
+            Android-App herunterladen
+          </a>
         </section>
 
         <div className={`content-grid active-${activeTab} ${participant ? "participant-active" : ""}`}>
