@@ -179,6 +179,19 @@ function QrCodeImage({ value }) {
   );
 }
 
+async function createQrCodeDataUrl(value) {
+  const { default: QRCode } = await import("qrcode");
+  return QRCode.toDataURL(value, {
+    errorCorrectionLevel: "M",
+    margin: 1,
+    scale: 7,
+    color: {
+      dark: "#071b45",
+      light: "#ffffff",
+    },
+  });
+}
+
 function mapDbMatch(row) {
   const teamA = displayTeamName(row.team_a);
   const teamB = displayTeamName(row.team_b);
@@ -2296,6 +2309,7 @@ function AdminPanel({
   const [selectedCodeIds, setSelectedCodeIds] = useState([]);
   const [selectedTipSheetParticipantIds, setSelectedTipSheetParticipantIds] = useState([]);
   const [printMode, setPrintMode] = useState("codes");
+  const [printTipQrCodes, setPrintTipQrCodes] = useState({});
   const [officialPreview, setOfficialPreview] = useState(null);
   const [officialLoading, setOfficialLoading] = useState(false);
 
@@ -2446,11 +2460,21 @@ function AdminPanel({
     setSelectedTipSheetParticipantIds(adminData.participants.map((participant) => participant.id));
   }
 
-  function printSelectedTipSheets() {
+  async function printSelectedTipSheets() {
     if (printableTipSheetParticipants.length === 0) {
       setAdminMessage("Bitte erst Teilnehmer für Tippbögen auswählen.");
       return;
     }
+
+    const qrEntries = await Promise.all(
+      printableTipSheetParticipants.map(async (participant) => {
+        const code = adminData.codes.find((item) => item.participant?.id === participant.id);
+        if (!code?.code) return [participant.id, ""];
+        return [participant.id, await createQrCodeDataUrl(getInviteUrl(code.code))];
+      }),
+    );
+
+    flushSync(() => setPrintTipQrCodes(Object.fromEntries(qrEntries)));
     flushSync(() => setPrintMode("tip-sheets"));
     window.print();
   }
@@ -2795,9 +2819,14 @@ function AdminPanel({
                   <strong>{participant.display_name}</strong>
                   <small>Code: {code?.code || "ohne Code"} · Seite {pageIndex + 1} / {pages.length}</small>
                 </div>
-                {code?.code && (
+                {code?.code && printTipQrCodes[participant.id] && (
                   <div className="print-tip-qr">
-                    <QrCodeImage value={getInviteUrl(code.code)} />
+                    <span className="qr-image">
+                      <img
+                        src={printTipQrCodes[participant.id]}
+                        alt={`QR-Code für ${code.code}`}
+                      />
+                    </span>
                   </div>
                 )}
               </header>
