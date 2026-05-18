@@ -2692,6 +2692,7 @@ tbody tr:nth-child(1) td:first-child {
 
   .topbar,
   .scoreboard-strip,
+  .app-download-strip,
   .join-panel,
   .side-stack,
   .admin-panel > :not(.print-sheet) {
@@ -3003,7 +3004,7 @@ tbody tr:nth-child(1) td:first-child {
 
   .print-tip-sheet header {
     display: grid;
-    grid-template-columns: 18mm minmax(0, 1fr);
+    grid-template-columns: 18mm minmax(0, 1fr) 24mm;
     align-items: center;
     gap: 4mm;
     padding-bottom: 3mm;
@@ -3031,6 +3032,22 @@ tbody tr:nth-child(1) td:first-child {
   .print-tip-sheet header strong {
     font-size: 16pt;
     line-height: 1;
+  }
+
+  .print-tip-qr {
+    justify-self: end;
+  }
+
+  .print-tip-qr .qr-image {
+    width: 22mm;
+    height: 22mm;
+    border-radius: 1.2mm;
+    background: #ffffff;
+  }
+
+  .print-tip-qr .qr-image img {
+    width: 22mm;
+    height: 22mm;
   }
 
   .print-bonus-box {

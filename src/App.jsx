@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { flushSync } from "react-dom";
 import {
   CalendarDays,
   Check,
@@ -2429,7 +2430,7 @@ function AdminPanel({
       setAdminMessage("Bitte erst QR-Codes zum Drucken auswählen.");
       return;
     }
-    setPrintMode("codes");
+    flushSync(() => setPrintMode("codes"));
     window.print();
   }
 
@@ -2450,7 +2451,7 @@ function AdminPanel({
       setAdminMessage("Bitte erst Teilnehmer für Tippbögen auswählen.");
       return;
     }
-    setPrintMode("tip-sheets");
+    flushSync(() => setPrintMode("tip-sheets"));
     window.print();
   }
 
@@ -2794,6 +2795,11 @@ function AdminPanel({
                   <strong>{participant.display_name}</strong>
                   <small>Code: {code?.code || "ohne Code"} · Seite {pageIndex + 1} / {pages.length}</small>
                 </div>
+                {code?.code && (
+                  <div className="print-tip-qr">
+                    <QrCodeImage value={getInviteUrl(code.code)} />
+                  </div>
+                )}
               </header>
 
               {pageIndex === 0 && (
