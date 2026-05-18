@@ -2421,7 +2421,7 @@ function AdminPanel({
     }
   }
 
-  const visibleCodes = adminData.codes.slice(0, 12);
+  const visibleCodes = adminData.codes;
   const printableCodes = visibleCodes.filter((code) => selectedCodeIds.includes(code.id));
   const printableTipSheetParticipants = adminData.participants.filter((participant) =>
     selectedTipSheetParticipantIds.includes(participant.id),
