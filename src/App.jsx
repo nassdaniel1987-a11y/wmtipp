@@ -104,6 +104,12 @@ const TEST_TREND_ROWS = [
   { score_a: 0, score_b: 2 },
 ];
 
+function chunkArray(items, size) {
+  return Array.from({ length: Math.ceil(items.length / size) }, (_, index) =>
+    items.slice(index * size, index * size + size),
+  );
+}
+
 function getIsTestMode() {
   const params = new URLSearchParams(window.location.search);
   return params.get("test") === "1" || params.get("mode") === "test";
@@ -2287,6 +2293,8 @@ function AdminPanel({
   const [participantBonusDraft, setParticipantBonusDraft] = useState(createInitialBonusTips(matches));
   const [bonusResultDraft, setBonusResultDraft] = useState(createInitialBonusResults(matches, bonusResults));
   const [selectedCodeIds, setSelectedCodeIds] = useState([]);
+  const [selectedTipSheetParticipantIds, setSelectedTipSheetParticipantIds] = useState([]);
+  const [printMode, setPrintMode] = useState("codes");
   const [officialPreview, setOfficialPreview] = useState(null);
   const [officialLoading, setOfficialLoading] = useState(false);
 
@@ -2400,6 +2408,9 @@ function AdminPanel({
 
   const visibleCodes = adminData.codes.slice(0, 12);
   const printableCodes = visibleCodes.filter((code) => selectedCodeIds.includes(code.id));
+  const printableTipSheetParticipants = adminData.participants.filter((participant) =>
+    selectedTipSheetParticipantIds.includes(participant.id),
+  );
 
   function togglePrintCode(codeId) {
     setSelectedCodeIds((current) =>
@@ -2418,6 +2429,28 @@ function AdminPanel({
       setAdminMessage("Bitte erst QR-Codes zum Drucken auswählen.");
       return;
     }
+    setPrintMode("codes");
+    window.print();
+  }
+
+  function toggleTipSheetParticipant(participantId) {
+    setSelectedTipSheetParticipantIds((current) =>
+      current.includes(participantId)
+        ? current.filter((id) => id !== participantId)
+        : [...current, participantId],
+    );
+  }
+
+  function selectAllTipSheetParticipants() {
+    setSelectedTipSheetParticipantIds(adminData.participants.map((participant) => participant.id));
+  }
+
+  function printSelectedTipSheets() {
+    if (printableTipSheetParticipants.length === 0) {
+      setAdminMessage("Bitte erst Teilnehmer für Tippbögen auswählen.");
+      return;
+    }
+    setPrintMode("tip-sheets");
     window.print();
   }
 
@@ -2726,8 +2759,8 @@ function AdminPanel({
           </article>
         ))}
       </div>
-      <section className="print-sheet" aria-hidden="true">
-        {printableCodes.map((row) => (
+      <section className={`print-sheet ${printMode}`} aria-hidden="true">
+        {printMode === "codes" && printableCodes.map((row) => (
           <article className="print-code-card" key={row.id}>
             <header>
               <img src="/oesterfeld-logo-round.jpg" alt="" />
@@ -2750,9 +2783,71 @@ function AdminPanel({
             </ol>
           </article>
         ))}
+        {printMode === "tip-sheets" && printableTipSheetParticipants.flatMap((participant) => {
+          const code = adminData.codes.find((item) => item.participant?.id === participant.id);
+          return chunkArray(matches, 24).map((pageMatches, pageIndex, pages) => (
+            <article className="print-tip-sheet" key={`${participant.id}-${pageIndex}`}>
+              <header>
+                <img src="/oesterfeld-logo-round.jpg" alt="" />
+                <div>
+                  <span>WM-Tippspiel · Offline-Tippbogen</span>
+                  <strong>{participant.display_name}</strong>
+                  <small>Code: {code?.code || "ohne Code"} · Seite {pageIndex + 1} / {pages.length}</small>
+                </div>
+              </header>
+
+              {pageIndex === 0 && (
+                <section className="print-bonus-box">
+                  <h4>Bonus-Tipps</h4>
+                  <div className="print-bonus-main">
+                    <label>Weltmeister <span /></label>
+                    <label>Torschützenkönig <span /></label>
+                  </div>
+                  <div className="print-group-winners">
+                    {getGroups(matches).map((group) => (
+                      <label key={group.groupKey}>Gr. {group.groupKey} <span /></label>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              <section className="print-match-grid">
+                {pageMatches.map((match) => (
+                  <div className="print-match-row" key={match.id}>
+                    <b>{match.matchNumber}</b>
+                    <small>{match.date} · {match.time}</small>
+                    <span>{displayTeamName(match.teamA)}</span>
+                    <i />
+                    <em>:</em>
+                    <i />
+                    <span>{displayTeamName(match.teamB)}</span>
+                  </div>
+                ))}
+              </section>
+
+              <footer>
+                Bitte gut lesbar eintragen. Die Tipps werden später im Adminbereich übertragen.
+              </footer>
+            </article>
+          ));
+        })}
       </section>
 
       <h3>Teilnehmer</h3>
+      <p className="fine-print">
+        Für Kinder ohne Handy kannst du personalisierte Tippbögen drucken und die Ergebnisse später im Adminbereich übertragen.
+      </p>
+      <div className="print-actions">
+        <button type="button" className="ghost-button" onClick={selectAllTipSheetParticipants}>
+          Alle Teilnehmer auswählen
+        </button>
+        <button type="button" className="ghost-button" onClick={() => setSelectedTipSheetParticipantIds([])}>
+          Auswahl leeren
+        </button>
+        <button type="button" className="primary-button compact" onClick={printSelectedTipSheets}>
+          Ausgewählte Tippbögen drucken
+        </button>
+      </div>
       <div className="participant-list">
         {adminData.participants.length === 0 && (
           <p className="fine-print">Noch keine Teilnehmer angelegt.</p>
@@ -2768,6 +2863,14 @@ function AdminPanel({
 
           return (
             <div className="participant-row" key={participant.id}>
+              <label className="tip-sheet-select">
+                <input
+                  type="checkbox"
+                  checked={selectedTipSheetParticipantIds.includes(participant.id)}
+                  onChange={() => toggleTipSheetParticipant(participant.id)}
+                />
+                Bogen
+              </label>
               <button type="button" className="participant-open" onClick={() => openParticipant(participant)}>
                 {participant.display_name}
               </button>
