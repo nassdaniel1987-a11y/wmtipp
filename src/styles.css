@@ -1659,6 +1659,10 @@ tbody tr:nth-child(1) td:first-child {
   margin-top: 14px;
 }
 
+.qr-toggle {
+  margin-top: 14px;
+}
+
 .print-actions .ghost-button,
 .print-actions .primary-button {
   width: auto;
@@ -1803,6 +1807,33 @@ tbody tr:nth-child(1) td:first-child {
   background: transparent;
   font-weight: 900;
   text-align: left;
+}
+
+.participant-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.participant-rename {
+  border: 0;
+  padding: 0;
+  color: var(--muted);
+  background: transparent;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.participant-name-editor {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+
+.participant-name-editor input {
+  width: min(220px, 100%);
 }
 
 .participant-row span {

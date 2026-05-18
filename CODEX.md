@@ -136,7 +136,13 @@ cd android-app
 - Tipps werden nach Änderungen automatisch mit kurzem Debounce gespeichert; der Status erscheint inline in der Karte
 - Bonus-Tipps mit kompakter Gruppenübersicht
 - Rangliste mit Gesamtpunkten und Durchschnitt
-- Info-Bereich mit Punktehinweisen und App-Version
+- Info-Bereich mit ausführlicher Punktevergabe, Ranglistenhinweis und App-Version
+
+## Aktueller Admin-Stand Web
+
+- QR-Code-Bereich ist einklappbar, damit viele Codes den Adminbereich nicht dauerhaft überladen.
+- Teilnehmernamen können direkt in der Teilnehmerliste bearbeitet werden.
+- Personalisierte Offline-Tippbögen enthalten einen scannbaren QR-Code je Teilnehmer.
 
 ## Hinweise für spätere Erweiterungen
 

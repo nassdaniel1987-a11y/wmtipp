@@ -322,7 +322,7 @@ private fun MatchEditorCard(match: Match, draft: TipDraft, saveStatus: TipSaveSt
             Column(Modifier.padding(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Icon(Icons.Default.CalendarMonth, null, tint = Blue)
-                    Text("${match.matchDate} · ${match.matchTime}", color = Blue, fontWeight = FontWeight.SemiBold)
+                    Text("${displayMatchDate(match.matchDate)} · ${match.matchTime}", color = Blue, fontWeight = FontWeight.SemiBold)
                 }
                 Spacer(Modifier.height(12.dp))
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
@@ -581,9 +581,10 @@ private fun RankingScreen(state: MainUiState) {
 private fun InfoScreen(state: MainUiState, vm: MainViewModel) {
     LazyColumn(contentPadding = PaddingValues(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item { HeroSection(Icons.Default.Info, "Regeln & Punkte", "So wird im WM-Tippspiel gezählt") }
-        item { InfoCard(Icons.Default.SportsSoccer, "Spieltipps", listOf("4 Punkte: exaktes Ergebnis", "3 Punkte: Tendenz + Tordifferenz", "2 Punkte: richtige Tendenz", "0 Punkte: falsche Tendenz")) }
-        item { InfoCard(Icons.Default.MilitaryTech, "Bonus-Tipps", listOf("8 Punkte: Weltmeister", "6 Punkte: Torschützenkönig", "2 Punkte: pro richtigem Gruppensieger")) }
-        item { InfoCard(Icons.Default.Shield, "Wichtig", listOf("Spieltipps sind ab Spielstart gesperrt.", "Weltmeister und Torschützenkönig schließen zum Turnierstart.", "Gruppensieger schließen mit dem ersten Spiel der Gruppe.", "Jeder QR-Code gehört genau einem Teilnehmer.")) }
+        item { InfoCard(Icons.Default.SportsSoccer, "Spieltipps", listOf("4 Punkte: exaktes Ergebnis richtig, zum Beispiel Tipp 2:1 und Ergebnis 2:1.", "3 Punkte: richtige Tendenz und richtige Tordifferenz, zum Beispiel Tipp 2:1 und Ergebnis 3:2.", "2 Punkte: richtige Tendenz, also Sieg, Niederlage oder Unentschieden richtig.", "0 Punkte: falsche Tendenz.")) }
+        item { InfoCard(Icons.Default.MilitaryTech, "Bonus-Tipps", listOf("8 Punkte: Weltmeister richtig getippt.", "6 Punkte: Torschützenkönig richtig getippt.", "2 Punkte: pro richtigem Gruppensieger.")) }
+        item { InfoCard(Icons.Default.EmojiEvents, "Rangliste", listOf("Gesamtpunkte bestehen aus Spielpunkten plus Bonuspunkten.", "In der Durchschnittsansicht zählen nur Spielpunkte pro gewertetem Tipp.", "Bonuspunkte fließen nicht in den Punkteschnitt ein.")) }
+        item { InfoCard(Icons.Default.Shield, "Wichtig", listOf("Spieltipps sind ab Spielstart gesperrt.", "Weltmeister und Torschützenkönig schließen zum Turnierstart.", "Gruppensieger schließen mit dem ersten Spiel der jeweiligen Gruppe.", "Jeder QR-Code gehört genau einem Teilnehmer.")) }
         item { InfoCard(Icons.Default.Android, "App", listOf("Version ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})", "Update-Test aktiv")) }
         item { NotificationSettingsCard(state, vm) }
     }
@@ -646,8 +647,12 @@ private fun NotificationSettingsCard(state: MainUiState, vm: MainViewModel) {
 @Composable private fun SectionTitle(text: String) { Text(text, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) }
 @Composable private fun StatCard(label: String, value: String, modifier: Modifier) { Card(modifier, colors = CardDefaults.cardColors(containerColor = Color.White), border = BorderStroke(1.dp, Line)) { Column(Modifier.padding(12.dp)) { Text(value, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge, color = Navy); Text(label, style = MaterialTheme.typography.bodySmall, color = Muted) } } }
 @Composable private fun EmptyCard(text: String) { OutlinedCard(border = BorderStroke(1.dp, Line)) { Text(text, Modifier.padding(16.dp), color = Muted) } }
-@Composable private fun CompactMatchCard(match: Match) { Card(colors = CardDefaults.cardColors(containerColor = SurfaceSoft), border = BorderStroke(1.dp, Line)) { Column(Modifier.fillMaxWidth().padding(14.dp)) { Text("Spiel ${match.matchNumber}", color = Blue, fontWeight = FontWeight.Bold); Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) { TeamMark(match.teamMarkA, displayTeamName(match.teamA)); Text("–", color = Muted); TeamMark(match.teamMarkB, displayTeamName(match.teamB)) }; Text("${match.matchDate} · ${match.matchTime}", color = Muted) } } }
+@Composable private fun CompactMatchCard(match: Match) { Card(colors = CardDefaults.cardColors(containerColor = SurfaceSoft), border = BorderStroke(1.dp, Line)) { Column(Modifier.fillMaxWidth().padding(14.dp)) { Text("Spiel ${match.matchNumber}", color = Blue, fontWeight = FontWeight.Bold); Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) { TeamMark(match.teamMarkA, displayTeamName(match.teamA)); Text("–", color = Muted); TeamMark(match.teamMarkB, displayTeamName(match.teamB)) }; Text("${displayMatchDate(match.matchDate)} · ${match.matchTime}", color = Muted) } } }
 @Composable private fun InfoCard(icon: ImageVector, title: String, lines: List<String>) { Card(colors = CardDefaults.cardColors(containerColor = Color.White), border = BorderStroke(1.dp, Line)) { Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) { Icon(icon, null, tint = Green); Text(title, fontWeight = FontWeight.Bold) }; lines.forEach { Text("• $it", color = Navy) } } } }
+private fun displayMatchDate(value: String): String {
+    val parts = value.split("-")
+    return if (parts.size == 3) "${parts[2]}.${parts[1]}.${parts[0]}" else value
+}
 @Composable private fun LogoBubble(size: Int) { Box(Modifier.size(size.dp).background(Color.White, CircleShape), contentAlignment = Alignment.Center) { Image(painterResource(R.drawable.oesterfeld_logo_round), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) } }
 @Composable private fun TeamPill(mark: String, name: String, modifier: Modifier = Modifier) { Surface(modifier, shape = RoundedCornerShape(16.dp), color = SurfaceSoft, border = BorderStroke(1.dp, Line)) { Row(Modifier.padding(horizontal = 10.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) { TeamMark(mark, name); Text(name, fontWeight = FontWeight.SemiBold) } } }
 @Composable

@@ -475,6 +475,14 @@ function formatDate(date) {
   }).format(new Date(`${date}T12:00:00`));
 }
 
+function formatNumericDate(date) {
+  return new Intl.DateTimeFormat("de-DE", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(new Date(`${date}T12:00:00`));
+}
+
 function formatDateTime(value) {
   if (!value) return "noch offen";
   return new Intl.DateTimeFormat("de-DE", {
@@ -1238,6 +1246,31 @@ export default function App() {
                     ),
                   }));
                   await refreshTipTrends();
+                  return payload;
+                }}
+                onRenameParticipant={async (participantId, displayName) => {
+                  const payload = await apiPost(
+                    "/api/admin-rename-participant",
+                    { participantId, displayName },
+                    adminSession?.access_token,
+                  );
+                  setAdminData((current) => ({
+                    ...current,
+                    participants: current.participants.map((participant) =>
+                      participant.id === payload.participant.id ? payload.participant : participant,
+                    ),
+                    codes: current.codes.map((code) =>
+                      code.participant?.id === payload.participant.id
+                        ? {
+                            ...code,
+                            participant: {
+                              ...code.participant,
+                              display_name: payload.participant.display_name,
+                            },
+                          }
+                        : code,
+                    ),
+                  }));
                   return payload;
                 }}
                 onDeleteCode={async (codeId) => {
@@ -2287,6 +2320,7 @@ function AdminPanel({
   onCreateCodes,
   onCreateParticipant,
   onDeleteParticipant,
+  onRenameParticipant,
   onDeleteCode,
   onSaveParticipantTips,
   onSaveParticipantBonusTips,
@@ -2308,6 +2342,9 @@ function AdminPanel({
   const [bonusResultDraft, setBonusResultDraft] = useState(createInitialBonusResults(matches, bonusResults));
   const [selectedCodeIds, setSelectedCodeIds] = useState([]);
   const [selectedTipSheetParticipantIds, setSelectedTipSheetParticipantIds] = useState([]);
+  const [codesExpanded, setCodesExpanded] = useState(false);
+  const [editingParticipantId, setEditingParticipantId] = useState(null);
+  const [participantNameDraft, setParticipantNameDraft] = useState("");
   const [printMode, setPrintMode] = useState("codes");
   const [printTipQrCodes, setPrintTipQrCodes] = useState({});
   const [officialPreview, setOfficialPreview] = useState(null);
@@ -2403,6 +2440,22 @@ function AdminPanel({
     try {
       await onDeleteParticipant(participantId);
       setAdminMessage(`${displayName} wurde gelöscht.`);
+    } catch (error) {
+      setAdminMessage(error.message);
+    }
+  }
+
+  function startRenameParticipant(participant) {
+    setEditingParticipantId(participant.id);
+    setParticipantNameDraft(participant.display_name);
+  }
+
+  async function saveParticipantName(participantId) {
+    try {
+      const payload = await onRenameParticipant(participantId, participantNameDraft);
+      setEditingParticipantId(null);
+      setParticipantNameDraft("");
+      setAdminMessage(`Name geändert zu ${payload.participant.display_name}.`);
     } catch (error) {
       setAdminMessage(error.message);
     }
@@ -2750,7 +2803,14 @@ function AdminPanel({
         Diese QR-Codes können mit der Handykamera gescannt werden. Die Nummer
         darunter kann am PC manuell eingegeben werden.
       </p>
-      <div className="print-actions">
+      <button
+        type="button"
+        className="ghost-button qr-toggle"
+        onClick={() => setCodesExpanded((current) => !current)}
+      >
+        {codesExpanded ? "QR-Codes einklappen" : `QR-Codes anzeigen (${visibleCodes.length})`}
+      </button>
+      {codesExpanded && <div className="print-actions">
         <button type="button" className="ghost-button" onClick={selectAllVisibleCodes}>
           Sichtbare auswählen
         </button>
@@ -2760,8 +2820,8 @@ function AdminPanel({
         <button type="button" className="primary-button compact" onClick={printSelectedCodes}>
           Ausgewählte QR-Codes drucken
         </button>
-      </div>
-      <div className="admin-grid">
+      </div>}
+      {codesExpanded && <div className="admin-grid">
         {visibleCodes.map((row) => (
           <article key={row.id} className={`code-card ${row.status}`}>
             <label className="print-select">
@@ -2783,7 +2843,7 @@ function AdminPanel({
             )}
           </article>
         ))}
-      </div>
+      </div>}
       <section className={`print-sheet ${printMode}`} aria-hidden="true">
         {printMode === "codes" && printableCodes.map((row) => (
           <article className="print-code-card" key={row.id}>
@@ -2850,7 +2910,7 @@ function AdminPanel({
                 {pageMatches.map((match) => (
                   <div className="print-match-row" key={match.id}>
                     <b>{match.matchNumber}</b>
-                    <small>{match.date} · {match.time}</small>
+                    <small>{formatNumericDate(match.date)} · {match.time}</small>
                     <span>{displayTeamName(match.teamA)}</span>
                     <i />
                     <em>:</em>
@@ -2906,9 +2966,43 @@ function AdminPanel({
                 />
                 Bogen
               </label>
-              <button type="button" className="participant-open" onClick={() => openParticipant(participant)}>
-                {participant.display_name}
-              </button>
+              {editingParticipantId === participant.id ? (
+                <div className="participant-name-editor">
+                  <input
+                    value={participantNameDraft}
+                    onChange={(event) => setParticipantNameDraft(event.target.value)}
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    className="ghost-button compact"
+                    onClick={() => saveParticipantName(participant.id)}
+                    disabled={participantNameDraft.trim().length < 2}
+                  >
+                    Speichern
+                  </button>
+                  <button
+                    type="button"
+                    className="ghost-button compact"
+                    onClick={() => setEditingParticipantId(null)}
+                  >
+                    Abbrechen
+                  </button>
+                </div>
+              ) : (
+                <div className="participant-name-cell">
+                  <button type="button" className="participant-open" onClick={() => openParticipant(participant)}>
+                    {participant.display_name}
+                  </button>
+                  <button
+                    type="button"
+                    className="participant-rename"
+                    onClick={() => startRenameParticipant(participant)}
+                  >
+                    Bearbeiten
+                  </button>
+                </div>
+              )}
               <span>{code?.code || "ohne Code"}</span>
               <span className="participant-tip-count">
                 {tipCount} / {matches.length} Tipps
