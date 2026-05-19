@@ -597,6 +597,7 @@ export default function App() {
   const [adminSession, setAdminSession] = useState(null);
   const [adminData, setAdminData] = useState({ codes: [], participants: [], tips: [], bonusTips: [], bonusResults: null, results: [] });
   const tipsRef = useRef(tips);
+  const canViewRanking = Boolean(participant);
 
   useEffect(() => {
     tipsRef.current = tips;
@@ -604,6 +605,11 @@ export default function App() {
 
   const setActiveTab = useCallback((tabId, { replace = false } = {}) => {
     if (!tabIds.has(tabId)) return;
+    if (tabId === "rangliste" && !canViewRanking) {
+      setAppStatus("Bitte zuerst QR-Code aktivieren und Namen eintragen.");
+      tabId = "start";
+      replace = true;
+    }
 
     setActiveTabState(tabId);
     const nextUrl = `${window.location.pathname}${window.location.search}#${tabId}`;
@@ -614,7 +620,7 @@ export default function App() {
     } else {
       window.history.pushState(null, "", nextUrl);
     }
-  }, []);
+  }, [canViewRanking]);
 
   const activeCode = participant?.code || scannedCode || manualCode.trim();
   const savedTipCount = Object.values(tips).filter((tip) => tip.saved).length;
@@ -679,7 +685,8 @@ export default function App() {
 
   useEffect(() => {
     function syncTabFromUrl() {
-      setActiveTabState(getTabFromHash());
+      const nextTab = getTabFromHash();
+      setActiveTab(nextTab, { replace: nextTab === "rangliste" && !canViewRanking });
     }
 
     window.addEventListener("hashchange", syncTabFromUrl);
@@ -688,7 +695,13 @@ export default function App() {
       window.removeEventListener("hashchange", syncTabFromUrl);
       window.removeEventListener("popstate", syncTabFromUrl);
     };
-  }, []);
+  }, [canViewRanking, setActiveTab]);
+
+  useEffect(() => {
+    if (activeTab === "rangliste" && !canViewRanking) {
+      setActiveTab("start", { replace: true });
+    }
+  }, [activeTab, canViewRanking, setActiveTab]);
 
   useEffect(() => {
     async function bootstrap() {
@@ -1133,7 +1146,9 @@ export default function App() {
         </button>
 
         <nav className="main-nav" aria-label="Hauptnavigation">
-          {tabs.map(({ id, label, icon: Icon }) => (
+          {tabs
+            .filter((tab) => tab.id !== "rangliste" || canViewRanking)
+            .map(({ id, label, icon: Icon }) => (
             <button
               type="button"
               key={id}
@@ -1274,7 +1289,11 @@ export default function App() {
             )}
 
             {activeTab === "rangliste" && (
-              <RankingPanel ranking={displayRanking} expanded />
+              canViewRanking ? (
+                <RankingPanel ranking={displayRanking} expanded />
+              ) : (
+                <ScheduleSummary />
+              )
             )}
 
             {activeTab === "info" && (
@@ -1424,7 +1443,7 @@ export default function App() {
           </section>
 
           <aside className="side-stack">
-            <RankingPanel ranking={displayRanking} setActiveTab={setActiveTab} />
+            {canViewRanking && <RankingPanel ranking={displayRanking} setActiveTab={setActiveTab} />}
             <UpcomingPanel matches={matches} setActiveTab={setActiveTab} />
             <KnockoutPanel />
           </aside>
