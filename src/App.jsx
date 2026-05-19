@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import {
   CalendarDays,
@@ -104,6 +104,13 @@ const TEST_TREND_ROWS = [
   { score_a: 1, score_b: 1 },
   { score_a: 0, score_b: 2 },
 ];
+const AUTO_SAVE_DELAY_MS = 650;
+const tipSaveStatusLabels = {
+  pending: "Wird gleich gespeichert...",
+  saving: "Wird gespeichert...",
+  saved: "Tipp gespeichert",
+  error: "Speichern fehlgeschlagen",
+};
 
 function chunkArray(items, size) {
   return Array.from({ length: Math.ceil(items.length / size) }, (_, index) =>
@@ -582,12 +589,18 @@ export default function App() {
   const [ranking, setRanking] = useState(() => (isTestMode ? TEST_RANKING_ROWS : []));
   const [tipTrends, setTipTrends] = useState(() => (isTestMode ? createTestTipTrends(bundledMatches) : {}));
   const [lastSavedMatch, setLastSavedMatch] = useState("");
+  const [tipSaveStatuses, setTipSaveStatuses] = useState({});
   const [groupFilter, setGroupFilter] = useState("alle");
   const [searchTerm, setSearchTerm] = useState("");
   const [appStatus, setAppStatus] = useState(isTestMode ? "Testmodus aktiv" : "Spielplan wird geladen...");
   const [codeStatus, setCodeStatus] = useState(isTestMode ? "claimed" : scannedCode ? "checking" : "missing");
   const [adminSession, setAdminSession] = useState(null);
   const [adminData, setAdminData] = useState({ codes: [], participants: [], tips: [], bonusTips: [], bonusResults: null, results: [] });
+  const tipsRef = useRef(tips);
+
+  useEffect(() => {
+    tipsRef.current = tips;
+  }, [tips]);
 
   const setActiveTab = useCallback((tabId, { replace = false } = {}) => {
     if (!tabIds.has(tabId)) return;
@@ -711,6 +724,7 @@ export default function App() {
         setTipTrends(trendPayload.trends ?? {});
         setAdminSession(session);
         setTips(createInitialTips(nextMatches));
+        setTipSaveStatuses({});
         setBonusTips(createInitialBonusTips(nextMatches));
         setBonusResults(createInitialBonusResults(nextMatches, bonusPayload.bonusResults));
         setAppStatus("Spielplan bereit");
@@ -771,6 +785,7 @@ export default function App() {
           apiGet(`/api/bonus-tips?participantId=${encodeURIComponent(participant.id)}`).catch(() => ({ bonusTip: null })),
         ]);
         setTips(createInitialTips(matches, tipPayload.tips ?? []));
+        setTipSaveStatuses({});
         setBonusTips(createInitialBonusTips(matches, bonusPayload.bonusTip));
       } catch (error) {
         setAppStatus("Tipps konnten gerade nicht geladen werden");
@@ -824,6 +839,7 @@ export default function App() {
       setManualCode("");
       setLastSavedMatch("");
       setTips(createTestTips(matches));
+      setTipSaveStatuses({});
       setBonusTips(createTestBonusTips(matches));
       setBonusMessage("");
       setGroupFilter("alle");
@@ -844,6 +860,7 @@ export default function App() {
     setManualCode("");
     setLastSavedMatch("");
     setTips(createInitialTips(matches));
+    setTipSaveStatuses({});
     setBonusTips(createInitialBonusTips(matches));
     setBonusMessage("");
     setGroupFilter("alle");
@@ -860,15 +877,19 @@ export default function App() {
         saved: false,
       },
     }));
+    setTipSaveStatuses((current) => ({
+      ...current,
+      [matchId]: "pending",
+    }));
   }
 
   async function saveTip(matchId) {
-    await saveTipRows([matchId]);
+    await saveTipRows([matchId], tipsRef.current);
     setLastSavedMatch(matchId);
   }
 
   async function saveVisibleTips() {
-    await saveTipRows(filteredMatches.map((match) => match.id));
+    await saveTipRows(filteredMatches.map((match) => match.id), tipsRef.current);
     setLastSavedMatch(filteredMatches[0]?.id ?? "");
   }
 
@@ -920,20 +941,57 @@ export default function App() {
     setTipTrends(payload.trends ?? {});
   }
 
-  async function saveTipRows(matchIds) {
+  useEffect(() => {
+    const pendingIds = Object.entries(tipSaveStatuses)
+      .filter(([, status]) => status === "pending")
+      .map(([matchId]) => matchId)
+      .filter((matchId) => participant?.id && !isLockedForUsers(matches.find((match) => match.id === matchId)));
+
+    if (pendingIds.length === 0) return undefined;
+
+    const timers = pendingIds.map((matchId) =>
+      window.setTimeout(() => {
+        void saveTipRows([matchId], tipsRef.current);
+      }, AUTO_SAVE_DELAY_MS),
+    );
+
+    return () => {
+      timers.forEach(window.clearTimeout);
+    };
+  }, [tipSaveStatuses, participant?.id, matches]);
+
+  async function saveTipRows(matchIds, sourceTips = tipsRef.current) {
     if (!participant?.id) {
       setAppStatus("Bitte zuerst QR-Code aktivieren und Namen eintragen.");
       return;
     }
 
+    const unlockedMatchIds = matchIds.filter((matchId) => {
+      const match = matches.find((item) => item.id === matchId);
+      return match && !isLockedForUsers(match) && sourceTips[matchId];
+    });
+    if (unlockedMatchIds.length === 0) return;
+
+    const submittedTips = Object.fromEntries(
+      unlockedMatchIds.map((matchId) => [matchId, { ...sourceTips[matchId] }]),
+    );
+    setTipSaveStatuses((current) => ({
+      ...current,
+      ...Object.fromEntries(unlockedMatchIds.map((matchId) => [matchId, "saving"])),
+    }));
+
     if (isTestMode) {
       setTips((current) => {
         const next = { ...current };
-        matchIds.forEach((matchId) => {
+        unlockedMatchIds.forEach((matchId) => {
           next[matchId] = { ...next[matchId], saved: true };
         });
         return next;
       });
+      setTipSaveStatuses((current) => ({
+        ...current,
+        ...Object.fromEntries(unlockedMatchIds.map((matchId) => [matchId, "saved"])),
+      }));
       setAppStatus("Test-Tipp gespeichert. Punkte werden lokal neu berechnet.");
       await refreshRanking();
       await refreshTipTrends();
@@ -943,10 +1001,10 @@ export default function App() {
     try {
       const payload = await apiPost("/api/save-tips", {
         participantId: participant.id,
-        tips: matchIds.map((matchId) => ({
+        tips: unlockedMatchIds.map((matchId) => ({
           matchId,
-          scoreA: tips[matchId].scoreA,
-          scoreB: tips[matchId].scoreB,
+          scoreA: submittedTips[matchId].scoreA,
+          scoreB: submittedTips[matchId].scoreB,
         })),
       });
 
@@ -954,7 +1012,23 @@ export default function App() {
       setTips((current) => {
         const next = { ...current };
         savedIds.forEach((matchId) => {
-          next[matchId] = { ...next[matchId], saved: true };
+          const submitted = submittedTips[matchId];
+          const latest = current[matchId];
+          if (latest?.scoreA === submitted?.scoreA && latest?.scoreB === submitted?.scoreB) {
+            next[matchId] = { ...latest, saved: true };
+          }
+        });
+        return next;
+      });
+      setTipSaveStatuses((current) => {
+        const next = { ...current };
+        savedIds.forEach((matchId) => {
+          const submitted = submittedTips[matchId];
+          const latest = tipsRef.current[matchId];
+          next[matchId] =
+            latest?.scoreA === submitted?.scoreA && latest?.scoreB === submitted?.scoreB
+              ? "saved"
+              : "pending";
         });
         return next;
       });
@@ -962,6 +1036,10 @@ export default function App() {
       await refreshRanking();
       await refreshTipTrends();
     } catch (error) {
+      setTipSaveStatuses((current) => ({
+        ...current,
+        ...Object.fromEntries(unlockedMatchIds.map((matchId) => [matchId, "error"])),
+      }));
       setAppStatus(error.message);
     }
   }
@@ -1160,6 +1238,7 @@ export default function App() {
                     changeScore={changeScore}
                     saveTip={saveTip}
                     lastSavedMatch={lastSavedMatch}
+                    saveStatus={tipSaveStatuses[featuredMatch.id]}
                     locked
                     featured
                   />
@@ -1188,6 +1267,7 @@ export default function App() {
                 saveTip={saveTip}
                 saveVisibleTips={saveVisibleTips}
                 lastSavedMatch={lastSavedMatch}
+                tipSaveStatuses={tipSaveStatuses}
                 tipTrends={tipTrends}
                 locked={!participant}
               />
@@ -1638,6 +1718,7 @@ function TipScreen({
   saveTip,
   saveVisibleTips,
   lastSavedMatch,
+  tipSaveStatuses,
   tipTrends,
   locked,
 }) {
@@ -1728,6 +1809,7 @@ function TipScreen({
               changeScore={changeScore}
               saveTip={saveTip}
               lastSavedMatch={lastSavedMatch}
+              saveStatus={tipSaveStatuses[match.id]}
               trend={tipTrends[match.id]}
               locked={locked}
             />
@@ -1957,6 +2039,7 @@ function MatchCard({
   changeScore,
   saveTip,
   lastSavedMatch,
+  saveStatus,
   trend,
   locked,
   featured,
@@ -1966,6 +2049,9 @@ function MatchCard({
   const lockedByKickoff = isLockedForUsers(match);
   const isLocked = locked || lockedByKickoff;
   const hasTrend = (trend?.total ?? 0) > 0;
+  const statusLabel = saveStatus === "error"
+    ? tipSaveStatusLabels.error
+    : tipSaveStatusLabels[saveStatus];
 
   return (
     <article className={`match-card panel ${featured ? "featured" : ""}`}>
@@ -2012,13 +2098,19 @@ function MatchCard({
           <ShieldCheck size={17} />
           Tipp speichern
         </button>
-        <span className={tip.saved || lastSavedMatch === match.id ? "saved" : ""}>
+        <span className={[
+          tip.saved || lastSavedMatch === match.id || saveStatus === "saved" ? "saved" : "",
+          saveStatus === "pending" || saveStatus === "saving" ? "saving" : "",
+          saveStatus === "error" ? "error" : "",
+        ].filter(Boolean).join(" ")}>
           {locked
             ? "Erst QR-Code aktivieren"
             : lockedByKickoff
               ? "Tipp gesperrt: Spiel gestartet"
+            : statusLabel
+              ? statusLabel
             : tip.saved || lastSavedMatch === match.id
-              ? "Tipp gespeichert"
+              ? tipSaveStatusLabels.saved
               : "Noch nicht gespeichert"}
         </span>
         <button

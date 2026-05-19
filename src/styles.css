@@ -1267,6 +1267,16 @@ p {
   font-weight: 800;
 }
 
+.match-actions .saving {
+  color: var(--blue);
+  font-weight: 800;
+}
+
+.match-actions .error {
+  color: #b33a1f;
+  font-weight: 800;
+}
+
 .trend-toggle {
   min-height: 42px;
   padding: 0 14px;
