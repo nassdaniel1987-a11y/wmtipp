@@ -6,12 +6,26 @@ export default async (req) => {
 
   try {
     const { supabase } = await requireAdmin(req);
-    const { champion, topScorer, groupWinners } = await req.json();
+    const { champion, topScorer, topScorerPlayerIds, groupWinners } = await req.json();
+    const cleanTopScorerPlayerIds = Array.isArray(topScorerPlayerIds)
+      ? [...new Set(topScorerPlayerIds.map((id) => String(id || "").trim()).filter(Boolean))]
+      : [];
+    let topScorerNames = String(topScorer || "").trim() || null;
+
+    if (cleanTopScorerPlayerIds.length > 0) {
+      const { data: players, error: playersError } = await supabase
+        .from("players")
+        .select("id, display_name")
+        .in("id", cleanTopScorerPlayerIds);
+      if (playersError) throw playersError;
+      topScorerNames = (players ?? []).map((player) => player.display_name).join(", ") || topScorerNames;
+    }
 
     const row = {
       id: "official",
       champion: String(champion || "").trim() || null,
-      top_scorer: String(topScorer || "").trim() || null,
+      top_scorer: topScorerNames,
+      top_scorer_player_ids: cleanTopScorerPlayerIds,
       group_winners:
         groupWinners && typeof groupWinners === "object" && !Array.isArray(groupWinners)
           ? groupWinners
@@ -22,7 +36,7 @@ export default async (req) => {
     const { data, error } = await supabase
       .from("bonus_results")
       .upsert(row, { onConflict: "id" })
-      .select("id, champion, top_scorer, group_winners, updated_at")
+      .select("id, champion, top_scorer, top_scorer_player_ids, group_winners, updated_at")
       .single();
 
     if (error) throw error;

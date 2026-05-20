@@ -66,10 +66,21 @@ create table if not exists public.tips (
   unique (participant_id, match_id)
 );
 
+create table if not exists public.players (
+  id uuid primary key default gen_random_uuid(),
+  display_name text not null check (char_length(trim(display_name)) between 2 and 100),
+  team_name text,
+  aliases jsonb not null default '[]'::jsonb,
+  active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists public.bonus_tips (
   participant_id uuid primary key references public.participants(id) on delete cascade,
   champion text,
   top_scorer text,
+  top_scorer_player_id uuid references public.players(id) on delete set null,
   group_winners jsonb not null default '{}'::jsonb,
   saved_at timestamptz not null default now()
 );
@@ -78,6 +89,7 @@ create table if not exists public.bonus_results (
   id text primary key default 'official' check (id = 'official'),
   champion text,
   top_scorer text,
+  top_scorer_player_ids uuid[] not null default '{}'::uuid[],
   group_winners jsonb not null default '{}'::jsonb,
   updated_at timestamptz not null default now()
 );
@@ -119,6 +131,7 @@ alter table public.matches enable row level security;
 alter table public.invite_codes enable row level security;
 alter table public.participants enable row level security;
 alter table public.tips enable row level security;
+alter table public.players enable row level security;
 alter table public.bonus_tips enable row level security;
 alter table public.bonus_results enable row level security;
 alter table public.results enable row level security;
@@ -132,6 +145,8 @@ grant select, insert, update, delete on public.matches to authenticated;
 grant select, insert, update, delete on public.invite_codes to authenticated;
 grant select, insert, update, delete on public.participants to authenticated;
 grant select, insert, update, delete on public.tips to authenticated;
+grant select on public.players to anon, authenticated;
+grant insert, update, delete on public.players to authenticated;
 grant select, insert, update, delete on public.bonus_tips to authenticated;
 grant select on public.bonus_results to anon, authenticated;
 grant select, insert, update, delete on public.bonus_results to authenticated;
@@ -198,6 +213,19 @@ create policy "admins can view tips"
 on public.tips for select
 to authenticated
 using (public.is_admin());
+
+drop policy if exists "players are readable" on public.players;
+create policy "players are readable"
+on public.players for select
+to anon, authenticated
+using (active = true);
+
+drop policy if exists "admins can manage players" on public.players;
+create policy "admins can manage players"
+on public.players for all
+to authenticated
+using (public.is_admin())
+with check (public.is_admin());
 
 drop policy if exists "admins can view bonus tips" on public.bonus_tips;
 create policy "admins can view bonus tips"

@@ -6,7 +6,18 @@ export default async (req) => {
 
   try {
     const { supabase } = await requireAdmin(req);
-    const { participantId, champion, topScorer, groupWinners } = await req.json();
+    const { participantId, champion, topScorer, topScorerPlayerId, groupWinners } = await req.json();
+    let cleanTopScorer = String(topScorer || "").trim() || null;
+
+    if (topScorerPlayerId) {
+      const { data: player, error: playerError } = await supabase
+        .from("players")
+        .select("id, display_name")
+        .eq("id", topScorerPlayerId)
+        .single();
+      if (playerError) throw playerError;
+      cleanTopScorer = player.display_name;
+    }
 
     if (!participantId) {
       return json({ error: "Teilnehmer fehlt." }, 400);
@@ -15,7 +26,8 @@ export default async (req) => {
     const row = {
       participant_id: participantId,
       champion: String(champion || "").trim() || null,
-      top_scorer: String(topScorer || "").trim() || null,
+      top_scorer: cleanTopScorer,
+      top_scorer_player_id: topScorerPlayerId || null,
       group_winners:
         groupWinners && typeof groupWinners === "object" && !Array.isArray(groupWinners)
           ? groupWinners
@@ -26,7 +38,7 @@ export default async (req) => {
     const { data, error } = await supabase
       .from("bonus_tips")
       .upsert(row, { onConflict: "participant_id" })
-      .select("participant_id, champion, top_scorer, group_winners, saved_at")
+      .select("participant_id, champion, top_scorer, top_scorer_player_id, group_winners, saved_at")
       .single();
 
     if (error) throw error;

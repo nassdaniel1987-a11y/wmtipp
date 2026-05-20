@@ -12,7 +12,7 @@ export default async (req) => {
     const supabase = getServiceClient();
     const { data, error } = await supabase
       .from("bonus_tips")
-      .select("champion, top_scorer, group_winners, saved_at")
+      .select("champion, top_scorer, top_scorer_player_id, group_winners, saved_at")
       .eq("participant_id", participantId)
       .maybeSingle();
 

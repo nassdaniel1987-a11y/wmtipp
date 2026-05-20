@@ -32,7 +32,17 @@ function bonusPointsFor(bonusTip, bonusResult) {
   if (normalize(bonusTip.champion) && normalize(bonusTip.champion) === normalize(bonusResult.champion)) {
     points += bonusPointValues.champion;
   }
-  if (normalize(bonusTip.top_scorer) && normalize(bonusTip.top_scorer) === normalize(bonusResult.top_scorer)) {
+  const officialTopScorerIds = bonusResult.top_scorer_player_ids ?? [];
+  if (
+    bonusTip.top_scorer_player_id &&
+    officialTopScorerIds.includes(bonusTip.top_scorer_player_id)
+  ) {
+    points += bonusPointValues.topScorer;
+  } else if (
+    officialTopScorerIds.length === 0 &&
+    normalize(bonusTip.top_scorer) &&
+    normalize(bonusTip.top_scorer) === normalize(bonusResult.top_scorer)
+  ) {
     points += bonusPointValues.topScorer;
   }
 
@@ -56,8 +66,8 @@ export default async (req) => {
       supabase.from("participants").select("id, display_name"),
       supabase.from("tips").select("participant_id, match_id, score_a, score_b"),
       supabase.from("results").select("match_id, score_a, score_b, status"),
-      supabase.from("bonus_tips").select("participant_id, champion, top_scorer, group_winners"),
-      supabase.from("bonus_results").select("id, champion, top_scorer, group_winners").eq("id", "official").maybeSingle(),
+      supabase.from("bonus_tips").select("participant_id, champion, top_scorer, top_scorer_player_id, group_winners"),
+      supabase.from("bonus_results").select("id, champion, top_scorer, top_scorer_player_ids, group_winners").eq("id", "official").maybeSingle(),
     ]);
 
     for (const response of [participants, tips, results, bonusTips, bonusResults]) {

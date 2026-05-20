@@ -6,18 +6,18 @@ export default async (req) => {
   try {
     const supabase = getServiceClient();
     const { data, error } = await supabase
-      .from("bonus_results")
-      .select("id, champion, top_scorer, top_scorer_player_ids, group_winners, updated_at")
-      .eq("id", "official")
-      .maybeSingle();
+      .from("players")
+      .select("id, display_name, team_name, aliases, active")
+      .eq("active", true)
+      .order("display_name");
 
     if (error) throw error;
-    return json({ bonusResults: data ?? null });
+    return json({ players: data ?? [] });
   } catch (error) {
-    return json({ error: error.message || "Bonus-Ergebnisse konnten nicht geladen werden." }, 500);
+    return json({ error: error.message || "Spielerliste konnte nicht geladen werden." }, 500);
   }
 };
 
 export const config = {
-  path: "/api/bonus-results",
+  path: "/api/players",
 };

@@ -1046,7 +1046,9 @@ p {
 }
 
 .bonus-panel select,
-.bonus-panel input {
+.bonus-panel input,
+.player-select select,
+.player-select input {
   min-height: 46px;
   min-width: 0;
   border: 1px solid #cad9e8;
@@ -1055,6 +1057,42 @@ p {
   color: var(--navy);
   background: #ffffff;
   font-weight: 800;
+}
+
+.player-select {
+  display: grid;
+  gap: 8px;
+}
+
+.player-select small {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.player-check-list {
+  display: grid;
+  gap: 7px;
+  max-height: 210px;
+  overflow: auto;
+  padding: 10px;
+  border: 1px solid #d7e2ee;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.player-check-list label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--navy);
+  font-weight: 800;
+}
+
+.player-check-list input {
+  min-height: 0;
+  width: 18px;
+  height: 18px;
 }
 
 .bonus-actions {
@@ -2056,7 +2094,9 @@ tbody tr:nth-child(1) td:first-child {
 }
 
 .admin-bonus-editor select,
-.admin-bonus-editor input {
+.admin-bonus-editor input,
+.player-admin-form select,
+.player-admin-form input {
   min-height: 44px;
   min-width: 0;
   border: 1px solid #cad9e8;
@@ -2065,6 +2105,63 @@ tbody tr:nth-child(1) td:first-child {
   color: var(--navy);
   background: #ffffff;
   font-weight: 800;
+}
+
+.player-admin-form {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) minmax(140px, 1fr) minmax(180px, 1.2fr) auto auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.player-active-toggle {
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  min-height: 44px;
+}
+
+.player-active-toggle input {
+  width: 18px;
+  height: 18px;
+  min-height: 0;
+}
+
+.player-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.player-chip {
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid #c8d9ea;
+  border-radius: 8px;
+  color: var(--blue);
+  background: #ffffff;
+  font-weight: 850;
+}
+
+.player-chip.inactive {
+  color: var(--muted);
+  background: #eef3f8;
+}
+
+.unresolved-top-scorers {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #f0c36b;
+  border-radius: 8px;
+  background: #fff8df;
+}
+
+.unresolved-top-scorers label {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 260px);
+  gap: 10px;
+  align-items: center;
 }
 
 .admin-bonus-editor .group-winner-grid {
@@ -2681,11 +2778,16 @@ tbody tr:nth-child(1) td:first-child {
   }
 
   .bonus-main-grid,
+  .player-admin-form,
   .group-winner-grid,
   .bonus-select-grid,
   .rules-grid,
   .groups-overview,
   .bonus-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .unresolved-top-scorers label {
     grid-template-columns: 1fr;
   }
 

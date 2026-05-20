@@ -5,6 +5,7 @@ create table if not exists public.bonus_results (
   id text primary key default 'official' check (id = 'official'),
   champion text,
   top_scorer text,
+  top_scorer_player_ids uuid[] not null default '{}'::uuid[],
   group_winners jsonb not null default '{}'::jsonb,
   updated_at timestamptz not null default now()
 );

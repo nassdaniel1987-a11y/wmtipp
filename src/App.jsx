@@ -280,13 +280,37 @@ function getTeamOptions(matches) {
     .sort((first, second) => first.name.localeCompare(second.name, "de"));
 }
 
-function createInitialBonusTips(matches, savedBonusTip = null) {
+function normalizePlayerName(value) {
+  return normalizeText(value).replace(/\s+/g, " ");
+}
+
+function playerLabel(player) {
+  if (!player) return "";
+  return player.team_name ? `${player.display_name} · ${player.team_name}` : player.display_name;
+}
+
+function findPlayerByText(players, text) {
+  const normalized = normalizePlayerName(text);
+  if (!normalized) return null;
+  const matches = players.filter((player) => {
+    const names = [player.display_name, ...(Array.isArray(player.aliases) ? player.aliases : [])];
+    return names.some((name) => normalizePlayerName(name) === normalized);
+  });
+  return matches.length === 1 ? matches[0] : null;
+}
+
+function createInitialBonusTips(matches, savedBonusTip = null, players = []) {
   const groups = getGroups(matches);
   const savedGroupWinners = savedBonusTip?.group_winners ?? savedBonusTip?.groupWinners ?? {};
+  const topScorer = savedBonusTip?.top_scorer ?? savedBonusTip?.topScorer ?? "";
+  const matchedPlayer = savedBonusTip?.top_scorer_player_id
+    ? null
+    : findPlayerByText(players, topScorer);
 
   return {
     champion: savedBonusTip?.champion ?? "",
-    topScorer: savedBonusTip?.top_scorer ?? savedBonusTip?.topScorer ?? "",
+    topScorer,
+    topScorerPlayerId: savedBonusTip?.top_scorer_player_id ?? savedBonusTip?.topScorerPlayerId ?? matchedPlayer?.id ?? "",
     groupWinners: Object.fromEntries(
       groups.map((group) => [group.groupKey, savedGroupWinners[group.groupKey] ?? ""]),
     ),
@@ -399,13 +423,18 @@ function createTestBonusResults(matches) {
   };
 }
 
-function createInitialBonusResults(matches, savedBonusResults = null) {
+function createInitialBonusResults(matches, savedBonusResults = null, players = []) {
   const groups = getGroups(matches);
   const savedGroupWinners = savedBonusResults?.group_winners ?? savedBonusResults?.groupWinners ?? {};
+  const topScorer = savedBonusResults?.top_scorer ?? savedBonusResults?.topScorer ?? "";
+  const matchedPlayer = savedBonusResults?.top_scorer_player_ids?.length
+    ? null
+    : findPlayerByText(players, topScorer);
 
   return {
     champion: savedBonusResults?.champion ?? "",
-    topScorer: savedBonusResults?.top_scorer ?? savedBonusResults?.topScorer ?? "",
+    topScorer,
+    topScorerPlayerIds: savedBonusResults?.top_scorer_player_ids ?? savedBonusResults?.topScorerPlayerIds ?? (matchedPlayer ? [matchedPlayer.id] : []),
     groupWinners: Object.fromEntries(
       groups.map((group) => [group.groupKey, savedGroupWinners[group.groupKey] ?? ""]),
     ),
@@ -553,7 +582,16 @@ function bonusPointsFor(bonusTip, bonusResult) {
   if (normalizeText(bonusTip.champion) && normalizeText(bonusTip.champion) === normalizeText(bonusResult.champion)) {
     points += bonusPointValues.champion;
   }
-  if (normalizeText(bonusTip.topScorer) && normalizeText(bonusTip.topScorer) === normalizeText(bonusResult.topScorer)) {
+  if (
+    bonusTip.topScorerPlayerId &&
+    (bonusResult.topScorerPlayerIds ?? []).includes(bonusTip.topScorerPlayerId)
+  ) {
+    points += bonusPointValues.topScorer;
+  } else if (
+    (bonusResult.topScorerPlayerIds ?? []).length === 0 &&
+    normalizeText(bonusTip.topScorer) &&
+    normalizeText(bonusTip.topScorer) === normalizeText(bonusResult.topScorer)
+  ) {
     points += bonusPointValues.topScorer;
   }
 
@@ -569,6 +607,7 @@ function areBonusTipsEqual(first, second) {
   if (!first || !second) return false;
   if ((first.champion ?? "") !== (second.champion ?? "")) return false;
   if ((first.topScorer ?? "") !== (second.topScorer ?? "")) return false;
+  if ((first.topScorerPlayerId ?? "") !== (second.topScorerPlayerId ?? "")) return false;
 
   const firstWinners = first.groupWinners ?? {};
   const secondWinners = second.groupWinners ?? {};
@@ -596,6 +635,7 @@ export default function App() {
   const [tips, setTips] = useState(() => (isTestMode ? createTestTips(bundledMatches) : createInitialTips(bundledMatches)));
   const [bonusTips, setBonusTips] = useState(() => (isTestMode ? createTestBonusTips(bundledMatches) : createInitialBonusTips(bundledMatches)));
   const [bonusResults, setBonusResults] = useState(() => (isTestMode ? createTestBonusResults(bundledMatches) : createInitialBonusResults(bundledMatches)));
+  const [players, setPlayers] = useState([]);
   const [bonusMessage, setBonusMessage] = useState("");
   const [bonusSaveStatus, setBonusSaveStatus] = useState("");
   const [ranking, setRanking] = useState(() => (isTestMode ? TEST_RANKING_ROWS : []));
@@ -607,7 +647,7 @@ export default function App() {
   const [appStatus, setAppStatus] = useState(isTestMode ? "Testmodus aktiv" : "Spielplan wird geladen...");
   const [codeStatus, setCodeStatus] = useState(isTestMode ? "claimed" : scannedCode ? "checking" : "missing");
   const [adminSession, setAdminSession] = useState(null);
-  const [adminData, setAdminData] = useState({ codes: [], participants: [], tips: [], bonusTips: [], bonusResults: null, results: [] });
+  const [adminData, setAdminData] = useState({ codes: [], participants: [], tips: [], bonusTips: [], bonusResults: null, results: [], players: [] });
   const tipsRef = useRef(tips);
   const bonusTipsRef = useRef(bonusTips);
   const canViewRanking = Boolean(participant);
@@ -744,25 +784,28 @@ export default function App() {
       }
 
       try {
-        const [dbMatches, dbResults, rankPayload, bonusPayload, trendPayload, session] = await Promise.all([
+        const [dbMatches, dbResults, rankPayload, bonusPayload, playerPayload, trendPayload, session] = await Promise.all([
           loadDbMatches(),
           loadResults(),
           apiGet("/api/ranking").catch(() => ({ ranking: [] })),
           apiGet("/api/bonus-results").catch(() => ({ bonusResults: null })),
+          apiGet("/api/players").catch(() => ({ players: [] })),
           apiGet("/api/tip-trends").catch(() => ({ trends: {} })),
           getAdminSession(),
         ]);
 
         const nextMatches = dbMatches.length ? dbMatches.map(mapDbMatch) : bundledMatches;
+        const nextPlayers = playerPayload.players ?? [];
         setMatches(nextMatches);
         setResults(dbResults);
+        setPlayers(nextPlayers);
         setRanking(rankPayload.ranking ?? []);
         setTipTrends(trendPayload.trends ?? {});
         setAdminSession(session);
         setTips(createInitialTips(nextMatches));
         setTipSaveStatuses({});
-        setBonusTips(createInitialBonusTips(nextMatches));
-        setBonusResults(createInitialBonusResults(nextMatches, bonusPayload.bonusResults));
+        setBonusTips(createInitialBonusTips(nextMatches, null, nextPlayers));
+        setBonusResults(createInitialBonusResults(nextMatches, bonusPayload.bonusResults, nextPlayers));
         setAppStatus("Spielplan bereit");
       } catch (error) {
         setAppStatus("Spielplan wird vorbereitet");
@@ -822,7 +865,7 @@ export default function App() {
         ]);
         setTips(createInitialTips(matches, tipPayload.tips ?? []));
         setTipSaveStatuses({});
-        setBonusTips(createInitialBonusTips(matches, bonusPayload.bonusTip));
+        setBonusTips(createInitialBonusTips(matches, bonusPayload.bonusTip, players));
       } catch (error) {
         setAppStatus("Tipps konnten gerade nicht geladen werden");
       }
@@ -897,7 +940,7 @@ export default function App() {
     setLastSavedMatch("");
     setTips(createInitialTips(matches));
     setTipSaveStatuses({});
-    setBonusTips(createInitialBonusTips(matches));
+    setBonusTips(createInitialBonusTips(matches, null, players));
     setBonusMessage("");
     setGroupFilter("alle");
     setSearchTerm("");
@@ -964,11 +1007,12 @@ export default function App() {
         participantId: participant.id,
         champion: sourceBonusTips.champion,
         topScorer: sourceBonusTips.topScorer,
+        topScorerPlayerId: sourceBonusTips.topScorerPlayerId,
         groupWinners: sourceBonusTips.groupWinners,
       });
       const latestMatchesSubmitted = areBonusTipsEqual(bonusTipsRef.current, sourceBonusTips);
       if (latestMatchesSubmitted) {
-        setBonusTips(createInitialBonusTips(matches, payload.bonusTip));
+        setBonusTips(createInitialBonusTips(matches, payload.bonusTip, players));
         setBonusSaveStatus("saved");
         setBonusMessage(auto ? "Bonus-Tipps automatisch gespeichert." : "Bonus-Tipps gespeichert.");
       } else {
@@ -1121,7 +1165,8 @@ export default function App() {
     if (!session?.access_token) return;
     const payload = await apiGetWithAuth("/api/admin-data", session.access_token);
     setAdminData(payload);
-    setBonusResults(createInitialBonusResults(matches, payload.bonusResults));
+    setPlayers((payload.players ?? []).filter((player) => player.active));
+    setBonusResults(createInitialBonusResults(matches, payload.bonusResults, payload.players ?? []));
   }
 
   async function handleAdminLogin(email, password) {
@@ -1133,7 +1178,7 @@ export default function App() {
   async function handleAdminLogout() {
     await signOutAdmin();
     setAdminSession(null);
-    setAdminData({ codes: [], participants: [], tips: [], bonusTips: [], bonusResults: null, results: [] });
+    setAdminData({ codes: [], participants: [], tips: [], bonusTips: [], bonusResults: null, results: [], players: [] });
   }
 
   async function handleCreateCodes(count) {
@@ -1336,6 +1381,7 @@ export default function App() {
                 resultsByMatch={resultsByMatch}
                 matches={matches}
                 teamOptions={teamOptions}
+                players={players}
                 groupTables={groupTables}
                 bonusTips={bonusTips}
                 setBonusTips={updateBonusTips}
@@ -1370,6 +1416,7 @@ export default function App() {
                 adminData={adminData}
                 matches={matches}
                 teamOptions={teamOptions}
+                players={players}
                 groupTables={groupTables}
                 bonusResults={bonusResults}
                 resultsByMatch={resultsByMatch}
@@ -1495,7 +1542,44 @@ export default function App() {
                     ...current,
                     bonusResults: payload.bonusResults,
                   }));
-                  setBonusResults(createInitialBonusResults(matches, payload.bonusResults));
+                  setBonusResults(createInitialBonusResults(matches, payload.bonusResults, players));
+                  await refreshRanking();
+                  return payload;
+                }}
+                onSavePlayer={async (playerDraft) => {
+                  const payload = await apiPost(
+                    "/api/admin-save-player",
+                    playerDraft,
+                    adminSession?.access_token,
+                  );
+                  setAdminData((current) => ({
+                    ...current,
+                    players: [
+                      payload.player,
+                      ...(current.players ?? []).filter((player) => player.id !== payload.player.id),
+                    ].sort((first, second) => first.display_name.localeCompare(second.display_name, "de")),
+                  }));
+                  setPlayers((current) => [
+                    payload.player,
+                    ...current.filter((player) => player.id !== payload.player.id),
+                  ].filter((player) => player.active).sort((first, second) => first.display_name.localeCompare(second.display_name, "de")));
+                  return payload;
+                }}
+                onMapTopScorer={async (topScorerText, playerId) => {
+                  const payload = await apiPost(
+                    "/api/admin-map-top-scorer",
+                    { topScorerText, playerId },
+                    adminSession?.access_token,
+                  );
+                  setAdminData((current) => ({
+                    ...current,
+                    bonusTips: [
+                      ...(payload.bonusTips ?? []),
+                      ...(current.bonusTips ?? []).filter((tip) =>
+                        !(payload.bonusTips ?? []).some((saved) => saved.participant_id === tip.participant_id),
+                      ),
+                    ],
+                  }));
                   await refreshRanking();
                   return payload;
                 }}
@@ -1792,6 +1876,7 @@ function TipScreen({
   resultsByMatch,
   matches,
   teamOptions,
+  players,
   groupTables,
   bonusTips,
   setBonusTips,
@@ -1904,6 +1989,7 @@ function TipScreen({
           <BonusTipsPanel
             matches={matches}
             teamOptions={teamOptions}
+            players={players}
             groupTables={groupTables}
             bonusTips={bonusTips}
             setBonusTips={setBonusTips}
@@ -1919,9 +2005,72 @@ function TipScreen({
   );
 }
 
+function PlayerSelect({ players, value, fallbackText, disabled, multiple = false, onChange }) {
+  const [query, setQuery] = useState("");
+  const selectedIds = multiple ? value ?? [] : value ? [value] : [];
+  const filteredPlayers = players
+    .filter((player) => player.active !== false || selectedIds.includes(player.id))
+    .filter((player) => {
+      const haystack = [player.display_name, player.team_name, ...(Array.isArray(player.aliases) ? player.aliases : [])]
+        .join(" ")
+        .toLocaleLowerCase("de-DE");
+      return !query.trim() || haystack.includes(query.trim().toLocaleLowerCase("de-DE"));
+    });
+
+  function updateSingle(playerId) {
+    const player = players.find((item) => item.id === playerId);
+    onChange(playerId, player);
+  }
+
+  function updateMultiple(playerId, checked) {
+    const nextIds = checked
+      ? [...new Set([...selectedIds, playerId])]
+      : selectedIds.filter((id) => id !== playerId);
+    onChange(nextIds, nextIds.map((id) => players.find((player) => player.id === id)).filter(Boolean));
+  }
+
+  return (
+    <div className="player-select">
+      <input
+        value={query}
+        disabled={disabled}
+        onChange={(event) => setQuery(event.target.value)}
+        placeholder="Spieler suchen"
+      />
+      {multiple ? (
+        <div className="player-check-list">
+          {filteredPlayers.map((player) => (
+            <label key={player.id}>
+              <input
+                type="checkbox"
+                checked={selectedIds.includes(player.id)}
+                disabled={disabled}
+                onChange={(event) => updateMultiple(player.id, event.target.checked)}
+              />
+              {playerLabel(player)}
+            </label>
+          ))}
+        </div>
+      ) : (
+        <select value={value ?? ""} disabled={disabled} onChange={(event) => updateSingle(event.target.value)}>
+          <option value="">Bitte wählen</option>
+          {filteredPlayers.map((player) => (
+            <option key={player.id} value={player.id}>{playerLabel(player)}</option>
+          ))}
+        </select>
+      )}
+      {fallbackText && !selectedIds.length && (
+        <small>Bisheriger Text: {fallbackText}</small>
+      )}
+      {players.length === 0 && <small>Noch keine Spieler im Adminbereich angelegt.</small>}
+    </div>
+  );
+}
+
 function BonusTipsPanel({
   matches,
   teamOptions,
+  players,
   groupTables,
   bonusTips,
   setBonusTips,
@@ -1980,13 +2129,19 @@ function BonusTipsPanel({
 
         <label className={mainBonusLocked ? "locked" : ""}>
           Torschützenkönig
-          <input
-            value={bonusTips.topScorer}
+          <PlayerSelect
+            players={players}
+            value={bonusTips.topScorerPlayerId}
+            fallbackText={bonusTips.topScorer}
             disabled={mainBonusLocked}
-            onChange={(event) =>
-              setBonusTips((current) => ({ ...current, topScorer: event.target.value, saved: false }))
+            onChange={(playerId, player) =>
+              setBonusTips((current) => ({
+                ...current,
+                topScorerPlayerId: playerId,
+                topScorer: player?.display_name ?? current.topScorer,
+                saved: false,
+              }))
             }
-            placeholder="Name des Spielers"
           />
           {mainBonusLocked && <small>Gesperrt: Turnierstart erreicht.</small>}
         </label>
@@ -2498,6 +2653,7 @@ function AdminPanel({
   adminData,
   matches,
   teamOptions,
+  players,
   groupTables,
   bonusResults,
   resultsByMatch,
@@ -2512,6 +2668,8 @@ function AdminPanel({
   onSaveParticipantTips,
   onSaveParticipantBonusTips,
   onSaveBonusResults,
+  onSavePlayer,
+  onMapTopScorer,
   onSaveResult,
   onPreviewOfficialResults,
   onImportOfficialResults,
@@ -2536,10 +2694,24 @@ function AdminPanel({
   const [printTipQrCodes, setPrintTipQrCodes] = useState({});
   const [officialPreview, setOfficialPreview] = useState(null);
   const [officialLoading, setOfficialLoading] = useState(false);
+  const [playerDraft, setPlayerDraft] = useState({ displayName: "", teamName: "", aliases: "", active: true });
+  const activePlayers = players.filter((player) => player.active !== false);
 
   useEffect(() => {
-    setBonusResultDraft(createInitialBonusResults(matches, bonusResults));
-  }, [matches, bonusResults]);
+    setBonusResultDraft(createInitialBonusResults(matches, bonusResults, players));
+  }, [matches, bonusResults, players]);
+
+  const unresolvedTopScorers = useMemo(() => {
+    const rows = new Map();
+    (adminData.bonusTips ?? []).forEach((tip) => {
+      const text = String(tip.top_scorer || "").trim();
+      if (!text || tip.top_scorer_player_id || findPlayerByText(adminData.players ?? [], text)) return;
+      const current = rows.get(normalizePlayerName(text)) ?? { text, count: 0 };
+      current.count += 1;
+      rows.set(normalizePlayerName(text), current);
+    });
+    return [...rows.values()].sort((first, second) => second.count - first.count || first.text.localeCompare(second.text, "de"));
+  }, [adminData.bonusTips, adminData.players]);
 
   const sortedResultMatches = useMemo(() => {
     const now = Date.now();
@@ -2737,7 +2909,7 @@ function AdminPanel({
     );
     setSelectedParticipant(participant);
     setParticipantTipDrafts(drafts);
-    setParticipantBonusDraft(createInitialBonusTips(matches, existingBonusTip));
+    setParticipantBonusDraft(createInitialBonusTips(matches, existingBonusTip, players));
   }
 
   async function saveSelectedParticipantTips(matchIds) {
@@ -2771,9 +2943,10 @@ function AdminPanel({
       const payload = await onSaveParticipantBonusTips(selectedParticipant.id, {
         champion: participantBonusDraft.champion,
         topScorer: participantBonusDraft.topScorer,
+        topScorerPlayerId: participantBonusDraft.topScorerPlayerId,
         groupWinners: participantBonusDraft.groupWinners,
       });
-      setParticipantBonusDraft(createInitialBonusTips(matches, payload.bonusTip));
+      setParticipantBonusDraft(createInitialBonusTips(matches, payload.bonusTip, players));
       setAdminMessage(`Bonus-Tipps für ${selectedParticipant.display_name} gespeichert.`);
     } catch (error) {
       setAdminMessage(error.message);
@@ -2783,7 +2956,7 @@ function AdminPanel({
   async function saveOfficialBonusResults() {
     try {
       const payload = await onSaveBonusResults(bonusResultDraft);
-      setBonusResultDraft(createInitialBonusResults(matches, payload.bonusResults));
+      setBonusResultDraft(createInitialBonusResults(matches, payload.bonusResults, players));
       setAdminMessage("Offizielle Bonus-Ergebnisse gespeichert.");
     } catch (error) {
       setAdminMessage(error.message);
@@ -2835,6 +3008,25 @@ function AdminPanel({
         ...getGroupLeaderSuggestions(groupTables),
       },
     }));
+  }
+
+  async function savePlayerDraft() {
+    try {
+      const payload = await onSavePlayer(playerDraft);
+      setPlayerDraft({ displayName: "", teamName: "", aliases: "", active: true });
+      setAdminMessage(`Spieler ${payload.player.display_name} gespeichert.`);
+    } catch (error) {
+      setAdminMessage(error.message);
+    }
+  }
+
+  async function mapTopScorerText(text, playerId) {
+    try {
+      const payload = await onMapTopScorer(text, playerId);
+      setAdminMessage(`${payload.bonusTips?.length ?? 0} Torschützen-Tipps zugeordnet.`);
+    } catch (error) {
+      setAdminMessage(error.message);
+    }
   }
 
   if (!session) {
@@ -2919,6 +3111,79 @@ function AdminPanel({
         <strong>{adminData.tips.length}<span>Tipps</span></strong>
       </div>
 
+      <section className="admin-bonus-editor player-admin-panel">
+        <h3>Torschützenkönig-Spieler</h3>
+        <p className="fine-print">
+          Diese Liste steuert die Auswahl im Bonusbereich. Aliasnamen helfen dabei, alte Freitext-Tipps zuzuordnen.
+        </p>
+        <div className="player-admin-form">
+          <input
+            value={playerDraft.displayName}
+            onChange={(event) => setPlayerDraft((current) => ({ ...current, displayName: event.target.value }))}
+            placeholder="Spielername"
+          />
+          <select
+            value={playerDraft.teamName}
+            onChange={(event) => setPlayerDraft((current) => ({ ...current, teamName: event.target.value }))}
+          >
+            <option value="">Team optional</option>
+            {teamOptions.map((team) => (
+              <option key={team.name} value={team.name}>{team.name}</option>
+            ))}
+          </select>
+          <input
+            value={playerDraft.aliases}
+            onChange={(event) => setPlayerDraft((current) => ({ ...current, aliases: event.target.value }))}
+            placeholder="Aliasnamen, getrennt mit Komma"
+          />
+          <label className="player-active-toggle">
+            <input
+              type="checkbox"
+              checked={playerDraft.active}
+              onChange={(event) => setPlayerDraft((current) => ({ ...current, active: event.target.checked }))}
+            />
+            Aktiv
+          </label>
+          <button type="button" className="primary-button compact" onClick={savePlayerDraft} disabled={playerDraft.displayName.trim().length < 2}>
+            Spieler speichern
+          </button>
+        </div>
+        <div className="player-chip-list">
+          {(adminData.players ?? []).map((player) => (
+            <button
+              type="button"
+              key={player.id}
+              className={`player-chip ${player.active ? "" : "inactive"}`}
+              onClick={() => setPlayerDraft({
+                id: player.id,
+                displayName: player.display_name,
+                teamName: player.team_name ?? "",
+                aliases: (player.aliases ?? []).join(", "),
+                active: player.active,
+              })}
+            >
+              {playerLabel(player)}
+            </button>
+          ))}
+        </div>
+        {unresolvedTopScorers.length > 0 && (
+          <div className="unresolved-top-scorers">
+            <strong>Nicht zugeordnete Freitext-Tipps</strong>
+            {unresolvedTopScorers.map((row) => (
+              <label key={row.text}>
+                <span>{row.text} ({row.count}x)</span>
+                <select defaultValue="" onChange={(event) => event.target.value && mapTopScorerText(row.text, event.target.value)}>
+                  <option value="">Spieler zuordnen</option>
+                  {activePlayers.map((player) => (
+                    <option key={player.id} value={player.id}>{playerLabel(player)}</option>
+                  ))}
+                </select>
+              </label>
+            ))}
+          </div>
+        )}
+      </section>
+
       <section className="admin-bonus-editor">
         <h3>Offizielle Bonus-Ergebnisse</h3>
         <p className="fine-print">
@@ -2942,12 +3207,18 @@ function AdminPanel({
           </label>
           <label>
             Torschützenkönig
-            <input
-              value={bonusResultDraft.topScorer}
-              onChange={(event) =>
-                setBonusResultDraft((current) => ({ ...current, topScorer: event.target.value }))
+            <PlayerSelect
+              players={activePlayers}
+              value={bonusResultDraft.topScorerPlayerIds}
+              fallbackText={bonusResultDraft.topScorer}
+              multiple
+              onChange={(playerIds, selectedPlayers) =>
+                setBonusResultDraft((current) => ({
+                  ...current,
+                  topScorerPlayerIds: playerIds,
+                  topScorer: selectedPlayers.map((player) => player.display_name).join(", "),
+                }))
               }
-              placeholder="Name des Spielers"
             />
           </label>
         </div>
@@ -3359,12 +3630,18 @@ function AdminPanel({
                 </label>
                 <label>
                   Torschützenkönig
-                  <input
-                    value={participantBonusDraft.topScorer}
-                    onChange={(event) =>
-                      setParticipantBonusDraft((current) => ({ ...current, topScorer: event.target.value, saved: false }))
+                  <PlayerSelect
+                    players={activePlayers}
+                    value={participantBonusDraft.topScorerPlayerId}
+                    fallbackText={participantBonusDraft.topScorer}
+                    onChange={(playerId, player) =>
+                      setParticipantBonusDraft((current) => ({
+                        ...current,
+                        topScorerPlayerId: playerId,
+                        topScorer: player?.display_name ?? current.topScorer,
+                        saved: false,
+                      }))
                     }
-                    placeholder="Name des Spielers"
                   />
                 </label>
               </div>

@@ -36,13 +36,14 @@ export default async (req) => {
   }
 
   try {
-    const { participantId, champion, topScorer, groupWinners } = await req.json();
+    const { participantId, champion, topScorer, topScorerPlayerId, groupWinners } = await req.json();
     if (!participantId) {
       return json({ error: "Teilnehmer fehlt." }, 400);
     }
 
     const cleanChampion = normalize(champion);
     const cleanTopScorer = normalize(topScorer);
+    const cleanTopScorerPlayerId = normalize(topScorerPlayerId);
     const cleanGroupWinners =
       groupWinners && typeof groupWinners === "object" && !Array.isArray(groupWinners)
         ? groupWinners
@@ -56,7 +57,7 @@ export default async (req) => {
         .not("kickoff_at", "is", null),
       supabase
         .from("bonus_tips")
-        .select("champion, top_scorer, group_winners")
+        .select("champion, top_scorer, top_scorer_player_id, group_winners")
         .eq("participant_id", participantId)
         .maybeSingle(),
     ]);
@@ -71,9 +72,22 @@ export default async (req) => {
       tournamentDeadline &&
       now >= tournamentDeadline &&
       (valueChanged(existingBonusTip?.champion, cleanChampion) ||
-        valueChanged(existingBonusTip?.top_scorer, cleanTopScorer))
+        valueChanged(existingBonusTip?.top_scorer, cleanTopScorer) ||
+        valueChanged(existingBonusTip?.top_scorer_player_id, cleanTopScorerPlayerId))
     ) {
       return json({ error: "Weltmeister und Torschützenkönig sind nach Turnierstart gesperrt." }, 409);
+    }
+
+    let canonicalTopScorer = cleanTopScorer;
+    if (cleanTopScorerPlayerId) {
+      const { data: player, error: playerError } = await supabase
+        .from("players")
+        .select("id, display_name, active")
+        .eq("id", cleanTopScorerPlayerId)
+        .single();
+      if (playerError) throw playerError;
+      if (!player.active) return json({ error: "Dieser Spieler ist nicht mehr auswählbar." }, 409);
+      canonicalTopScorer = player.display_name;
     }
 
     for (const [groupKey, deadline] of getGroupDeadlines(matches)) {
@@ -86,7 +100,8 @@ export default async (req) => {
     const row = {
       participant_id: participantId,
       champion: cleanChampion || null,
-      top_scorer: cleanTopScorer || null,
+      top_scorer: canonicalTopScorer || null,
+      top_scorer_player_id: cleanTopScorerPlayerId || null,
       group_winners: cleanGroupWinners,
       saved_at: new Date().toISOString(),
     };
@@ -94,7 +109,7 @@ export default async (req) => {
     const { data, error } = await supabase
       .from("bonus_tips")
       .upsert(row, { onConflict: "participant_id" })
-      .select("champion, top_scorer, group_winners, saved_at")
+      .select("champion, top_scorer, top_scorer_player_id, group_winners, saved_at")
       .single();
 
     if (error) throw error;

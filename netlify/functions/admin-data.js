@@ -6,7 +6,7 @@ export default async (req) => {
 
   try {
     const { supabase } = await requireAdmin(req);
-    const [codes, participants, tips, bonusTips, bonusResults, results] = await Promise.all([
+    const [codes, participants, tips, bonusTips, bonusResults, results, players] = await Promise.all([
       supabase
         .from("invite_codes")
         .select("id, code, status, claimed_at, participant:participants!invite_codes_participant_id_fkey(id, display_name)")
@@ -21,19 +21,23 @@ export default async (req) => {
         .order("saved_at", { ascending: false }),
       supabase
         .from("bonus_tips")
-        .select("participant_id, champion, top_scorer, group_winners, saved_at")
+        .select("participant_id, champion, top_scorer, top_scorer_player_id, group_winners, saved_at")
         .order("saved_at", { ascending: false }),
       supabase
         .from("bonus_results")
-        .select("id, champion, top_scorer, group_winners, updated_at")
+        .select("id, champion, top_scorer, top_scorer_player_ids, group_winners, updated_at")
         .eq("id", "official")
         .maybeSingle(),
       supabase
         .from("results")
         .select("match_id, score_a, score_b, status, updated_at"),
+      supabase
+        .from("players")
+        .select("id, display_name, team_name, aliases, active, updated_at")
+        .order("display_name"),
     ]);
 
-    for (const response of [codes, participants, tips, bonusTips, bonusResults, results]) {
+    for (const response of [codes, participants, tips, bonusTips, bonusResults, results, players]) {
       if (response.error) throw response.error;
     }
 
@@ -44,6 +48,7 @@ export default async (req) => {
       bonusTips: bonusTips.data ?? [],
       bonusResults: bonusResults.data ?? null,
       results: results.data ?? [],
+      players: players.data ?? [],
     });
   } catch (error) {
     return json({ error: error.message || "Admin-Daten konnten nicht geladen werden." }, 401);

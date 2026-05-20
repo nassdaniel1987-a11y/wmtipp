@@ -5,6 +5,7 @@ create table if not exists public.bonus_tips (
   participant_id uuid primary key references public.participants(id) on delete cascade,
   champion text,
   top_scorer text,
+  top_scorer_player_id uuid references public.players(id) on delete set null,
   group_winners jsonb not null default '{}'::jsonb,
   saved_at timestamptz not null default now()
 );
