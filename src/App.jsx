@@ -721,6 +721,12 @@ export default function App() {
   }, [activeTab, canViewRanking, setActiveTab]);
 
   useEffect(() => {
+    if (activeTab === "rangliste" && canViewRanking) {
+      void refreshRanking();
+    }
+  }, [activeTab, canViewRanking]);
+
+  useEffect(() => {
     async function bootstrap() {
       if (isTestMode) {
         setMatches(bundledMatches);
@@ -1207,7 +1213,10 @@ export default function App() {
               type="button"
               key={id}
               className={`nav-button ${activeTab === id ? "active" : ""}`}
-              onClick={() => setActiveTab(id)}
+              onClick={() => {
+                setActiveTab(id);
+                if (id === "rangliste") void refreshRanking();
+              }}
             >
               <Icon size={21} strokeWidth={2.2} />
               <span>{label}</span>
