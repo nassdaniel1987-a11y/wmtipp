@@ -2280,13 +2280,20 @@ function RankingPanel({ ranking: rows, expanded = false, setActiveTab }) {
     return nextRows.sort((first, second) => second.points - first.points || first.name.localeCompare(second.name, "de"));
   }, [rows, expanded, rankingMode]);
   const visibleRows = expanded ? sortedRows : sortedRows.slice(0, 10);
+  const getRowLabel = (row, index) => {
+    if (!expanded) return `${index + 1} ${row.name} ${row.points}`;
+    if (rankingMode === "average") {
+      return `${index + 1} ${row.name} ${row.tipCount ?? 0} ${row.scoredTipCount ?? 0} ${(row.averagePoints ?? 0).toFixed(2)} ${row.matchPoints ?? row.points}`;
+    }
+    return `${index + 1} ${row.name} ${row.tipCount ?? 0} ${row.matchPoints ?? row.points} ${row.bonusPoints ?? 0} ${row.points}`;
+  };
 
   return (
     <section className={`ranking-panel panel ${expanded ? "expanded" : ""}`}>
       <header className="section-title">
         <Trophy size={24} />
         <h2>Rangliste</h2>
-        <span>Top 10</span>
+        <span>{expanded ? "Alle" : "Top 10"}</span>
       </header>
       {expanded && (
         <div className="ranking-tabs">
@@ -2327,16 +2334,18 @@ function RankingPanel({ ranking: rows, expanded = false, setActiveTab }) {
             </tr>
           )}
           {visibleRows.map((row, index) => (
-            <tr key={`${row.name}-${index}`} className={row.isCurrent ? "current" : ""}>
-              <td>{index + 1}</td>
-              <td>{row.name}</td>
-              {expanded && rankingMode === "total" && <td>{row.tipCount ?? 0}</td>}
-              {expanded && rankingMode === "total" && <td>{row.matchPoints ?? row.points}</td>}
-              {expanded && rankingMode === "total" && <td>{row.bonusPoints ?? 0}</td>}
-              {expanded && rankingMode === "average" && <td>{row.tipCount ?? 0}</td>}
-              {expanded && rankingMode === "average" && <td>{row.scoredTipCount ?? 0}</td>}
-              {expanded && rankingMode === "average" && <td>{(row.averagePoints ?? 0).toFixed(2)}</td>}
-              <td>{rankingMode === "average" ? row.matchPoints ?? row.points : row.points}</td>
+            <tr key={`${row.name}-${index}`} className={row.isCurrent ? "current" : ""} aria-label={getRowLabel(row, index)}>
+              <td data-label="Platz">{index + 1}</td>
+              <td data-label="Name">{row.name}</td>
+              {expanded && rankingMode === "total" && <td data-label="Tipps">{row.tipCount ?? 0}</td>}
+              {expanded && rankingMode === "total" && <td data-label="Spielpunkte">{row.matchPoints ?? row.points}</td>}
+              {expanded && rankingMode === "total" && <td data-label="Bonus">{row.bonusPoints ?? 0}</td>}
+              {expanded && rankingMode === "average" && <td data-label="Tipps">{row.tipCount ?? 0}</td>}
+              {expanded && rankingMode === "average" && <td data-label="Gewertet">{row.scoredTipCount ?? 0}</td>}
+              {expanded && rankingMode === "average" && <td data-label="Schnitt">{(row.averagePoints ?? 0).toFixed(2)}</td>}
+              <td data-label={rankingMode === "average" ? "Spielpunkte" : "Gesamt"}>
+                {rankingMode === "average" ? row.matchPoints ?? row.points : row.points}
+              </td>
             </tr>
           ))}
         </tbody>
