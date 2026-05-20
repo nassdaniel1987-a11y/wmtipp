@@ -332,10 +332,16 @@ input:disabled {
   grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
 }
 
+.content-grid.active-tippen,
+.content-grid.active-info,
 .content-grid.active-admin {
   grid-template-columns: minmax(0, 1fr);
 }
 
+.content-grid.active-tippen .join-panel,
+.content-grid.active-tippen .side-stack,
+.content-grid.active-info .join-panel,
+.content-grid.active-info .side-stack,
 .content-grid.active-admin .join-panel,
 .content-grid.active-admin .side-stack {
   display: none;
@@ -1529,13 +1535,19 @@ tbody tr:nth-child(1) td:first-child {
 
 .info-hero {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 14px;
   padding-bottom: 18px;
   border-bottom: 1px solid #e1ebf4;
 }
 
+.info-hero div {
+  min-width: 0;
+}
+
 .info-hero svg {
+  flex: 0 0 auto;
   color: var(--blue);
 }
 
@@ -1551,6 +1563,7 @@ tbody tr:nth-child(1) td:first-child {
 .info-hero p {
   color: var(--muted);
   font-weight: 700;
+  overflow-wrap: anywhere;
 }
 
 .rules-grid {
@@ -1607,6 +1620,7 @@ tbody tr:nth-child(1) td:first-child {
   color: var(--muted);
   font-weight: 700;
   line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 .rules-notes {
@@ -1627,7 +1641,13 @@ tbody tr:nth-child(1) td:first-child {
 }
 
 .rules-notes svg {
+  flex: 0 0 auto;
   color: var(--gold);
+}
+
+.rules-notes span {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .admin-panel {
@@ -2300,6 +2320,15 @@ tbody tr:nth-child(1) td:first-child {
   .side-stack {
     grid-column: 1 / -1;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .rules-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .rules-grid dl div {
+    grid-template-columns: 1fr;
+    gap: 4px;
   }
 }
 

@@ -565,6 +565,17 @@ function bonusPointsFor(bonusTip, bonusResult) {
   return points;
 }
 
+function areBonusTipsEqual(first, second) {
+  if (!first || !second) return false;
+  if ((first.champion ?? "") !== (second.champion ?? "")) return false;
+  if ((first.topScorer ?? "") !== (second.topScorer ?? "")) return false;
+
+  const firstWinners = first.groupWinners ?? {};
+  const secondWinners = second.groupWinners ?? {};
+  const groupKeys = new Set([...Object.keys(firstWinners), ...Object.keys(secondWinners)]);
+  return [...groupKeys].every((groupKey) => (firstWinners[groupKey] ?? "") === (secondWinners[groupKey] ?? ""));
+}
+
 function getGroupLeaderSuggestions(groupTables) {
   return Object.fromEntries(
     groupTables.map((group) => [group.groupKey, group.rows[0]?.team ?? ""]),
@@ -586,6 +597,7 @@ export default function App() {
   const [bonusTips, setBonusTips] = useState(() => (isTestMode ? createTestBonusTips(bundledMatches) : createInitialBonusTips(bundledMatches)));
   const [bonusResults, setBonusResults] = useState(() => (isTestMode ? createTestBonusResults(bundledMatches) : createInitialBonusResults(bundledMatches)));
   const [bonusMessage, setBonusMessage] = useState("");
+  const [bonusSaveStatus, setBonusSaveStatus] = useState("");
   const [ranking, setRanking] = useState(() => (isTestMode ? TEST_RANKING_ROWS : []));
   const [tipTrends, setTipTrends] = useState(() => (isTestMode ? createTestTipTrends(bundledMatches) : {}));
   const [lastSavedMatch, setLastSavedMatch] = useState("");
@@ -597,11 +609,16 @@ export default function App() {
   const [adminSession, setAdminSession] = useState(null);
   const [adminData, setAdminData] = useState({ codes: [], participants: [], tips: [], bonusTips: [], bonusResults: null, results: [] });
   const tipsRef = useRef(tips);
+  const bonusTipsRef = useRef(bonusTips);
   const canViewRanking = Boolean(participant);
 
   useEffect(() => {
     tipsRef.current = tips;
   }, [tips]);
+
+  useEffect(() => {
+    bonusTipsRef.current = bonusTips;
+  }, [bonusTips]);
 
   const setActiveTab = useCallback((tabId, { replace = false } = {}) => {
     if (!tabIds.has(tabId)) return;
@@ -896,6 +913,15 @@ export default function App() {
     }));
   }
 
+  function updateBonusTips(updater) {
+    setBonusTips((current) => {
+      const next = typeof updater === "function" ? updater(current) : updater;
+      return { ...next, saved: false };
+    });
+    setBonusSaveStatus("pending");
+    setBonusMessage("Bonus-Tipps werden automatisch gespeichert...");
+  }
+
   async function saveTip(matchId) {
     await saveTipRows([matchId], tipsRef.current);
     setLastSavedMatch(matchId);
@@ -906,15 +932,23 @@ export default function App() {
     setLastSavedMatch(filteredMatches[0]?.id ?? "");
   }
 
-  async function saveBonusTips() {
+  async function saveBonusTips(sourceBonusTips = bonusTipsRef.current, { auto = false } = {}) {
     if (!participant?.id) {
       setBonusMessage("Bitte zuerst QR-Code aktivieren und Namen eintragen.");
       return;
     }
 
+    setBonusSaveStatus("saving");
     if (isTestMode) {
-      setBonusTips((current) => ({ ...current, saved: true }));
-      setBonusMessage("Test-Bonus gespeichert. Rangliste bleibt lokal berechnet.");
+      const latestMatchesSubmitted = areBonusTipsEqual(bonusTipsRef.current, sourceBonusTips);
+      if (latestMatchesSubmitted) {
+        setBonusTips((current) => ({ ...current, saved: true }));
+        setBonusSaveStatus("saved");
+        setBonusMessage(auto ? "Test-Bonus automatisch gespeichert." : "Test-Bonus gespeichert. Rangliste bleibt lokal berechnet.");
+      } else {
+        setBonusSaveStatus("pending");
+        setBonusMessage("Bonus-Tipps werden automatisch gespeichert...");
+      }
       await refreshRanking();
       return;
     }
@@ -922,14 +956,22 @@ export default function App() {
     try {
       const payload = await apiPost("/api/save-bonus-tips", {
         participantId: participant.id,
-        champion: bonusTips.champion,
-        topScorer: bonusTips.topScorer,
-        groupWinners: bonusTips.groupWinners,
+        champion: sourceBonusTips.champion,
+        topScorer: sourceBonusTips.topScorer,
+        groupWinners: sourceBonusTips.groupWinners,
       });
-      setBonusTips(createInitialBonusTips(matches, payload.bonusTip));
-      setBonusMessage("Bonus-Tipps gespeichert.");
+      const latestMatchesSubmitted = areBonusTipsEqual(bonusTipsRef.current, sourceBonusTips);
+      if (latestMatchesSubmitted) {
+        setBonusTips(createInitialBonusTips(matches, payload.bonusTip));
+        setBonusSaveStatus("saved");
+        setBonusMessage(auto ? "Bonus-Tipps automatisch gespeichert." : "Bonus-Tipps gespeichert.");
+      } else {
+        setBonusSaveStatus("pending");
+        setBonusMessage("Bonus-Tipps werden automatisch gespeichert...");
+      }
       await refreshRanking();
     } catch (error) {
+      setBonusSaveStatus("error");
       setBonusMessage(error.message);
     }
   }
@@ -972,6 +1014,18 @@ export default function App() {
       timers.forEach(window.clearTimeout);
     };
   }, [tipSaveStatuses, participant?.id, matches]);
+
+  useEffect(() => {
+    if (bonusSaveStatus !== "pending" || !participant?.id) return undefined;
+
+    const timer = window.setTimeout(() => {
+      void saveBonusTips(bonusTipsRef.current, { auto: true });
+    }, AUTO_SAVE_DELAY_MS);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [bonusSaveStatus, participant?.id]);
 
   async function saveTipRows(matchIds, sourceTips = tipsRef.current) {
     if (!participant?.id) {
@@ -1275,9 +1329,10 @@ export default function App() {
                 teamOptions={teamOptions}
                 groupTables={groupTables}
                 bonusTips={bonusTips}
-                setBonusTips={setBonusTips}
+                setBonusTips={updateBonusTips}
                 saveBonusTips={saveBonusTips}
                 bonusMessage={bonusMessage}
+                bonusSaveStatus={bonusSaveStatus}
                 changeScore={changeScore}
                 saveTip={saveTip}
                 saveVisibleTips={saveVisibleTips}
@@ -1733,6 +1788,7 @@ function TipScreen({
   setBonusTips,
   saveBonusTips,
   bonusMessage,
+  bonusSaveStatus,
   changeScore,
   saveTip,
   saveVisibleTips,
@@ -1844,6 +1900,7 @@ function TipScreen({
             setBonusTips={setBonusTips}
             saveBonusTips={saveBonusTips}
             bonusMessage={bonusMessage}
+            bonusSaveStatus={bonusSaveStatus}
             locked={locked}
           />
           <GroupsOverview groupTables={groupTables} />
@@ -1861,6 +1918,7 @@ function BonusTipsPanel({
   setBonusTips,
   saveBonusTips,
   bonusMessage,
+  bonusSaveStatus,
   locked,
 }) {
   const tournamentDeadline = getTournamentDeadline(matches);
@@ -1953,7 +2011,7 @@ function BonusTipsPanel({
       </div>
 
       <div className="bonus-actions">
-        <button type="button" className="primary-button compact" disabled={allBonusLocked} onClick={saveBonusTips}>
+        <button type="button" className="primary-button compact" disabled={allBonusLocked || bonusSaveStatus === "saving"} onClick={() => saveBonusTips()}>
           Bonus-Tipps speichern
           <Check size={18} />
         </button>
