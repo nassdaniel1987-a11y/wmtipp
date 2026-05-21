@@ -2070,26 +2070,34 @@ tbody tr:nth-child(1) td:first-child {
   font-size: 0.72rem;
 }
 
-.bundesliga-lab-rail > span {
+.bundesliga-lab-rail > button {
   display: flex;
   align-items: center;
   gap: 10px;
   min-height: 44px;
   padding: 0 12px;
+  border: 0;
   border-left: 4px solid transparent;
   color: #f3f7fb;
+  background: transparent;
   font-weight: 900;
+  text-align: left;
+  cursor: pointer;
 }
 
-.bundesliga-lab-rail > span svg {
+.bundesliga-lab-rail > button svg {
   flex: 0 0 auto;
   color: #f5f7fb;
   stroke-width: 2.4;
 }
 
-.bundesliga-lab-rail > span.active {
+.bundesliga-lab-rail > button.active {
   border-left-color: #df2f28;
   background: linear-gradient(90deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.02));
+}
+
+.bundesliga-lab-rail > button:hover {
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .bundesliga-rail-meta {
@@ -2287,6 +2295,10 @@ tbody tr:nth-child(1) td:first-child {
   border: 1px solid #3a434b;
   border-radius: 5px;
   background: rgba(19, 24, 28, 0.96);
+}
+
+.bundesliga-view-panel {
+  width: 100%;
 }
 
 .bundesliga-table-panel header,
@@ -2500,6 +2512,73 @@ tbody tr:nth-child(1) td:first-child {
 
 .bundesliga-scorer-board div {
   grid-template-columns: 32px minmax(0, 1fr) 80px;
+}
+
+.bundesliga-ranking-table-scroll {
+  overflow-x: auto;
+}
+
+.bundesliga-ranking-table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+  color: #ffffff;
+}
+
+.bundesliga-ranking-table th,
+.bundesliga-ranking-table td {
+  height: 46px;
+  padding: 0 14px;
+  border-bottom: 1px solid #2c343b;
+  text-align: right;
+  font-weight: 900;
+}
+
+.bundesliga-ranking-table th {
+  height: 38px;
+  color: #f6f8fa;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+}
+
+.bundesliga-ranking-table th:nth-child(2),
+.bundesliga-ranking-table td:nth-child(2) {
+  text-align: left;
+}
+
+.bundesliga-ranking-table td:nth-child(3) {
+  color: #f23a32;
+  font-size: 1.05rem;
+}
+
+.bundesliga-schedule-list {
+  display: grid;
+}
+
+.bundesliga-schedule-list div {
+  display: grid;
+  grid-template-columns: 70px 150px minmax(140px, 1fr) 64px minmax(140px, 1fr);
+  gap: 12px;
+  align-items: center;
+  min-height: 42px;
+  padding: 0 14px;
+  border-bottom: 1px solid #2c343b;
+  color: #ffffff;
+  font-weight: 850;
+}
+
+.bundesliga-schedule-list small,
+.bundesliga-schedule-list span {
+  color: #b4bec6;
+  font-weight: 800;
+}
+
+.bundesliga-schedule-list b {
+  padding: 5px 8px;
+  border-radius: 4px;
+  text-align: center;
+  color: #ffffff;
+  background: linear-gradient(180deg, #b84238, #7f211e);
 }
 
 .bundesliga-dark-panel p,
@@ -3165,7 +3244,7 @@ tbody tr:nth-child(1) td:first-child {
     overflow-x: auto;
   }
 
-  .bundesliga-lab-rail > span:nth-of-type(n+5),
+  .bundesliga-lab-rail > button:nth-of-type(n+5),
   .bundesliga-rail-meta {
     display: none;
   }
@@ -3520,9 +3599,16 @@ tbody tr:nth-child(1) td:first-child {
     padding: 10px;
   }
 
-  .bundesliga-lab-rail > span {
+  .bundesliga-lab-rail > button {
     min-height: 36px;
     white-space: nowrap;
+  }
+
+  .bundesliga-schedule-list div {
+    grid-template-columns: 1fr;
+    gap: 5px;
+    align-items: start;
+    padding: 10px 14px;
   }
 
   .bundesliga-table-panel header,

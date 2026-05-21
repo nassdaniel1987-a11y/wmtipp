@@ -3895,6 +3895,7 @@ function BundesligaAdminSetup({
   const [includeRelegation, setIncludeRelegation] = useState(true);
   const [throughMatchday, setThroughMatchday] = useState(1);
   const [selectedMatchday, setSelectedMatchday] = useState(34);
+  const [activeLabView, setActiveLabView] = useState("overview");
   const [demoName, setDemoName] = useState("");
   const matches = data?.matches ?? [];
   const leagueMatches = matches.filter((match) => match.phase === "league");
@@ -3909,6 +3910,8 @@ function BundesligaAdminSetup({
   const selectedMatch = visibleMatches.find((match) => match.demoTips?.length) ?? visibleMatches[0];
   const visibleTipRows = selectedMatch?.demoTips ?? [];
   const tableRows = data?.table ?? [];
+  const rankingRows = data?.ranking ?? [];
+  const topScorerRows = data?.topScorers ?? [];
   const importedThrough = leagueMatches.reduce((max, match) => {
     if (!match.result) return max;
     return Math.max(max, Number(match.matchday) || 0);
@@ -3920,14 +3923,213 @@ function BundesligaAdminSetup({
   }
 
   const labNavItems = [
-    { label: "Übersicht", Icon: House },
-    { label: "Spielplan", Icon: CalendarDays },
-    { label: "Tabelle", Icon: Trophy },
-    { label: "Ergebnisse", Icon: ListFilter },
-    { label: "Tipp-Auswertung", Icon: Medal },
-    { label: "Demo-Rangliste", Icon: UsersRound },
-    { label: "Torschützen", Icon: Goal },
+    { id: "overview", label: "Übersicht", Icon: House },
+    { id: "schedule", label: "Spielplan", Icon: CalendarDays },
+    { id: "table", label: "Tabelle", Icon: Trophy },
+    { id: "results", label: "Ergebnisse", Icon: ListFilter },
+    { id: "tips", label: "Tipp-Auswertung", Icon: Medal },
+    { id: "ranking", label: "Demo-Rangliste", Icon: UsersRound },
+    { id: "scorers", label: "Torschützen", Icon: Goal },
   ];
+
+  function renderStandingsTable() {
+    return (
+      <section className="bundesliga-table-panel">
+        <header>
+          <h3>Bundesliga Tabelle</h3>
+          <span>nach importierten Ergebnissen</span>
+        </header>
+        <div className="bundesliga-table-scroll">
+          <table className="bundesliga-standings-table">
+            <thead>
+              <tr>
+                <th>Pl.</th>
+                <th aria-label="Trend"></th>
+                <th>Team</th>
+                <th>SP.</th>
+                <th>S</th>
+                <th>U</th>
+                <th>N</th>
+                <th>Tore</th>
+                <th>Diff.</th>
+                <th>Punkte</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tableRows.map((row, index) => {
+                const position = index + 1;
+                const diff = row.goalsFor - row.goalsAgainst;
+                return (
+                  <tr key={row.teamId} className={[
+                    position <= 4 ? "zone-champions" : "",
+                    position >= 5 && position <= 6 ? "zone-europa" : "",
+                    position === 16 ? "zone-relegation" : "",
+                    position >= 17 ? "zone-down" : "",
+                  ].filter(Boolean).join(" ")}>
+                    <td>{position}</td>
+                    <td>{position <= 4 ? "—" : position >= 17 ? "↓" : "–"}</td>
+                    <td>
+                      <span className="bundesliga-club">
+                        {row.logoUrl && <img src={row.logoUrl} alt="" />}
+                        <strong>{row.team}</strong>
+                      </span>
+                    </td>
+                    <td>{row.played}</td>
+                    <td>{row.won}</td>
+                    <td>{row.drawn}</td>
+                    <td>{row.lost}</td>
+                    <td>{row.goalsFor}:{row.goalsAgainst}</td>
+                    <td>{diff}</td>
+                    <td>{row.points}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <footer className="bundesliga-table-legend">
+          <span><i className="champions" /> Champions League</span>
+          <span><i className="europa" /> Europa League</span>
+          <span><i className="relegation" /> Relegation</span>
+          <span><i className="down" /> Abstieg</span>
+        </footer>
+      </section>
+    );
+  }
+
+  function renderResultsPanel({ compact = false } = {}) {
+    return (
+      <section className={`bundesliga-dark-panel${compact ? "" : " bundesliga-view-panel"}`}>
+        <header>
+          <h3>Spieltag {activeMatchday} - Ergebnisse</h3>
+          <select value={activeMatchday} onChange={(event) => setSelectedMatchday(Number(event.target.value))}>
+            {(matchdayOptions.length ? matchdayOptions : Array.from({ length: maxMatchday }, (_, index) => index + 1)).map((matchday) => (
+              <option key={matchday} value={matchday}>Spieltag {matchday}</option>
+            ))}
+          </select>
+        </header>
+        <div className="bundesliga-result-list">
+          {visibleMatches.map((match) => (
+            <div key={match.id}>
+              <small>{formatDateTime(match.kickoff_at)}</small>
+              <strong>{match.team_a_name}</strong>
+              <b>{match.result ? `${match.result.score_a}:${match.result.score_b}` : "-:-"}</b>
+              <strong>{match.team_b_name}</strong>
+              <span className={match.result ? "imported" : ""}>
+                {match.result ? "Importiert" : "Offen"}
+              </span>
+            </div>
+          ))}
+          {visibleMatches.length === 0 && <p>Noch keine Spiele für diesen Spieltag importiert.</p>}
+        </div>
+      </section>
+    );
+  }
+
+  function renderTipEvaluation({ compact = false } = {}) {
+    return (
+      <section className={`bundesliga-dark-panel${compact ? "" : " bundesliga-view-panel"}`}>
+        <header>
+          <h3>Demo-Tipp Auswertung</h3>
+          <span>{selectedMatch ? `${selectedMatch.team_a_name} - ${selectedMatch.team_b_name}` : "Kein Spiel"}</span>
+        </header>
+        <div className="bundesliga-tip-evaluation">
+          {visibleTipRows.map((tip) => (
+            <div key={tip.id}>
+              <strong>{tip.participantName}</strong>
+              <span>{tip.score_a}:{tip.score_b}</span>
+              <span>{selectedMatch?.result ? `${selectedMatch.result.score_a}:${selectedMatch.result.score_b}` : "-:-"}</span>
+              <b className={tip.points > 0 ? "positive" : ""}>{tip.hasResult ? tip.points : "offen"}</b>
+            </div>
+          ))}
+          {visibleTipRows.length === 0 && <p>Noch keine Demo-Tipps für diesen Spieltag.</p>}
+        </div>
+      </section>
+    );
+  }
+
+  function renderTopScorers({ compact = false } = {}) {
+    return (
+      <section className={`bundesliga-dark-panel${compact ? "" : " bundesliga-view-panel"}`}>
+        <header>
+          <h3>Torschützen - Top {compact ? 5 : 20}</h3>
+        </header>
+        <div className="bundesliga-scorer-board">
+          {topScorerRows.slice(0, compact ? 5 : 20).map((row, index) => (
+            <div key={row.name}>
+              <span>{index + 1}</span>
+              <strong>{row.name}</strong>
+              <b>{row.goals} Tore</b>
+            </div>
+          ))}
+          {topScorerRows.length === 0 && <p>Noch keine Torschützen importiert.</p>}
+        </div>
+      </section>
+    );
+  }
+
+  function renderRanking() {
+    return (
+      <section className="bundesliga-dark-panel bundesliga-view-panel">
+        <header>
+          <h3>Demo-Rangliste</h3>
+          <span>{rankingRows.length} Test-Tipper</span>
+        </header>
+        <div className="bundesliga-ranking-table-scroll">
+          <table className="bundesliga-ranking-table">
+            <thead>
+              <tr>
+                <th>Pl.</th>
+                <th>Name</th>
+                <th>Punkte</th>
+                <th>Spielpunkte</th>
+                <th>gewertet</th>
+                <th>Tipps</th>
+                <th>Schnitt</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rankingRows.map((row, index) => (
+                <tr key={row.id}>
+                  <td>{index + 1}</td>
+                  <td>{row.name}</td>
+                  <td>{row.points}</td>
+                  <td>{row.matchPoints}</td>
+                  <td>{row.scoredTipCount}</td>
+                  <td>{row.tipCount}</td>
+                  <td>{row.averagePoints.toFixed(2)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {rankingRows.length === 0 && <p>Noch keine Demo-Rangliste vorhanden.</p>}
+        </div>
+      </section>
+    );
+  }
+
+  function renderSchedule() {
+    return (
+      <section className="bundesliga-dark-panel bundesliga-view-panel">
+        <header>
+          <h3>Bundesliga Spielplan</h3>
+          <span>{leagueMatches.length} Liga-Spiele</span>
+        </header>
+        <div className="bundesliga-schedule-list">
+          {leagueMatches.slice(0, 90).map((match) => (
+            <div key={match.id}>
+              <small>ST {match.matchday}</small>
+              <span>{formatDateTime(match.kickoff_at)}</span>
+              <strong>{match.team_a_name}</strong>
+              <b>{match.result ? `${match.result.score_a}:${match.result.score_b}` : "-:-"}</b>
+              <strong>{match.team_b_name}</strong>
+            </div>
+          ))}
+          {leagueMatches.length === 0 && <p>Noch kein Spielplan importiert.</p>}
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="bundesliga-admin-setup">
@@ -3936,11 +4138,16 @@ function BundesligaAdminSetup({
           <span>BL</span>
           <strong>Testlabor</strong>
         </div>
-        {labNavItems.map(({ label, Icon }, index) => (
-          <span key={label} className={index === 0 ? "active" : ""}>
+        {labNavItems.map(({ id, label, Icon }) => (
+          <button
+            key={id}
+            type="button"
+            className={activeLabView === id ? "active" : ""}
+            onClick={() => setActiveLabView(id)}
+          >
             <Icon size={18} />
             {label}
-          </span>
+          </button>
         ))}
         <div className="bundesliga-rail-meta">
           <small>Wettbewerb</small>
@@ -4009,129 +4216,15 @@ function BundesligaAdminSetup({
 
         {message && <p className="bundesliga-lab-message">{message}</p>}
 
-        <div className="bundesliga-lab-layout">
-          <section className="bundesliga-table-panel">
-            <header>
-              <h3>Bundesliga Tabelle</h3>
-              <span>nach importierten Ergebnissen</span>
-            </header>
-            <div className="bundesliga-table-scroll">
-              <table className="bundesliga-standings-table">
-                <thead>
-                  <tr>
-                    <th>Pl.</th>
-                    <th aria-label="Trend"></th>
-                    <th>Team</th>
-                    <th>SP.</th>
-                    <th>S</th>
-                    <th>U</th>
-                    <th>N</th>
-                    <th>Tore</th>
-                    <th>Diff.</th>
-                    <th>Punkte</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {tableRows.map((row, index) => {
-                    const position = index + 1;
-                    const diff = row.goalsFor - row.goalsAgainst;
-                    return (
-                      <tr key={row.teamId} className={[
-                        position <= 4 ? "zone-champions" : "",
-                        position >= 5 && position <= 6 ? "zone-europa" : "",
-                        position === 16 ? "zone-relegation" : "",
-                        position >= 17 ? "zone-down" : "",
-                      ].filter(Boolean).join(" ")}>
-                        <td>{position}</td>
-                        <td>{position <= 4 ? "—" : position >= 17 ? "↓" : "–"}</td>
-                        <td>
-                          <span className="bundesliga-club">
-                            {row.logoUrl && <img src={row.logoUrl} alt="" />}
-                            <strong>{row.team}</strong>
-                          </span>
-                        </td>
-                        <td>{row.played}</td>
-                        <td>{row.won}</td>
-                        <td>{row.drawn}</td>
-                        <td>{row.lost}</td>
-                        <td>{row.goalsFor}:{row.goalsAgainst}</td>
-                        <td>{diff}</td>
-                        <td>{row.points}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-            <footer className="bundesliga-table-legend">
-              <span><i className="champions" /> Champions League</span>
-              <span><i className="europa" /> Europa League</span>
-              <span><i className="relegation" /> Relegation</span>
-              <span><i className="down" /> Abstieg</span>
-            </footer>
-          </section>
+        {activeLabView === "overview" && (
+          <div className="bundesliga-lab-layout">
+            {renderStandingsTable()}
 
-          <aside className="bundesliga-lab-side">
-            <section className="bundesliga-dark-panel">
-              <header>
-                <h3>Spieltag {activeMatchday} - Ergebnisse</h3>
-                <select value={activeMatchday} onChange={(event) => setSelectedMatchday(Number(event.target.value))}>
-                  {(matchdayOptions.length ? matchdayOptions : Array.from({ length: maxMatchday }, (_, index) => index + 1)).map((matchday) => (
-                    <option key={matchday} value={matchday}>Spieltag {matchday}</option>
-                  ))}
-                </select>
-              </header>
-              <div className="bundesliga-result-list">
-                {visibleMatches.map((match) => (
-                  <div key={match.id}>
-                    <small>{formatDateTime(match.kickoff_at)}</small>
-                    <strong>{match.team_a_name}</strong>
-                    <b>{match.result ? `${match.result.score_a}:${match.result.score_b}` : "-:-"}</b>
-                    <strong>{match.team_b_name}</strong>
-                    <span className={match.result ? "imported" : ""}>
-                      {match.result ? "Importiert" : "Offen"}
-                    </span>
-                  </div>
-                ))}
-                {visibleMatches.length === 0 && <p>Noch keine Spiele für diesen Spieltag importiert.</p>}
-              </div>
-            </section>
-
-            <section className="bundesliga-dark-panel">
-              <header>
-                <h3>Demo-Tipp Auswertung</h3>
-                <span>{selectedMatch ? `${selectedMatch.team_a_name} - ${selectedMatch.team_b_name}` : "Kein Spiel"}</span>
-              </header>
-              <div className="bundesliga-tip-evaluation">
-                {visibleTipRows.map((tip) => (
-                  <div key={tip.id}>
-                    <strong>{tip.participantName}</strong>
-                    <span>{tip.score_a}:{tip.score_b}</span>
-                    <span>{selectedMatch?.result ? `${selectedMatch.result.score_a}:${selectedMatch.result.score_b}` : "-:-"}</span>
-                    <b className={tip.points > 0 ? "positive" : ""}>{tip.hasResult ? tip.points : "offen"}</b>
-                  </div>
-                ))}
-                {visibleTipRows.length === 0 && <p>Noch keine Demo-Tipps für diesen Spieltag.</p>}
-              </div>
-            </section>
-
-            <section className="bundesliga-dark-panel">
-              <header>
-                <h3>Torschützen - Top 5</h3>
-              </header>
-              <div className="bundesliga-scorer-board">
-                {(data?.topScorers ?? []).slice(0, 5).map((row, index) => (
-                  <div key={row.name}>
-                    <span>{index + 1}</span>
-                    <strong>{row.name}</strong>
-                    <b>{row.goals} Tore</b>
-                  </div>
-                ))}
-                {(data?.topScorers ?? []).length === 0 && <p>Noch keine Torschützen importiert.</p>}
-              </div>
-            </section>
-
-            <section className="bundesliga-demo-create">
+            <aside className="bundesliga-lab-side">
+              {renderResultsPanel({ compact: true })}
+              {renderTipEvaluation({ compact: true })}
+              {renderTopScorers({ compact: true })}
+              <section className="bundesliga-demo-create">
               <label>
                 Demo-Tipper
                 <input
@@ -4144,8 +4237,16 @@ function BundesligaAdminSetup({
                 Speichern
               </button>
             </section>
-          </aside>
-        </div>
+            </aside>
+          </div>
+        )}
+
+        {activeLabView === "schedule" && renderSchedule()}
+        {activeLabView === "table" && renderStandingsTable()}
+        {activeLabView === "results" && renderResultsPanel()}
+        {activeLabView === "tips" && renderTipEvaluation()}
+        {activeLabView === "ranking" && renderRanking()}
+        {activeLabView === "scorers" && renderTopScorers()}
       </div>
     </section>
   );
