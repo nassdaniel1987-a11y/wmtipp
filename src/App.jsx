@@ -3102,7 +3102,7 @@ function AdminPanel({
     setBundesligaLoading(true);
     try {
       const payload = await apiPost("/api/admin-bundesliga-import", { includeRelegation }, session?.access_token);
-      setBundesligaMessage(`${payload.importedMatches} Spiele, ${payload.importedTeams} Teams und ${payload.importedGoals} Tore importiert.`);
+      setBundesligaMessage(`${payload.importedMatches} Spiele, ${payload.importedTeams} Teams, ${payload.importedGoals} Tore und ${payload.importedTopScorers ?? 0} Torschützen importiert.`);
       await loadBundesligaData();
     } catch (error) {
       setBundesligaMessage(error.message);
@@ -3196,6 +3196,14 @@ function AdminPanel({
           onResetResults={async () => {
             const payload = await runBundesligaAction("reset-results");
             if (payload) setBundesligaMessage("Bundesliga-Test-Ergebnisse zurückgesetzt.");
+          }}
+          onImportTopScorers={async () => {
+            const payload = await runBundesligaAction("import-top-scorers");
+            if (payload) setBundesligaMessage(`${payload.topScorers?.length ?? 0} OpenLigaDB-Torschützen importiert.`);
+          }}
+          onSaveTopScorer={async (id, displayName, teamName) => {
+            const payload = await runBundesligaAction("save-top-scorer", { id, displayName, teamName });
+            if (payload?.topScorer) setBundesligaMessage(`Torschütze ${payload.topScorer.display_name} gespeichert.`);
           }}
           onBackToWorldCup={() => setAdminCompetition(competitions.wm2026.id)}
         />
@@ -3890,6 +3898,8 @@ function BundesligaAdminSetup({
   onGenerateDemoTips,
   onImportResults,
   onResetResults,
+  onImportTopScorers,
+  onSaveTopScorer,
   onBackToWorldCup,
 }) {
   const [includeRelegation, setIncludeRelegation] = useState(true);
@@ -3897,6 +3907,7 @@ function BundesligaAdminSetup({
   const [selectedMatchday, setSelectedMatchday] = useState(34);
   const [activeLabView, setActiveLabView] = useState("overview");
   const [demoName, setDemoName] = useState("");
+  const [scorerDrafts, setScorerDrafts] = useState({});
   const matches = data?.matches ?? [];
   const leagueMatches = matches.filter((match) => match.phase === "league");
   const resultCount = data?.results?.length ?? 0;
@@ -3911,6 +3922,7 @@ function BundesligaAdminSetup({
   const tableRows = data?.table ?? [];
   const rankingRows = data?.ranking ?? [];
   const topScorerRows = data?.topScorers ?? [];
+  const dataQuality = data?.dataQuality ?? {};
   const importedThrough = leagueMatches.reduce((max, match) => {
     if (!match.result) return max;
     return Math.max(max, Number(match.matchday) || 0);
@@ -3919,6 +3931,33 @@ function BundesligaAdminSetup({
   async function createDemoParticipant() {
     await onCreateDemoParticipant(demoName);
     setDemoName("");
+  }
+
+  function scorerDraftFor(row) {
+    return scorerDrafts[row.id] ?? {
+      displayName: row.name,
+      teamName: row.teamName ?? "",
+    };
+  }
+
+  function updateScorerDraft(row, patch) {
+    setScorerDrafts((current) => ({
+      ...current,
+      [row.id]: {
+        ...scorerDraftFor(row),
+        ...patch,
+      },
+    }));
+  }
+
+  async function saveScorer(row) {
+    const draft = scorerDraftFor(row);
+    await onSaveTopScorer(row.id, draft.displayName, draft.teamName);
+    setScorerDrafts((current) => {
+      const next = { ...current };
+      delete next[row.id];
+      return next;
+    });
   }
 
   const labNavItems = [
@@ -4070,15 +4109,53 @@ function BundesligaAdminSetup({
       <section className={`bundesliga-dark-panel${compact ? "" : " bundesliga-view-panel"}`}>
         <header>
           <h3>Torschützen - Top {compact ? 5 : 20}</h3>
+          {!compact && <button type="button" onClick={onImportTopScorers} disabled={loading}>OpenLigaDB importieren</button>}
         </header>
-        <div className="bundesliga-scorer-board">
-          {topScorerRows.slice(0, compact ? 5 : 20).map((row, index) => (
-            <div key={row.name}>
-              <span>{index + 1}</span>
-              <strong>{row.name}</strong>
-              <b>{row.goals} Tore</b>
-            </div>
-          ))}
+        <div className={compact ? "bundesliga-scorer-board" : "bundesliga-scorer-editor"}>
+          {topScorerRows.slice(0, compact ? 5 : 20).map((row, index) => {
+            const draft = scorerDraftFor(row);
+            if (!compact && !row.id) {
+              return (
+                <div key={row.name}>
+                  <span>{index + 1}</span>
+                  <strong>{row.name}</strong>
+                  <strong>{row.goals} Tore</strong>
+                  <small>Fallback aus Match-Toren</small>
+                </div>
+              );
+            }
+            return compact ? (
+              <div key={row.id ?? row.name}>
+                <span>{index + 1}</span>
+                <strong>{row.name}</strong>
+                <b>{row.goals} Tore</b>
+              </div>
+            ) : (
+              <div key={row.id ?? row.name}>
+                <span>{index + 1}</span>
+                <label>
+                  Name
+                  <input
+                    value={draft.displayName}
+                    onChange={(event) => updateScorerDraft(row, { displayName: event.target.value })}
+                  />
+                </label>
+                <label>
+                  Team
+                  <input
+                    value={draft.teamName}
+                    onChange={(event) => updateScorerDraft(row, { teamName: event.target.value })}
+                    placeholder="optional"
+                  />
+                </label>
+                <strong>{row.goals} Tore</strong>
+                <small>{row.manualOverride ? "manuell korrigiert" : row.sourceName || "OpenLigaDB"}</small>
+                <button type="button" onClick={() => saveScorer(row)} disabled={loading || draft.displayName.trim().length < 2}>
+                  Speichern
+                </button>
+              </div>
+            );
+          })}
           {topScorerRows.length === 0 && <p>Noch keine Torschützen importiert.</p>}
         </div>
       </section>
@@ -4220,6 +4297,8 @@ function BundesligaAdminSetup({
           <span><strong>{data?.teams?.length ?? 0}</strong> Teams</span>
           <span><strong>{data?.demoTips?.length ?? 0}</strong> Demo-Tipps</span>
           <span><strong>{importedThrough || 0}</strong> Spieltage gewertet</span>
+          <span><strong>{dataQuality.topScorerCount ?? topScorerRows.length}</strong> Torschützen</span>
+          {dataQuality.lastTopScorerImportAt && <span><strong>{formatDateTime(dataQuality.lastTopScorerImportAt)}</strong> letzter Torschützen-Import</span>}
           <label>
             <input
               type="checkbox"
@@ -4232,6 +4311,16 @@ function BundesligaAdminSetup({
         </section>
 
         {message && <p className="bundesliga-lab-message">{message}</p>}
+        {dataQuality.topScorerSource === "match_goals_fallback" && (
+          <p className="bundesliga-lab-message">
+            Torschützen laufen noch im Fallback aus Match-Toren. Bitte OpenLigaDB-Torschützen importieren.
+          </p>
+        )}
+        {dataQuality.incompleteTopScorers > 0 && (
+          <p className="bundesliga-lab-message">
+            {dataQuality.incompleteTopScorers} Torschützen wirken abgekürzt oder unvollständig und können unten korrigiert werden.
+          </p>
+        )}
 
         {activeLabView === "overview" && (
           <div className="bundesliga-lab-layout">

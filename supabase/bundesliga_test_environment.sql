@@ -87,6 +87,21 @@ create table if not exists public.competition_goals (
   unique (competition_id, external_goal_id)
 );
 
+create table if not exists public.competition_top_scorers (
+  id uuid primary key default gen_random_uuid(),
+  competition_id text not null references public.competitions(id) on delete cascade,
+  external_id text not null,
+  display_name text not null check (char_length(trim(display_name)) between 2 and 120),
+  source_name text not null default '',
+  goals integer not null default 0 check (goals >= 0),
+  team_name text,
+  manual_override boolean not null default false,
+  source_json jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (competition_id, external_id)
+);
+
 create table if not exists public.competition_demo_participants (
   id uuid primary key default gen_random_uuid(),
   competition_id text not null references public.competitions(id) on delete cascade,
@@ -128,6 +143,7 @@ alter table public.competition_teams enable row level security;
 alter table public.competition_matches enable row level security;
 alter table public.competition_results enable row level security;
 alter table public.competition_goals enable row level security;
+alter table public.competition_top_scorers enable row level security;
 alter table public.competition_demo_participants enable row level security;
 alter table public.competition_demo_tips enable row level security;
 alter table public.competition_bonus_tips enable row level security;
@@ -138,11 +154,13 @@ grant select on public.competition_teams to anon, authenticated;
 grant select on public.competition_matches to anon, authenticated;
 grant select on public.competition_results to anon, authenticated;
 grant select on public.competition_goals to anon, authenticated;
+grant select on public.competition_top_scorers to anon, authenticated;
 grant select, insert, update, delete on public.competitions to authenticated;
 grant select, insert, update, delete on public.competition_teams to authenticated;
 grant select, insert, update, delete on public.competition_matches to authenticated;
 grant select, insert, update, delete on public.competition_results to authenticated;
 grant select, insert, update, delete on public.competition_goals to authenticated;
+grant select, insert, update, delete on public.competition_top_scorers to authenticated;
 grant select, insert, update, delete on public.competition_demo_participants to authenticated;
 grant select, insert, update, delete on public.competition_demo_tips to authenticated;
 grant select, insert, update, delete on public.competition_bonus_tips to authenticated;
@@ -168,6 +186,10 @@ drop policy if exists "competition goals are readable" on public.competition_goa
 create policy "competition goals are readable" on public.competition_goals
 for select to anon, authenticated using (true);
 
+drop policy if exists "competition top scorers are readable" on public.competition_top_scorers;
+create policy "competition top scorers are readable" on public.competition_top_scorers
+for select to anon, authenticated using (true);
+
 drop policy if exists "admins manage competitions" on public.competitions;
 create policy "admins manage competitions" on public.competitions
 for all to authenticated using (public.is_admin()) with check (public.is_admin());
@@ -186,6 +208,10 @@ for all to authenticated using (public.is_admin()) with check (public.is_admin()
 
 drop policy if exists "admins manage competition goals" on public.competition_goals;
 create policy "admins manage competition goals" on public.competition_goals
+for all to authenticated using (public.is_admin()) with check (public.is_admin());
+
+drop policy if exists "admins manage competition top scorers" on public.competition_top_scorers;
+create policy "admins manage competition top scorers" on public.competition_top_scorers
 for all to authenticated using (public.is_admin()) with check (public.is_admin());
 
 drop policy if exists "admins manage demo participants" on public.competition_demo_participants;

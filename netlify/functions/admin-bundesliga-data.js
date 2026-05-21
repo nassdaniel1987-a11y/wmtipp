@@ -8,6 +8,22 @@ import {
   pointsFor,
 } from "./_shared/bundesliga.js";
 
+function isMissingRelation(error) {
+  return error?.code === "42P01" || error?.code === "PGRST205" || /does not exist|schema cache/i.test(error?.message || "");
+}
+
+async function loadOptionalTopScorers(supabase) {
+  const { data, error } = await supabase
+    .from("competition_top_scorers")
+    .select("*")
+    .eq("competition_id", BUNDESLIGA_COMPETITION_ID)
+    .order("goals", { ascending: false })
+    .order("display_name", { ascending: true });
+  if (error && isMissingRelation(error)) return [];
+  if (error) throw error;
+  return data ?? [];
+}
+
 export default async (req) => {
   if (req.method !== "GET") return json({ error: "Method not allowed" }, 405);
 
@@ -22,6 +38,7 @@ export default async (req) => {
       demoParticipants,
       demoTips,
       bonusResults,
+      topScorers,
     ] = await Promise.all([
       supabase.from("competitions").select("*").eq("id", BUNDESLIGA_COMPETITION_ID).maybeSingle(),
       supabase.from("competition_teams").select("*").eq("competition_id", BUNDESLIGA_COMPETITION_ID).order("name"),
@@ -31,6 +48,7 @@ export default async (req) => {
       supabase.from("competition_demo_participants").select("*").eq("competition_id", BUNDESLIGA_COMPETITION_ID).order("created_at"),
       supabase.from("competition_demo_tips").select("*").eq("competition_id", BUNDESLIGA_COMPETITION_ID).order("saved_at"),
       supabase.from("competition_bonus_results").select("*").eq("competition_id", BUNDESLIGA_COMPETITION_ID).maybeSingle(),
+      loadOptionalTopScorers(supabase),
     ]);
 
     for (const response of [competition, teams, matches, results, goals, demoParticipants, demoTips, bonusResults]) {
@@ -43,6 +61,22 @@ export default async (req) => {
     const resultsByMatch = new Map((results.data ?? []).map((result) => [result.match_id, result]));
     const participantsById = new Map((demoParticipants.data ?? []).map((participant) => [participant.id, participant]));
     const tipsByMatch = new Map();
+    const goalAggregation = buildTopScorers(goals.data ?? []);
+    const topScorerRows = topScorers.length
+      ? topScorers.map((row) => ({
+          id: row.id,
+          externalId: row.external_id,
+          name: row.display_name,
+          sourceName: row.source_name,
+          teamName: row.team_name,
+          goals: row.goals,
+          manualOverride: row.manual_override,
+          updatedAt: row.updated_at,
+        }))
+      : goalAggregation;
+    const incompleteTopScorers = topScorers.filter((row) =>
+      !row.source_name || /^[A-ZÄÖÜ]\.\s/u.test(row.display_name || row.source_name || ""),
+    ).length;
 
     (demoTips.data ?? []).forEach((tip) => {
       const rows = tipsByMatch.get(tip.match_id) ?? [];
@@ -75,7 +109,17 @@ export default async (req) => {
       bonusResults: bonusResults.data ?? null,
       table: buildLeagueTable(leagueMatches, results.data ?? [], leagueTeams),
       ranking: buildDemoRanking(demoParticipants.data ?? [], demoTips.data ?? [], results.data ?? []),
-      topScorers: buildTopScorers(goals.data ?? []),
+      topScorers: topScorerRows,
+      dataQuality: {
+        source: "OpenLigaDB",
+        topScorerSource: topScorers.length ? "goalgetters" : "match_goals_fallback",
+        topScorerCount: topScorerRows.length,
+        incompleteTopScorers,
+        lastTopScorerImportAt: topScorers.reduce((latest, row) => {
+          if (!row.updated_at) return latest;
+          return !latest || row.updated_at > latest ? row.updated_at : latest;
+        }, null),
+      },
     });
   } catch (error) {
     return json({ error: error.message || "Bundesliga-Daten konnten nicht geladen werden." }, 400);

@@ -5,6 +5,7 @@ import {
   BUNDESLIGA_RELEGATION_LEAGUE,
   BUNDESLIGA_SOURCE_LEAGUE,
   BUNDESLIGA_SOURCE_SEASON,
+  normalizeGoalgetter,
   normalizeOpenLigaMatch,
 } from "./_shared/bundesliga.js";
 
@@ -12,6 +13,14 @@ async function fetchOpenLigaMatches(leagueShortcut) {
   const response = await fetch(`https://api.openligadb.de/getmatchdata/${leagueShortcut}/${BUNDESLIGA_SOURCE_SEASON}`);
   if (!response.ok) {
     throw new Error(`OpenLigaDB ${leagueShortcut}/${BUNDESLIGA_SOURCE_SEASON} konnte nicht geladen werden.`);
+  }
+  return response.json();
+}
+
+async function fetchOpenLigaGoalgetters() {
+  const response = await fetch(`https://api.openligadb.de/getgoalgetters/${BUNDESLIGA_SOURCE_LEAGUE}/${BUNDESLIGA_SOURCE_SEASON}`);
+  if (!response.ok) {
+    throw new Error(`OpenLigaDB Torschützen ${BUNDESLIGA_SOURCE_LEAGUE}/${BUNDESLIGA_SOURCE_SEASON} konnten nicht geladen werden.`);
   }
   return response.json();
 }
@@ -43,6 +52,7 @@ export default async (req) => {
 
     const leagueMatches = await fetchOpenLigaMatches(BUNDESLIGA_SOURCE_LEAGUE);
     const relegationMatches = includeRelegation ? await fetchOpenLigaMatches(BUNDESLIGA_RELEGATION_LEAGUE).catch(() => []) : [];
+    const goalgetters = await fetchOpenLigaGoalgetters().catch(() => []);
     const normalized = [
       ...leagueMatches.map((match, index) => normalizeOpenLigaMatch(match, BUNDESLIGA_SOURCE_LEAGUE, index)),
       ...relegationMatches.map((match, index) => normalizeOpenLigaMatch(match, BUNDESLIGA_RELEGATION_LEAGUE, index)),
@@ -89,10 +99,32 @@ export default async (req) => {
       if (goalError) throw goalError;
     }
 
+    let importedTopScorers = 0;
+    if (goalgetters.length) {
+      const { data: existingScorers, error: existingScorerError } = await supabase
+        .from("competition_top_scorers")
+        .select("*")
+        .eq("competition_id", BUNDESLIGA_COMPETITION_ID);
+      if (existingScorerError) throw existingScorerError;
+
+      const existingByExternalId = new Map((existingScorers ?? []).map((row) => [row.external_id, row]));
+      const scorerRows = goalgetters
+        .map((row) => normalizeGoalgetter(row, existingByExternalId.get(String(row.goalGetterId ?? row.goalGetterID ?? ""))))
+        .filter((row) => row.external_id);
+
+      const { data: scorerData, error: scorerError } = await supabase
+        .from("competition_top_scorers")
+        .upsert(scorerRows, { onConflict: "competition_id,external_id" })
+        .select("*");
+      if (scorerError) throw scorerError;
+      importedTopScorers = scorerData?.length ?? 0;
+    }
+
     return json({
       importedMatches: matches?.length ?? 0,
       importedTeams: teams?.length ?? 0,
       importedGoals: goalRows.length,
+      importedTopScorers,
       includeRelegation,
     });
   } catch (error) {

@@ -139,6 +139,26 @@ export function buildTopScorers(goals) {
   );
 }
 
+export function normalizeGoalgetter(row, existing = null) {
+  const externalId = String(row.goalGetterId ?? row.goalGetterID ?? row.id ?? row.goalGetterName ?? "");
+  const sourceName = String(row.goalGetterName || "").trim();
+  const displayName = existing?.manual_override
+    ? existing.display_name
+    : sourceName || `Unbekannter Spieler ${externalId}`;
+
+  return {
+    competition_id: BUNDESLIGA_COMPETITION_ID,
+    external_id: externalId,
+    display_name: displayName,
+    source_name: sourceName,
+    goals: Number(row.goalCount ?? 0),
+    team_name: existing?.manual_override ? existing.team_name : existing?.team_name ?? null,
+    manual_override: Boolean(existing?.manual_override),
+    source_json: row,
+    updated_at: new Date().toISOString(),
+  };
+}
+
 export function normalizeOpenLigaMatch(match, leagueShortcut, indexOffset = 0) {
   const kickoff = match.matchDateTimeUTC || match.matchDateTime;
   const date = new Date(kickoff);

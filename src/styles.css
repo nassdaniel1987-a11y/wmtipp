@@ -2334,6 +2334,16 @@ tbody tr:nth-child(1) td:first-child {
   font-weight: 850;
 }
 
+.bundesliga-dark-panel header button {
+  min-height: 32px;
+  border: 1px solid #df2f28;
+  border-radius: 4px;
+  padding: 0 12px;
+  color: #ffffff;
+  background: #df2f28;
+  font-weight: 950;
+}
+
 .bundesliga-table-scroll {
   overflow-x: auto;
 }
@@ -2553,6 +2563,61 @@ tbody tr:nth-child(1) td:first-child {
 
 .bundesliga-scorer-board div {
   grid-template-columns: 32px minmax(0, 1fr) 80px;
+}
+
+.bundesliga-scorer-editor {
+  display: grid;
+}
+
+.bundesliga-scorer-editor > div {
+  display: grid;
+  grid-template-columns: 36px minmax(180px, 1.1fr) minmax(150px, 0.8fr) 86px minmax(120px, 0.8fr) auto;
+  gap: 10px;
+  align-items: end;
+  min-height: 66px;
+  padding: 10px 14px;
+  border-bottom: 1px solid #2c343b;
+  color: #ffffff;
+}
+
+.bundesliga-scorer-editor label {
+  display: grid;
+  gap: 4px;
+  color: #b4bec6;
+  font-size: 0.72rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.bundesliga-scorer-editor input {
+  min-width: 0;
+  min-height: 34px;
+  border: 1px solid #3d454d;
+  border-radius: 4px;
+  padding: 0 9px;
+  color: #ffffff;
+  background: #11161a;
+  font-weight: 850;
+}
+
+.bundesliga-scorer-editor strong {
+  color: #ffffff;
+  font-weight: 950;
+}
+
+.bundesliga-scorer-editor small {
+  color: #b4bec6;
+  font-weight: 800;
+}
+
+.bundesliga-scorer-editor button {
+  min-height: 34px;
+  border: 1px solid #4a535c;
+  border-radius: 4px;
+  padding: 0 12px;
+  color: #ffffff;
+  background: #161b20;
+  font-weight: 950;
 }
 
 .bundesliga-ranking-table-scroll {
@@ -3623,6 +3688,7 @@ tbody tr:nth-child(1) td:first-child {
   .bundesliga-command-grid,
   .bundesliga-import-control,
   .bundesliga-tip-match-head,
+  .bundesliga-scorer-editor > div,
   .bundesliga-result-list div,
   .bundesliga-tip-evaluation div,
   .bundesliga-scorer-board div {

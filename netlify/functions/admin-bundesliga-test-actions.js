@@ -2,7 +2,10 @@ import { requireAdmin } from "./_shared/admin.js";
 import { json } from "./_shared/supabase.js";
 import {
   BUNDESLIGA_COMPETITION_ID,
+  BUNDESLIGA_SOURCE_LEAGUE,
+  BUNDESLIGA_SOURCE_SEASON,
   getFinalScore,
+  normalizeGoalgetter,
 } from "./_shared/bundesliga.js";
 
 function demoScoreFor(match, participantIndex) {
@@ -11,6 +14,14 @@ function demoScoreFor(match, participantIndex) {
     score_a: seed % 4,
     score_b: Math.floor(seed / 2) % 3,
   };
+}
+
+async function fetchOpenLigaGoalgetters() {
+  const response = await fetch(`https://api.openligadb.de/getgoalgetters/${BUNDESLIGA_SOURCE_LEAGUE}/${BUNDESLIGA_SOURCE_SEASON}`);
+  if (!response.ok) {
+    throw new Error("OpenLigaDB-Torschützen konnten nicht geladen werden.");
+  }
+  return response.json();
 }
 
 export default async (req) => {
@@ -129,6 +140,49 @@ export default async (req) => {
         .eq("competition_id", BUNDESLIGA_COMPETITION_ID);
       if (error) throw error;
       return json({ reset: true });
+    }
+
+    if (action === "import-top-scorers") {
+      const goalgetters = await fetchOpenLigaGoalgetters();
+      const { data: existingScorers, error: existingScorerError } = await supabase
+        .from("competition_top_scorers")
+        .select("*")
+        .eq("competition_id", BUNDESLIGA_COMPETITION_ID);
+      if (existingScorerError) throw existingScorerError;
+
+      const existingByExternalId = new Map((existingScorers ?? []).map((row) => [row.external_id, row]));
+      const rows = goalgetters
+        .map((row) => normalizeGoalgetter(row, existingByExternalId.get(String(row.goalGetterId ?? row.goalGetterID ?? ""))))
+        .filter((row) => row.external_id);
+
+      const { data, error } = await supabase
+        .from("competition_top_scorers")
+        .upsert(rows, { onConflict: "competition_id,external_id" })
+        .select("*");
+      if (error) throw error;
+      return json({ topScorers: data ?? [] });
+    }
+
+    if (action === "save-top-scorer") {
+      const id = String(body.id || "").trim();
+      const displayName = String(body.displayName || "").trim();
+      const teamName = String(body.teamName || "").trim();
+      if (!id || displayName.length < 2) return json({ error: "Bitte einen gültigen Torschützennamen eintragen." }, 400);
+
+      const { data, error } = await supabase
+        .from("competition_top_scorers")
+        .update({
+          display_name: displayName,
+          team_name: teamName || null,
+          manual_override: true,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("competition_id", BUNDESLIGA_COMPETITION_ID)
+        .eq("id", id)
+        .select("*")
+        .single();
+      if (error) throw error;
+      return json({ topScorer: data });
     }
 
     return json({ error: "Unbekannte Bundesliga-Testaktion." }, 400);
