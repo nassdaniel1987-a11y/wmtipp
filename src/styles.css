@@ -2452,6 +2452,45 @@ tbody tr:nth-child(1) td:first-child {
   display: grid;
 }
 
+.bundesliga-tip-match-list {
+  display: grid;
+}
+
+.bundesliga-tip-match-card {
+  display: grid;
+  border-bottom: 1px solid #343c43;
+}
+
+.bundesliga-tip-match-card:last-child {
+  border-bottom: 0;
+}
+
+.bundesliga-tip-match-head {
+  display: grid;
+  grid-template-columns: 118px minmax(110px, 1fr) 58px minmax(110px, 1fr);
+  gap: 10px;
+  align-items: center;
+  min-height: 42px;
+  padding: 0 14px;
+  border-bottom: 1px solid #273039;
+  background: rgba(255, 255, 255, 0.035);
+  color: #ffffff;
+  font-weight: 900;
+}
+
+.bundesliga-tip-match-head small {
+  color: #b4bec6;
+  font-weight: 800;
+}
+
+.bundesliga-tip-match-head b {
+  padding: 5px 8px;
+  border-radius: 4px;
+  text-align: center;
+  color: #ffffff;
+  background: linear-gradient(180deg, #b84238, #7f211e);
+}
+
 .bundesliga-result-list div,
 .bundesliga-tip-evaluation div,
 .bundesliga-scorer-board div {
@@ -2498,6 +2537,8 @@ tbody tr:nth-child(1) td:first-child {
 
 .bundesliga-tip-evaluation div {
   grid-template-columns: minmax(0, 1fr) 58px 72px 58px;
+  min-height: 34px;
+  padding-left: 22px;
 }
 
 .bundesliga-tip-evaluation b,
@@ -3581,6 +3622,7 @@ tbody tr:nth-child(1) td:first-child {
   .bundesliga-lab-header,
   .bundesliga-command-grid,
   .bundesliga-import-control,
+  .bundesliga-tip-match-head,
   .bundesliga-result-list div,
   .bundesliga-tip-evaluation div,
   .bundesliga-scorer-board div {

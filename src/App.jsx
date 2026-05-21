@@ -3907,8 +3907,7 @@ function BundesligaAdminSetup({
     new Set(leagueMatches.map((match) => Number(match.matchday)).filter(Number.isInteger)),
   ).sort((first, second) => first - second);
   const visibleMatches = leagueMatches.filter((match) => Number(match.matchday) === activeMatchday);
-  const selectedMatch = visibleMatches.find((match) => match.demoTips?.length) ?? visibleMatches[0];
-  const visibleTipRows = selectedMatch?.demoTips ?? [];
+  const matchdayTipCount = visibleMatches.reduce((sum, match) => sum + (match.demoTips?.length ?? 0), 0);
   const tableRows = data?.table ?? [];
   const rankingRows = data?.ranking ?? [];
   const topScorerRows = data?.topScorers ?? [];
@@ -4031,18 +4030,36 @@ function BundesligaAdminSetup({
       <section className={`bundesliga-dark-panel${compact ? "" : " bundesliga-view-panel"}`}>
         <header>
           <h3>Demo-Tipp Auswertung</h3>
-          <span>{selectedMatch ? `${selectedMatch.team_a_name} - ${selectedMatch.team_b_name}` : "Kein Spiel"}</span>
+          <span>Spieltag {activeMatchday} · {matchdayTipCount} Tipps</span>
+          <select value={activeMatchday} onChange={(event) => setSelectedMatchday(Number(event.target.value))}>
+            {(matchdayOptions.length ? matchdayOptions : Array.from({ length: maxMatchday }, (_, index) => index + 1)).map((matchday) => (
+              <option key={matchday} value={matchday}>Spieltag {matchday}</option>
+            ))}
+          </select>
         </header>
-        <div className="bundesliga-tip-evaluation">
-          {visibleTipRows.map((tip) => (
-            <div key={tip.id}>
-              <strong>{tip.participantName}</strong>
-              <span>{tip.score_a}:{tip.score_b}</span>
-              <span>{selectedMatch?.result ? `${selectedMatch.result.score_a}:${selectedMatch.result.score_b}` : "-:-"}</span>
-              <b className={tip.points > 0 ? "positive" : ""}>{tip.hasResult ? tip.points : "offen"}</b>
+        <div className="bundesliga-tip-match-list">
+          {visibleMatches.map((match) => (
+            <div key={match.id} className="bundesliga-tip-match-card">
+              <div className="bundesliga-tip-match-head">
+                <small>{formatDateTime(match.kickoff_at)}</small>
+                <strong>{match.team_a_name}</strong>
+                <b>{match.result ? `${match.result.score_a}:${match.result.score_b}` : "-:-"}</b>
+                <strong>{match.team_b_name}</strong>
+              </div>
+              <div className="bundesliga-tip-evaluation">
+                {(match.demoTips ?? []).map((tip) => (
+                  <div key={tip.id}>
+                    <strong>{tip.participantName}</strong>
+                    <span>{tip.score_a}:{tip.score_b}</span>
+                    <span>{match.result ? `${match.result.score_a}:${match.result.score_b}` : "-:-"}</span>
+                    <b className={tip.points > 0 ? "positive" : ""}>{tip.hasResult ? tip.points : "offen"}</b>
+                  </div>
+                ))}
+                {(match.demoTips ?? []).length === 0 && <p>Noch keine Demo-Tipps für dieses Spiel.</p>}
+              </div>
             </div>
           ))}
-          {visibleTipRows.length === 0 && <p>Noch keine Demo-Tipps für diesen Spieltag.</p>}
+          {visibleMatches.length === 0 && <p>Noch keine Spiele für diesen Spieltag importiert.</p>}
         </div>
       </section>
     );
