@@ -1989,7 +1989,7 @@ tbody tr:nth-child(1) td:first-child {
 
 .participant-modal {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
   width: min(980px, 100%);
   max-height: calc(100vh - 64px);
   border: 1px solid #cbdbea;
