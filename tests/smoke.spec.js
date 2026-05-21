@@ -83,8 +83,8 @@ test("hidden Bundesliga test flow supports tips, bonus and ranking", async ({ pa
 
   await page.getByRole("button", { name: "Bonus" }).click();
   await expect(page.getByRole("heading", { name: "Bonus tippen" })).toBeVisible();
-  await page.getByLabel("Meister").selectOption("bayern");
-  await page.getByLabel("Torschützenkönig").selectOption("kane");
+  await page.getByRole("button", { name: /FC Bayern München/ }).first().click();
+  await page.getByRole("button", { name: /Harry Kane/ }).click();
   await expect(page.getByRole("button", { name: "Bonus speichern" })).toBeVisible();
 
   await page.getByRole("button", { name: "Rangliste" }).click();

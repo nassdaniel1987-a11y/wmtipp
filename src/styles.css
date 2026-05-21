@@ -2885,7 +2885,7 @@ tbody tr:nth-child(1) td:first-child {
 }
 
 .bundesliga-mini-table div {
-  grid-template-columns: 34px minmax(0, 1fr) 48px;
+  grid-template-columns: 34px 34px minmax(0, 1fr) 48px;
 }
 
 .bundesliga-mini-table b,
@@ -2901,11 +2901,89 @@ tbody tr:nth-child(1) td:first-child {
   flex-wrap: wrap;
 }
 
+.bundesliga-matchday-switcher {
+  display: inline-grid;
+  grid-template-columns: 42px minmax(120px, auto) 42px;
+  gap: 8px;
+  align-items: center;
+}
+
+.bundesliga-matchday-switcher button,
+.bundesliga-matchday-switcher strong {
+  min-height: 42px;
+  border: 1px solid #3d454d;
+  border-radius: 4px;
+  color: #ffffff;
+  background: #161b20;
+}
+
+.bundesliga-matchday-switcher button {
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+
+.bundesliga-matchday-switcher button:first-child svg {
+  transform: rotate(180deg);
+}
+
+.bundesliga-matchday-switcher button:disabled {
+  opacity: 0.38;
+}
+
+.bundesliga-matchday-switcher strong {
+  display: grid;
+  place-items: center;
+  padding: 0 14px;
+}
+
+.bundesliga-team-badge {
+  display: inline-grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+}
+
+.bundesliga-team-badge.reverse {
+  grid-template-columns: minmax(0, 1fr) 34px;
+  text-align: right;
+}
+
+.bundesliga-team-badge.reverse .bundesliga-team-logo {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.bundesliga-team-badge strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.bundesliga-team-logo {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 0.64rem;
+  font-weight: 950;
+}
+
+.bundesliga-team-logo img {
+  max-width: 25px;
+  max-height: 25px;
+  object-fit: contain;
+}
+
 .bundesliga-user-match-card {
   display: grid;
-  gap: 10px;
-  padding: 14px 0;
+  gap: 12px;
+  padding: 14px;
   border-bottom: 1px solid #2c343b;
+  background: rgba(255, 255, 255, 0.018);
 }
 
 .bundesliga-user-match-card > span,
@@ -2917,7 +2995,7 @@ tbody tr:nth-child(1) td:first-child {
 .bundesliga-user-match-card > div:first-of-type,
 .bundesliga-user-match-card .score-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 68px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) 62px minmax(0, 1fr);
   gap: 12px;
   align-items: center;
 }
@@ -2932,12 +3010,112 @@ tbody tr:nth-child(1) td:first-child {
 }
 
 .bundesliga-user-match-card .score-row {
-  grid-template-columns: 110px 110px auto;
+  grid-template-columns: 82px 82px auto;
   justify-content: start;
 }
 
 .bundesliga-bonus-public {
-  max-width: 760px;
+  max-width: 1120px;
+}
+
+.bundesliga-public-shell .score-control {
+  grid-template-rows: 34px 50px 34px;
+  width: 82px;
+  border: 1px solid #3d454d;
+  border-radius: 5px;
+  overflow: hidden;
+  background: #11161a;
+}
+
+.bundesliga-public-shell .score-control button {
+  min-height: 34px;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: #c93d32;
+}
+
+.bundesliga-public-shell .score-control strong {
+  display: grid;
+  place-items: center;
+  height: 50px;
+  color: #ffffff;
+  background: #151a1f;
+  font-size: 1.5rem;
+}
+
+.bundesliga-choice-section {
+  display: grid;
+  gap: 10px;
+}
+
+.bundesliga-choice-section h3 {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0;
+  color: #ffffff;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+}
+
+.bundesliga-choice-section h3 span {
+  color: #b4bec6;
+}
+
+.bundesliga-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 8px;
+}
+
+.bundesliga-choice-grid.compact {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.bundesliga-choice-grid button,
+.bundesliga-scorer-choice-list button {
+  display: grid;
+  gap: 8px;
+  align-items: center;
+  min-height: 52px;
+  border: 1px solid #343c43;
+  border-radius: 5px;
+  color: #ffffff;
+  background: #11161a;
+  text-align: left;
+}
+
+.bundesliga-choice-grid button {
+  grid-template-columns: 34px minmax(0, 1fr);
+}
+
+.bundesliga-choice-grid button.selected,
+.bundesliga-scorer-choice-list button.selected {
+  border-color: #df2f28;
+  background: rgba(223, 47, 40, 0.18);
+  box-shadow: inset 3px 0 0 #df2f28;
+}
+
+.bundesliga-scorer-choice-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 8px;
+}
+
+.bundesliga-scorer-choice-list button {
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-height: 58px;
+}
+
+.bundesliga-scorer-choice-list button span {
+  color: #b4bec6;
+  font-size: 0.82rem;
+}
+
+.bundesliga-scorer-choice-list button b {
+  grid-row: span 2;
+  color: #f23a32;
 }
 
 .bundesliga-demo-create {

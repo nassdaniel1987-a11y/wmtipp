@@ -220,10 +220,10 @@ function createBundesligaBonusTip(savedBonusTip = null) {
 
 function createTestBundesligaData() {
   const teams = [
-    { id: "bayern", name: "FC Bayern München", short_name: "Bayern", logo_url: "" },
-    { id: "dortmund", name: "Borussia Dortmund", short_name: "BVB", logo_url: "" },
-    { id: "leipzig", name: "RB Leipzig", short_name: "RBL", logo_url: "" },
-    { id: "stuttgart", name: "VfB Stuttgart", short_name: "VfB", logo_url: "" },
+    { id: "bayern", name: "FC Bayern München", short_name: "Bayern", logo_url: "https://upload.wikimedia.org/wikipedia/commons/1/1f/Logo_FC_Bayern_M%C3%BCnchen_%282002%E2%80%932017%29.svg" },
+    { id: "dortmund", name: "Borussia Dortmund", short_name: "BVB", logo_url: "https://upload.wikimedia.org/wikipedia/commons/6/67/Borussia_Dortmund_logo.svg" },
+    { id: "leipzig", name: "RB Leipzig", short_name: "RBL", logo_url: "https://i.imgur.com/Rpwsjz1.png" },
+    { id: "stuttgart", name: "VfB Stuttgart", short_name: "VfB", logo_url: "https://upload.wikimedia.org/wikipedia/commons/e/eb/VfB_Stuttgart_1893_Logo.svg" },
   ];
   const matches = [
     { id: "bl-test-1", match_number: 1, matchday: 1, phase: "league", match_date: "2026-08-14", match_time: "20:30", kickoff_at: "2026-08-14T18:30:00Z", team_a_id: "bayern", team_b_id: "dortmund", team_a_name: "FC Bayern München", team_b_name: "Borussia Dortmund", status: "scheduled" },
@@ -4011,6 +4011,7 @@ function BundesligaParticipantApp({ isTestMode }) {
 
   const matches = useMemo(() => (data?.matches ?? []).map(mapBundesligaMatch), [data]);
   const teams = data?.teams ?? [];
+  const teamsById = useMemo(() => new Map(teams.map((team) => [team.id, team])), [teams]);
   const topScorers = data?.topScorers ?? [];
   const resultsByMatch = useMemo(() => new Map((data?.results ?? []).map((result) => [result.match_id, result])), [data]);
   const matchdayOptions = useMemo(() =>
@@ -4018,6 +4019,7 @@ function BundesligaParticipantApp({ isTestMode }) {
   [matches]);
   const visibleMatches = matches.filter((match) => Number(match.matchday) === Number(selectedMatchday));
   const savedTipCount = Object.values(tips).filter((tip) => tip.saved).length;
+  const selectedMatchdayIndex = Math.max(0, matchdayOptions.indexOf(Number(selectedMatchday)));
 
   useEffect(() => {
     tipsRef.current = tips;
@@ -4204,6 +4206,32 @@ function BundesligaParticipantApp({ isTestMode }) {
     setBonusTip((current) => ({ ...current, ...patch, saved: false }));
   }
 
+  function moveMatchday(delta) {
+    if (!matchdayOptions.length) return;
+    const nextIndex = Math.max(0, Math.min(matchdayOptions.length - 1, selectedMatchdayIndex + delta));
+    setSelectedMatchday(matchdayOptions[nextIndex]);
+  }
+
+  function toggleRelegatedTeam(teamId) {
+    const current = bonusTip.relegatedTeamIds ?? [];
+    const next = current.includes(teamId)
+      ? current.filter((id) => id !== teamId)
+      : [...current, teamId].slice(0, 3);
+    updateBonus({ relegatedTeamIds: next });
+  }
+
+  function teamBadge(teamId, name, { align = "left" } = {}) {
+    const team = teamsById.get(teamId);
+    return (
+      <span className={`bundesliga-team-badge ${align === "right" ? "reverse" : ""}`}>
+        <span className="bundesliga-team-logo">
+          {team?.logo_url ? <img src={team.logo_url} alt="" /> : name.slice(0, 2).toUpperCase()}
+        </span>
+        <strong>{team?.name ?? name}</strong>
+      </span>
+    );
+  }
+
   async function saveBonus(source = bonusRef.current, { auto = false } = {}) {
     if (!participant?.id) {
       setMessage("Bitte zuerst Bundesliga-Code aktivieren.");
@@ -4270,7 +4298,12 @@ function BundesligaParticipantApp({ isTestMode }) {
               <h2>Live-Tabelle</h2>
               <div className="bundesliga-mini-table">
                 {tableRows.slice(0, 6).map((row, index) => (
-                  <div key={row.teamId}><span>{index + 1}</span><strong>{row.team}</strong><b>{row.points}</b></div>
+                  <div key={row.teamId}>
+                    <span>{index + 1}</span>
+                    <span className="bundesliga-team-logo">{row.logoUrl ? <img src={row.logoUrl} alt="" /> : row.team.slice(0, 2).toUpperCase()}</span>
+                    <strong>{row.team}</strong>
+                    <b>{row.points}</b>
+                  </div>
                 ))}
               </div>
             </section>
@@ -4281,9 +4314,15 @@ function BundesligaParticipantApp({ isTestMode }) {
           <section className="bundesliga-public-card">
             <div className="bundesliga-public-section-head">
               <h2>Spieltag tippen</h2>
-              <select value={selectedMatchday} onChange={(event) => setSelectedMatchday(Number(event.target.value))}>
-                {matchdayOptions.map((day) => <option key={day} value={day}>Spieltag {day}</option>)}
-              </select>
+              <div className="bundesliga-matchday-switcher" aria-label="Spieltag wechseln">
+                <button type="button" onClick={() => moveMatchday(-1)} disabled={selectedMatchdayIndex <= 0}>
+                  <ChevronRight size={18} />
+                </button>
+                <strong>Spieltag {selectedMatchday}</strong>
+                <button type="button" onClick={() => moveMatchday(1)} disabled={selectedMatchdayIndex >= matchdayOptions.length - 1}>
+                  <ChevronRight size={18} />
+                </button>
+              </div>
             </div>
             <div className="bundesliga-tip-card-list">
               {visibleMatches.map((match) => {
@@ -4292,7 +4331,11 @@ function BundesligaParticipantApp({ isTestMode }) {
                 return (
                   <article key={match.id} className="bundesliga-user-match-card">
                     <span>{formatDateTime(match.kickoffAt)}</span>
-                    <div><strong>{match.teamA}</strong><b>{result ? `${result.score_a}:${result.score_b}` : "-:-"}</b><strong>{match.teamB}</strong></div>
+                    <div>
+                      {teamBadge(match.teamAId, match.teamA)}
+                      <b>{result ? `${result.score_a}:${result.score_b}` : "-:-"}</b>
+                      {teamBadge(match.teamBId, match.teamB, { align: "right" })}
+                    </div>
                     <div className="score-row">
                       <ScoreControl value={tip.scoreA} onIncrease={() => changeScore(match.id, "scoreA", 1)} onDecrease={() => changeScore(match.id, "scoreA", -1)} />
                       <ScoreControl value={tip.scoreB} onIncrease={() => changeScore(match.id, "scoreB", 1)} onDecrease={() => changeScore(match.id, "scoreB", -1)} />
@@ -4309,9 +4352,40 @@ function BundesligaParticipantApp({ isTestMode }) {
         {activeTab === "bundesliga-bonus" && (
           <section className="bundesliga-public-card bundesliga-bonus-public">
             <h2>Bonus tippen</h2>
-            <label>Meister<select value={bonusTip.championTeamId} onChange={(event) => updateBonus({ championTeamId: event.target.value })}><option value="">Offen</option>{teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}</select></label>
-            <label>Torschützenkönig<select value={bonusTip.topScorerId} onChange={(event) => updateBonus({ topScorerId: event.target.value })}><option value="">Offen</option>{topScorers.map((row) => <option key={row.id} value={row.id}>{row.display_name} · {row.goals} Tore</option>)}</select></label>
-            <label>Absteiger<select multiple value={bonusTip.relegatedTeamIds} onChange={(event) => updateBonus({ relegatedTeamIds: Array.from(event.target.selectedOptions).map((option) => option.value).slice(0, 3) })}>{teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}</select></label>
+            <section className="bundesliga-choice-section">
+              <h3>Meister</h3>
+              <div className="bundesliga-choice-grid">
+                {teams.map((team) => (
+                  <button key={team.id} type="button" className={bonusTip.championTeamId === team.id ? "selected" : ""} onClick={() => updateBonus({ championTeamId: team.id })}>
+                    <span className="bundesliga-team-logo">{team.logo_url ? <img src={team.logo_url} alt="" /> : team.name.slice(0, 2).toUpperCase()}</span>
+                    <strong>{team.name}</strong>
+                  </button>
+                ))}
+              </div>
+            </section>
+            <section className="bundesliga-choice-section">
+              <h3>Torschützenkönig</h3>
+              <div className="bundesliga-scorer-choice-list">
+                {topScorers.slice(0, 12).map((row) => (
+                  <button key={row.id} type="button" className={bonusTip.topScorerId === row.id ? "selected" : ""} onClick={() => updateBonus({ topScorerId: row.id })}>
+                    <strong>{row.display_name}</strong>
+                    <span>{row.team_name || "OpenLigaDB"}</span>
+                    <b>{row.goals} Tore</b>
+                  </button>
+                ))}
+              </div>
+            </section>
+            <section className="bundesliga-choice-section">
+              <h3>Absteiger <span>{bonusTip.relegatedTeamIds.length} / 3</span></h3>
+              <div className="bundesliga-choice-grid compact">
+                {teams.map((team) => (
+                  <button key={team.id} type="button" className={bonusTip.relegatedTeamIds.includes(team.id) ? "selected" : ""} onClick={() => toggleRelegatedTeam(team.id)}>
+                    <span className="bundesliga-team-logo">{team.logo_url ? <img src={team.logo_url} alt="" /> : team.name.slice(0, 2).toUpperCase()}</span>
+                    <strong>{team.name}</strong>
+                  </button>
+                ))}
+              </div>
+            </section>
             <button type="button" onClick={() => saveBonus()}>Bonus speichern</button>
           </section>
         )}
