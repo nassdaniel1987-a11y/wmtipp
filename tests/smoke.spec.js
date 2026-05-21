@@ -64,3 +64,30 @@ test("new unsaved tips start empty and can become an active zero", async ({ page
   await emptyCard.locator(".score-control").nth(1).locator("button").first().click();
   await expect(emptyCard.getByRole("button", { name: "Tipp speichern" })).toBeEnabled();
 });
+
+test("hidden Bundesliga test flow supports tips, bonus and ranking", async ({ page }) => {
+  await page.goto("/?test=1#bundesliga-start");
+
+  await expect(page.getByRole("heading", { name: "Bundesliga starten" })).toBeVisible();
+  await expect(page.getByText("Angemeldet als Daniel BL")).toBeVisible();
+
+  await page.getByRole("button", { name: "Tippen" }).click();
+  await expect(page).toHaveURL(/#bundesliga-tippen$/);
+  await expect(page.getByRole("heading", { name: "Spieltag tippen" })).toBeVisible();
+  const firstCard = page.locator(".bundesliga-user-match-card").first();
+  await expect(firstCard.locator(".score-control strong").first()).toHaveText("-");
+  await firstCard.locator(".score-control button").first().click();
+  await firstCard.locator(".score-control").nth(1).locator("button").first().click();
+  await expect(firstCard.locator(".score-control strong").first()).toHaveText("0");
+  await expect(firstCard.getByRole("button", { name: "Speichern" })).toBeEnabled();
+
+  await page.getByRole("button", { name: "Bonus" }).click();
+  await expect(page.getByRole("heading", { name: "Bonus tippen" })).toBeVisible();
+  await page.getByLabel("Meister").selectOption("bayern");
+  await page.getByLabel("Torschützenkönig").selectOption("kane");
+  await expect(page.getByRole("button", { name: "Bonus speichern" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Rangliste" }).click();
+  await expect(page.getByRole("heading", { name: "Bundesliga Rangliste" })).toBeVisible();
+  await expect(page.locator(".bundesliga-public-ranking").getByText("Daniel BL", { exact: true })).toBeVisible();
+});

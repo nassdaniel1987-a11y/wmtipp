@@ -1,4 +1,4 @@
-import { requireAdmin } from "./_shared/admin.js";
+import { makeInviteCode, requireAdmin } from "./_shared/admin.js";
 import { json } from "./_shared/supabase.js";
 import {
   BUNDESLIGA_COMPETITION_ID,
@@ -45,6 +45,21 @@ export default async (req) => {
         .single();
       if (error) throw error;
       return json({ participant: data });
+    }
+
+    if (action === "create-invite-codes") {
+      const count = Math.max(1, Math.min(100, Number(body.count) || 10));
+      const rows = Array.from({ length: count }, () => ({
+        competition_id: BUNDESLIGA_COMPETITION_ID,
+        code: makeInviteCode("BL"),
+        status: "free",
+      }));
+      const { data, error } = await supabase
+        .from("competition_invite_codes")
+        .insert(rows)
+        .select("*");
+      if (error) throw error;
+      return json({ codes: data ?? [] });
     }
 
     if (action === "generate-demo-tips") {

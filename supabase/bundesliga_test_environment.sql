@@ -121,6 +121,52 @@ create table if not exists public.competition_demo_tips (
   unique (competition_id, participant_id, match_id)
 );
 
+create table if not exists public.competition_invite_codes (
+  id uuid primary key default gen_random_uuid(),
+  competition_id text not null references public.competitions(id) on delete cascade,
+  code text not null unique,
+  status text not null default 'free' check (status in ('free', 'claimed', 'disabled')),
+  participant_id uuid,
+  created_at timestamptz not null default now(),
+  claimed_at timestamptz
+);
+
+create table if not exists public.competition_participants (
+  id uuid primary key default gen_random_uuid(),
+  competition_id text not null references public.competitions(id) on delete cascade,
+  display_name text not null check (char_length(trim(display_name)) between 2 and 80),
+  invite_code_id uuid references public.competition_invite_codes(id) on delete set null,
+  created_at timestamptz not null default now(),
+  unique (competition_id, display_name)
+);
+
+alter table public.competition_invite_codes
+  drop constraint if exists competition_invite_codes_participant_id_fkey;
+alter table public.competition_invite_codes
+  add constraint competition_invite_codes_participant_id_fkey
+  foreign key (participant_id) references public.competition_participants(id) on delete set null;
+
+create table if not exists public.competition_tips (
+  id uuid primary key default gen_random_uuid(),
+  competition_id text not null references public.competitions(id) on delete cascade,
+  participant_id uuid not null references public.competition_participants(id) on delete cascade,
+  match_id text not null references public.competition_matches(id) on delete cascade,
+  score_a integer not null check (score_a between 0 and 12),
+  score_b integer not null check (score_b between 0 and 12),
+  saved_at timestamptz not null default now(),
+  unique (competition_id, participant_id, match_id)
+);
+
+create table if not exists public.competition_participant_bonus_tips (
+  participant_id uuid primary key references public.competition_participants(id) on delete cascade,
+  competition_id text not null references public.competitions(id) on delete cascade,
+  champion_team_id uuid references public.competition_teams(id) on delete set null,
+  top_scorer_id uuid references public.competition_top_scorers(id) on delete set null,
+  top_scorer text,
+  relegated_team_ids uuid[] not null default '{}'::uuid[],
+  saved_at timestamptz not null default now()
+);
+
 create table if not exists public.competition_bonus_tips (
   participant_id uuid primary key references public.competition_demo_participants(id) on delete cascade,
   competition_id text not null references public.competitions(id) on delete cascade,
@@ -146,6 +192,10 @@ alter table public.competition_goals enable row level security;
 alter table public.competition_top_scorers enable row level security;
 alter table public.competition_demo_participants enable row level security;
 alter table public.competition_demo_tips enable row level security;
+alter table public.competition_invite_codes enable row level security;
+alter table public.competition_participants enable row level security;
+alter table public.competition_tips enable row level security;
+alter table public.competition_participant_bonus_tips enable row level security;
 alter table public.competition_bonus_tips enable row level security;
 alter table public.competition_bonus_results enable row level security;
 
@@ -163,6 +213,10 @@ grant select, insert, update, delete on public.competition_goals to authenticate
 grant select, insert, update, delete on public.competition_top_scorers to authenticated;
 grant select, insert, update, delete on public.competition_demo_participants to authenticated;
 grant select, insert, update, delete on public.competition_demo_tips to authenticated;
+grant select, insert, update, delete on public.competition_invite_codes to authenticated;
+grant select, insert, update, delete on public.competition_participants to authenticated;
+grant select, insert, update, delete on public.competition_tips to authenticated;
+grant select, insert, update, delete on public.competition_participant_bonus_tips to authenticated;
 grant select, insert, update, delete on public.competition_bonus_tips to authenticated;
 grant select, insert, update, delete on public.competition_bonus_results to authenticated;
 
@@ -220,6 +274,22 @@ for all to authenticated using (public.is_admin()) with check (public.is_admin()
 
 drop policy if exists "admins manage demo tips" on public.competition_demo_tips;
 create policy "admins manage demo tips" on public.competition_demo_tips
+for all to authenticated using (public.is_admin()) with check (public.is_admin());
+
+drop policy if exists "admins manage competition invite codes" on public.competition_invite_codes;
+create policy "admins manage competition invite codes" on public.competition_invite_codes
+for all to authenticated using (public.is_admin()) with check (public.is_admin());
+
+drop policy if exists "admins manage competition participants" on public.competition_participants;
+create policy "admins manage competition participants" on public.competition_participants
+for all to authenticated using (public.is_admin()) with check (public.is_admin());
+
+drop policy if exists "admins manage competition tips" on public.competition_tips;
+create policy "admins manage competition tips" on public.competition_tips
+for all to authenticated using (public.is_admin()) with check (public.is_admin());
+
+drop policy if exists "admins manage competition participant bonus tips" on public.competition_participant_bonus_tips;
+create policy "admins manage competition participant bonus tips" on public.competition_participant_bonus_tips
 for all to authenticated using (public.is_admin()) with check (public.is_admin());
 
 drop policy if exists "admins manage competition bonus tips" on public.competition_bonus_tips;

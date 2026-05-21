@@ -37,6 +37,7 @@ import {
 import { displayTeamName } from "./teamNames.js";
 
 const STORAGE_KEY = "wm-tippspiel-participant";
+const BUNDESLIGA_STORAGE_KEY = "bundesliga-tippspiel-participant";
 const ANDROID_APK_URL = "/downloads/wmtippspiel-latest.apk";
 const tabs = [
   { id: "start", label: "Start", icon: House },
@@ -147,10 +148,28 @@ function getTabFromHash() {
   return tabIds.has(tabId) ? tabId : "start";
 }
 
+const bundesligaTabIds = new Set(["bundesliga-start", "bundesliga-tippen", "bundesliga-bonus", "bundesliga-rangliste"]);
+
+function getBundesligaTabFromHash() {
+  const tabId = window.location.hash.replace("#", "").trim();
+  return bundesligaTabIds.has(tabId) ? tabId : "bundesliga-start";
+}
+
+function isBundesligaRoute() {
+  return window.location.hash.replace("#", "").startsWith("bundesliga-");
+}
+
 function getInviteUrl(code) {
   const url = new URL(window.location.origin);
   url.searchParams.set("code", code);
   url.hash = "start";
+  return url.toString();
+}
+
+function getBundesligaInviteUrl(code) {
+  const url = new URL(window.location.origin);
+  url.searchParams.set("blCode", code);
+  url.hash = "bundesliga-start";
   return url.toString();
 }
 
@@ -161,6 +180,69 @@ function loadSavedParticipant() {
   } catch {
     return null;
   }
+}
+
+function loadSavedBundesligaParticipant() {
+  try {
+    const raw = window.localStorage.getItem(BUNDESLIGA_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function mapBundesligaMatch(row) {
+  return {
+    id: row.id,
+    matchNumber: row.match_number,
+    matchday: row.matchday,
+    phase: row.phase,
+    date: row.match_date,
+    time: row.match_time,
+    kickoffAt: row.kickoff_at,
+    teamA: row.team_a_name,
+    teamB: row.team_b_name,
+    teamAId: row.team_a_id,
+    teamBId: row.team_b_id,
+    status: row.status,
+  };
+}
+
+function createBundesligaBonusTip(savedBonusTip = null) {
+  return {
+    championTeamId: savedBonusTip?.champion_team_id ?? "",
+    topScorerId: savedBonusTip?.top_scorer_id ?? "",
+    topScorer: savedBonusTip?.top_scorer ?? "",
+    relegatedTeamIds: savedBonusTip?.relegated_team_ids ?? [],
+    saved: Boolean(savedBonusTip),
+  };
+}
+
+function createTestBundesligaData() {
+  const teams = [
+    { id: "bayern", name: "FC Bayern München", short_name: "Bayern", logo_url: "" },
+    { id: "dortmund", name: "Borussia Dortmund", short_name: "BVB", logo_url: "" },
+    { id: "leipzig", name: "RB Leipzig", short_name: "RBL", logo_url: "" },
+    { id: "stuttgart", name: "VfB Stuttgart", short_name: "VfB", logo_url: "" },
+  ];
+  const matches = [
+    { id: "bl-test-1", match_number: 1, matchday: 1, phase: "league", match_date: "2026-08-14", match_time: "20:30", kickoff_at: "2026-08-14T18:30:00Z", team_a_id: "bayern", team_b_id: "dortmund", team_a_name: "FC Bayern München", team_b_name: "Borussia Dortmund", status: "scheduled" },
+    { id: "bl-test-2", match_number: 2, matchday: 1, phase: "league", match_date: "2026-08-15", match_time: "15:30", kickoff_at: "2026-08-15T13:30:00Z", team_a_id: "leipzig", team_b_id: "stuttgart", team_a_name: "RB Leipzig", team_b_name: "VfB Stuttgart", status: "scheduled" },
+    { id: "bl-test-3", match_number: 3, matchday: 2, phase: "league", match_date: "2026-08-21", match_time: "20:30", kickoff_at: "2026-08-21T18:30:00Z", team_a_id: "dortmund", team_b_id: "leipzig", team_a_name: "Borussia Dortmund", team_b_name: "RB Leipzig", status: "scheduled" },
+  ];
+  return {
+    competition: { id: "bundesliga-2025", status: "admin_test", public_enabled: false },
+    teams,
+    matches,
+    results: [{ match_id: "bl-test-1", score_a: 2, score_b: 1, status: "final" }],
+    topScorers: [
+      { id: "kane", display_name: "Harry Kane", goals: 36 },
+      { id: "undav", display_name: "Deniz Undav", goals: 19 },
+    ],
+    ranking: [
+      { name: "Daniel BL", points: 4, matchPoints: 4, bonusPoints: 0, tipCount: 1, scoredTipCount: 1, averagePoints: 4 },
+    ],
+  };
 }
 
 function QrCodeImage({ value }) {
@@ -642,6 +724,7 @@ function getGroupLeaderSuggestions(groupTables) {
 
 export default function App() {
   const isTestMode = useMemo(() => getIsTestMode(), []);
+  const [showBundesligaApp, setShowBundesligaApp] = useState(isBundesligaRoute);
   const [scannedCode, setScannedCode] = useState(() => (isTestMode ? TEST_PARTICIPANT.code : getInitialCode()));
   const savedParticipant = useMemo(() => loadSavedParticipant(), []);
   const [activeTab, setActiveTabState] = useState(getTabFromHash);
@@ -672,6 +755,18 @@ export default function App() {
   const canViewRanking = Boolean(participant);
 
   useEffect(() => {
+    function syncCompetitionRoute() {
+      setShowBundesligaApp(isBundesligaRoute());
+    }
+    window.addEventListener("hashchange", syncCompetitionRoute);
+    window.addEventListener("popstate", syncCompetitionRoute);
+    return () => {
+      window.removeEventListener("hashchange", syncCompetitionRoute);
+      window.removeEventListener("popstate", syncCompetitionRoute);
+    };
+  }, []);
+
+  useEffect(() => {
     tipsRef.current = tips;
   }, [tips]);
 
@@ -680,6 +775,7 @@ export default function App() {
   }, [bonusTips]);
 
   const setActiveTab = useCallback((tabId, { replace = false } = {}) => {
+    if (isBundesligaRoute()) return;
     if (!tabIds.has(tabId)) return;
     if (tabId === "rangliste" && !canViewRanking) {
       setAppStatus("Bitte zuerst QR-Code aktivieren und Namen eintragen.");
@@ -1263,6 +1359,10 @@ export default function App() {
       await refreshRanking();
     }
     return payload;
+  }
+
+  if (showBundesligaApp) {
+    return <BundesligaParticipantApp isTestMode={isTestMode} />;
   }
 
   return (
@@ -3185,6 +3285,10 @@ function AdminPanel({
             const payload = await runBundesligaAction("create-demo-participant", { displayName });
             if (payload?.participant) setBundesligaMessage(`Demo-Tipper ${payload.participant.display_name} angelegt.`);
           }}
+          onCreateInviteCodes={async () => {
+            const payload = await runBundesligaAction("create-invite-codes", { count: 10 });
+            if (payload) setBundesligaMessage(`${payload.codes?.length ?? 0} Bundesliga-Codes erzeugt.`);
+          }}
           onGenerateDemoTips={async () => {
             const payload = await runBundesligaAction("generate-demo-tips");
             if (payload) setBundesligaMessage(`${payload.tips?.length ?? 0} Demo-Tipps gespeichert.`);
@@ -3888,6 +3992,345 @@ function AdminPanel({
   );
 }
 
+function BundesligaParticipantApp({ isTestMode }) {
+  const savedParticipant = useMemo(() => loadSavedBundesligaParticipant(), []);
+  const [activeTab, setActiveTab] = useState(getBundesligaTabFromHash);
+  const [data, setData] = useState(() => (isTestMode ? createTestBundesligaData() : null));
+  const [participant, setParticipant] = useState(() => (isTestMode ? { id: "bl-test", name: "Daniel BL", code: "BL-TEST" } : savedParticipant));
+  const [code, setCode] = useState(() => new URLSearchParams(window.location.search).get("blCode")?.trim() || savedParticipant?.code || "");
+  const [name, setName] = useState(() => savedParticipant?.name ?? "");
+  const [codeStatus, setCodeStatus] = useState(isTestMode ? "claimed" : code ? "checking" : "missing");
+  const [tips, setTips] = useState({});
+  const [bonusTip, setBonusTip] = useState(createBundesligaBonusTip());
+  const [ranking, setRanking] = useState(() => (isTestMode ? createTestBundesligaData().ranking : []));
+  const [selectedMatchday, setSelectedMatchday] = useState(1);
+  const [message, setMessage] = useState(isTestMode ? "Bundesliga-Testmodus aktiv" : "Bundesliga wird geladen...");
+  const [tipStatuses, setTipStatuses] = useState({});
+  const tipsRef = useRef(tips);
+  const bonusRef = useRef(bonusTip);
+
+  const matches = useMemo(() => (data?.matches ?? []).map(mapBundesligaMatch), [data]);
+  const teams = data?.teams ?? [];
+  const topScorers = data?.topScorers ?? [];
+  const resultsByMatch = useMemo(() => new Map((data?.results ?? []).map((result) => [result.match_id, result])), [data]);
+  const matchdayOptions = useMemo(() =>
+    Array.from(new Set(matches.map((match) => Number(match.matchday)).filter(Number.isInteger))).sort((a, b) => a - b),
+  [matches]);
+  const visibleMatches = matches.filter((match) => Number(match.matchday) === Number(selectedMatchday));
+  const savedTipCount = Object.values(tips).filter((tip) => tip.saved).length;
+
+  useEffect(() => {
+    tipsRef.current = tips;
+  }, [tips]);
+
+  useEffect(() => {
+    bonusRef.current = bonusTip;
+  }, [bonusTip]);
+
+  useEffect(() => {
+    function syncTab() {
+      setActiveTab(getBundesligaTabFromHash());
+    }
+    window.addEventListener("hashchange", syncTab);
+    return () => window.removeEventListener("hashchange", syncTab);
+  }, []);
+
+  useEffect(() => {
+    async function loadData() {
+      if (isTestMode) {
+        const testData = createTestBundesligaData();
+        setData(testData);
+        setTips(createInitialTips(testData.matches.map(mapBundesligaMatch)));
+        setRanking(testData.ranking);
+        setSelectedMatchday(1);
+        return;
+      }
+      try {
+        const payload = await apiGet("/api/bundesliga-public-data");
+        setData(payload);
+        const mappedMatches = (payload.matches ?? []).map(mapBundesligaMatch);
+        setTips(createInitialTips(mappedMatches));
+        setSelectedMatchday(Number(mappedMatches[0]?.matchday) || 1);
+        await refreshRanking();
+        setMessage("Bundesliga bereit");
+      } catch (error) {
+        setMessage(error.message);
+      }
+    }
+    loadData();
+  }, [isTestMode]);
+
+  useEffect(() => {
+    async function resolveParticipant() {
+      if (isTestMode) return;
+      if (!code || participant?.id) return;
+      try {
+        const payload = await apiGet(`/api/bundesliga-participant?code=${encodeURIComponent(code)}`);
+        setCodeStatus(payload.codeStatus);
+        if (payload.participant) {
+          const saved = { id: payload.participant.id, name: payload.participant.display_name, code };
+          setParticipant(saved);
+          setName(saved.name);
+          window.localStorage.setItem(BUNDESLIGA_STORAGE_KEY, JSON.stringify(saved));
+        }
+      } catch {
+        setCodeStatus("unknown");
+      }
+    }
+    resolveParticipant();
+  }, [code, participant?.id, isTestMode]);
+
+  useEffect(() => {
+    async function loadParticipantState() {
+      if (isTestMode || !participant?.id || !matches.length) return;
+      try {
+        const [tipPayload, bonusPayload] = await Promise.all([
+          apiGet(`/api/bundesliga-tips?participantId=${encodeURIComponent(participant.id)}`),
+          apiGet(`/api/bundesliga-bonus-tips?participantId=${encodeURIComponent(participant.id)}`).catch(() => ({ bonusTip: null })),
+        ]);
+        setTips(createInitialTips(matches, tipPayload.tips ?? []));
+        setBonusTip(createBundesligaBonusTip(bonusPayload.bonusTip));
+      } catch (error) {
+        setMessage(error.message);
+      }
+    }
+    loadParticipantState();
+  }, [participant?.id, matches, isTestMode]);
+
+  useEffect(() => {
+    const pendingIds = Object.entries(tipStatuses)
+      .filter(([, status]) => status === "pending")
+      .map(([matchId]) => matchId)
+      .filter((matchId) => isCompleteTip(tipsRef.current[matchId]));
+    if (!pendingIds.length) return undefined;
+    const timer = window.setTimeout(() => {
+      void saveTipRows(pendingIds, tipsRef.current);
+    }, AUTO_SAVE_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, [tipStatuses, participant?.id]);
+
+  useEffect(() => {
+    if (!participant?.id || bonusTip.saved) return undefined;
+    const timer = window.setTimeout(() => {
+      void saveBonus(bonusRef.current, { auto: true });
+    }, AUTO_SAVE_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, [bonusTip, participant?.id]);
+
+  function setBundesligaTab(tabId) {
+    if (!bundesligaTabIds.has(tabId)) return;
+    window.location.hash = tabId;
+    setActiveTab(tabId);
+  }
+
+  async function refreshRanking() {
+    if (isTestMode) {
+      setRanking(createTestBundesligaData().ranking);
+      return;
+    }
+    const payload = await apiGet("/api/bundesliga-ranking").catch(() => ({ ranking: [] }));
+    setRanking(payload.ranking ?? []);
+  }
+
+  async function claimCode(event) {
+    event.preventDefault();
+    if (!code.trim() || name.trim().length < 2) return;
+    if (isTestMode) return;
+    try {
+      const payload = await apiPost("/api/bundesliga-claim-code", { code, name });
+      const saved = { id: payload.participant.id, name: payload.participant.display_name, code };
+      setParticipant(saved);
+      setName(saved.name);
+      setCodeStatus("claimed");
+      window.localStorage.setItem(BUNDESLIGA_STORAGE_KEY, JSON.stringify(saved));
+      setMessage("Bundesliga-Code aktiviert.");
+    } catch (error) {
+      setMessage(error.message);
+    }
+  }
+
+  function changeScore(matchId, side, delta) {
+    setTips((current) => ({
+      ...current,
+      [matchId]: {
+        ...current[matchId],
+        [side]: Number.isInteger(current[matchId]?.[side]) ? clampScore(current[matchId][side] + delta) : 0,
+        saved: false,
+      },
+    }));
+    setTipStatuses((current) => ({ ...current, [matchId]: "pending" }));
+  }
+
+  async function saveTipRows(matchIds, sourceTips = tipsRef.current) {
+    if (!participant?.id) {
+      setMessage("Bitte zuerst Bundesliga-Code aktivieren.");
+      return;
+    }
+    const completeIds = matchIds.filter((matchId) => isCompleteTip(sourceTips[matchId]));
+    if (!completeIds.length) {
+      setMessage("Bitte erst beide Torzahlen auswählen. Neue Tipps starten mit -:-.");
+      return;
+    }
+    if (isTestMode) {
+      setTips((current) => ({ ...current, ...Object.fromEntries(completeIds.map((id) => [id, { ...current[id], saved: true }])) }));
+      setTipStatuses((current) => ({ ...current, ...Object.fromEntries(completeIds.map((id) => [id, "saved"])) }));
+      setMessage("Bundesliga-Testtipp gespeichert.");
+      return;
+    }
+    try {
+      const payload = await apiPost("/api/bundesliga-save-tips", {
+        participantId: participant.id,
+        tips: completeIds.map((matchId) => ({
+          matchId,
+          scoreA: sourceTips[matchId].scoreA,
+          scoreB: sourceTips[matchId].scoreB,
+        })),
+      });
+      const savedIds = new Set((payload.tips ?? []).map((tip) => tip.match_id));
+      setTips((current) => {
+        const next = { ...current };
+        savedIds.forEach((id) => { next[id] = { ...next[id], saved: true }; });
+        return next;
+      });
+      setTipStatuses((current) => ({ ...current, ...Object.fromEntries([...savedIds].map((id) => [id, "saved"])) }));
+      setMessage("Bundesliga-Tipp gespeichert.");
+      await refreshRanking();
+    } catch (error) {
+      setMessage(error.message);
+    }
+  }
+
+  function updateBonus(patch) {
+    setBonusTip((current) => ({ ...current, ...patch, saved: false }));
+  }
+
+  async function saveBonus(source = bonusRef.current, { auto = false } = {}) {
+    if (!participant?.id) {
+      setMessage("Bitte zuerst Bundesliga-Code aktivieren.");
+      return;
+    }
+    if (isTestMode) {
+      setBonusTip((current) => ({ ...current, saved: true }));
+      setMessage(auto ? "Bundesliga-Bonus automatisch gespeichert." : "Bundesliga-Bonus gespeichert.");
+      return;
+    }
+    try {
+      const scorer = topScorers.find((row) => row.id === source.topScorerId);
+      const payload = await apiPost("/api/bundesliga-save-bonus-tips", {
+        participantId: participant.id,
+        championTeamId: source.championTeamId,
+        topScorerId: source.topScorerId,
+        topScorer: scorer?.display_name ?? source.topScorer,
+        relegatedTeamIds: source.relegatedTeamIds,
+      });
+      setBonusTip(createBundesligaBonusTip(payload.bonusTip));
+      setMessage(auto ? "Bundesliga-Bonus automatisch gespeichert." : "Bundesliga-Bonus gespeichert.");
+      await refreshRanking();
+    } catch (error) {
+      setMessage(error.message);
+    }
+  }
+
+  const tableRows = data?.table ?? [];
+
+  return (
+    <div className="bundesliga-public-shell">
+      <header className="bundesliga-public-header">
+        <button type="button" onClick={() => setBundesligaTab("bundesliga-start")}>
+          <span>BL</span>
+          <strong>Bundesliga Tippspiel</strong>
+          <small>versteckte Testversion</small>
+        </button>
+        <nav>
+          <button className={activeTab === "bundesliga-start" ? "active" : ""} onClick={() => setBundesligaTab("bundesliga-start")}>Start</button>
+          <button className={activeTab === "bundesliga-tippen" ? "active" : ""} onClick={() => setBundesligaTab("bundesliga-tippen")}>Tippen</button>
+          <button className={activeTab === "bundesliga-bonus" ? "active" : ""} onClick={() => setBundesligaTab("bundesliga-bonus")}>Bonus</button>
+          <button className={activeTab === "bundesliga-rangliste" ? "active" : ""} onClick={() => { setBundesligaTab("bundesliga-rangliste"); void refreshRanking(); }}>Rangliste</button>
+        </nav>
+        <button type="button" onClick={() => { window.location.hash = "start"; }}>Zur WM</button>
+      </header>
+
+      <main className="bundesliga-public-main">
+        <section className="bundesliga-public-status">
+          <span>{participant ? `Angemeldet als ${participant.name}` : "Bundesliga-Code erforderlich"}</span>
+          <strong>{savedTipCount} von {matches.length} Tipps gespeichert</strong>
+          <span>{message}</span>
+        </section>
+
+        {activeTab === "bundesliga-start" && (
+          <section className="bundesliga-public-grid">
+            <form className="bundesliga-public-card" onSubmit={claimCode}>
+              <h2>Bundesliga starten</h2>
+              <label>Code<input value={code} onChange={(event) => setCode(event.target.value)} placeholder="BL-..." /></label>
+              <label>Name<input value={name} onChange={(event) => setName(event.target.value)} placeholder="Dein Name" /></label>
+              <button type="submit">Code aktivieren</button>
+              <small>Status: {codeStatus}</small>
+            </form>
+            <section className="bundesliga-public-card">
+              <h2>Live-Tabelle</h2>
+              <div className="bundesliga-mini-table">
+                {tableRows.slice(0, 6).map((row, index) => (
+                  <div key={row.teamId}><span>{index + 1}</span><strong>{row.team}</strong><b>{row.points}</b></div>
+                ))}
+              </div>
+            </section>
+          </section>
+        )}
+
+        {activeTab === "bundesliga-tippen" && (
+          <section className="bundesliga-public-card">
+            <div className="bundesliga-public-section-head">
+              <h2>Spieltag tippen</h2>
+              <select value={selectedMatchday} onChange={(event) => setSelectedMatchday(Number(event.target.value))}>
+                {matchdayOptions.map((day) => <option key={day} value={day}>Spieltag {day}</option>)}
+              </select>
+            </div>
+            <div className="bundesliga-tip-card-list">
+              {visibleMatches.map((match) => {
+                const tip = tips[match.id] ?? { scoreA: null, scoreB: null, saved: false };
+                const result = resultsByMatch.get(match.id);
+                return (
+                  <article key={match.id} className="bundesliga-user-match-card">
+                    <span>{formatDateTime(match.kickoffAt)}</span>
+                    <div><strong>{match.teamA}</strong><b>{result ? `${result.score_a}:${result.score_b}` : "-:-"}</b><strong>{match.teamB}</strong></div>
+                    <div className="score-row">
+                      <ScoreControl value={tip.scoreA} onIncrease={() => changeScore(match.id, "scoreA", 1)} onDecrease={() => changeScore(match.id, "scoreA", -1)} />
+                      <ScoreControl value={tip.scoreB} onIncrease={() => changeScore(match.id, "scoreB", 1)} onDecrease={() => changeScore(match.id, "scoreB", -1)} />
+                      <button type="button" onClick={() => saveTipRows([match.id])} disabled={!isCompleteTip(tip)}>Speichern</button>
+                    </div>
+                    <small>{tip.saved ? "gespeichert" : tipStatuses[match.id] === "pending" ? "Autosave wartet..." : "offen"}</small>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        {activeTab === "bundesliga-bonus" && (
+          <section className="bundesliga-public-card bundesliga-bonus-public">
+            <h2>Bonus tippen</h2>
+            <label>Meister<select value={bonusTip.championTeamId} onChange={(event) => updateBonus({ championTeamId: event.target.value })}><option value="">Offen</option>{teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}</select></label>
+            <label>Torschützenkönig<select value={bonusTip.topScorerId} onChange={(event) => updateBonus({ topScorerId: event.target.value })}><option value="">Offen</option>{topScorers.map((row) => <option key={row.id} value={row.id}>{row.display_name} · {row.goals} Tore</option>)}</select></label>
+            <label>Absteiger<select multiple value={bonusTip.relegatedTeamIds} onChange={(event) => updateBonus({ relegatedTeamIds: Array.from(event.target.selectedOptions).map((option) => option.value).slice(0, 3) })}>{teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}</select></label>
+            <button type="button" onClick={() => saveBonus()}>Bonus speichern</button>
+          </section>
+        )}
+
+        {activeTab === "bundesliga-rangliste" && (
+          <section className="bundesliga-public-card">
+            <h2>Bundesliga Rangliste</h2>
+            <div className="bundesliga-public-ranking">
+              {ranking.map((row, index) => (
+                <div key={row.id ?? row.name}><span>{index + 1}</span><strong>{row.name}</strong><span>{row.tipCount} Tipps</span><span>{row.matchPoints} Spiel</span><span>{row.bonusPoints} Bonus</span><b>{row.points}</b></div>
+              ))}
+            </div>
+          </section>
+        )}
+      </main>
+    </div>
+  );
+}
+
 function BundesligaAdminSetup({
   data,
   loading,
@@ -3895,6 +4338,7 @@ function BundesligaAdminSetup({
   onRefresh,
   onImport,
   onCreateDemoParticipant,
+  onCreateInviteCodes,
   onGenerateDemoTips,
   onImportResults,
   onResetResults,
@@ -3922,6 +4366,7 @@ function BundesligaAdminSetup({
   const tableRows = data?.table ?? [];
   const rankingRows = data?.ranking ?? [];
   const topScorerRows = data?.topScorers ?? [];
+  const inviteCodes = data?.inviteCodes ?? [];
   const dataQuality = data?.dataQuality ?? {};
   const importedThrough = leagueMatches.reduce((max, match) => {
     if (!match.result) return max;
@@ -4290,6 +4735,14 @@ function BundesligaAdminSetup({
             <ShieldCheck size={23} />
             <span><strong>Ergebnisse zurücksetzen</strong><small>Nur Bundesliga-Testdaten</small></span>
           </button>
+          <button type="button" onClick={() => { window.location.hash = "bundesliga-start"; }}>
+            <ChevronRight size={23} />
+            <span><strong>Teilnehmeransicht öffnen</strong><small>Versteckte Bundesliga-Version</small></span>
+          </button>
+          <button type="button" onClick={onCreateInviteCodes} disabled={loading}>
+            <QrCode size={23} />
+            <span><strong>10 Bundesliga-Codes</strong><small>Getrennte Teilnehmercodes</small></span>
+          </button>
         </section>
 
         <section className="bundesliga-lab-stats" aria-label="Bundesliga Teststatus">
@@ -4343,6 +4796,19 @@ function BundesligaAdminSetup({
                 Speichern
               </button>
             </section>
+              <section className="bundesliga-dark-panel">
+                <header><h3>Letzte Bundesliga-Codes</h3></header>
+                <div className="bundesliga-code-list">
+                  {inviteCodes.slice(0, 5).map((item) => (
+                    <div key={item.id}>
+                      <strong>{item.code}</strong>
+                      <span>{item.status}</span>
+                      <small>{getBundesligaInviteUrl(item.code)}</small>
+                    </div>
+                  ))}
+                  {inviteCodes.length === 0 && <p>Noch keine Bundesliga-Codes erzeugt.</p>}
+                </div>
+              </section>
             </aside>
           </div>
         )}

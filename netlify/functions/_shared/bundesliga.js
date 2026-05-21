@@ -16,6 +16,34 @@ export function pointsFor(tip, result) {
   return tipGoalDiff === resultGoalDiff ? 3 : 2;
 }
 
+export const bundesligaBonusPointValues = {
+  champion: 6,
+  topScorer: 6,
+  relegatedTeam: 4,
+};
+
+export function buildBundesligaBonusPoints(bonusTip, bonusResult, topScorers = []) {
+  if (!bonusTip || !bonusResult) return 0;
+  let points = 0;
+  if (bonusTip.champion_team_id && bonusTip.champion_team_id === bonusResult.champion_team_id) {
+    points += bundesligaBonusPointValues.champion;
+  }
+
+  const officialScorerNames = new Set((bonusResult.top_scorers ?? []).map((name) => String(name || "").trim().toLocaleLowerCase("de-DE")));
+  const pickedScorer = topScorers.find((row) => row.id === bonusTip.top_scorer_id);
+  if (pickedScorer && officialScorerNames.has(String(pickedScorer.display_name || "").trim().toLocaleLowerCase("de-DE"))) {
+    points += bundesligaBonusPointValues.topScorer;
+  } else if (!pickedScorer && bonusTip.top_scorer && officialScorerNames.has(String(bonusTip.top_scorer).trim().toLocaleLowerCase("de-DE"))) {
+    points += bundesligaBonusPointValues.topScorer;
+  }
+
+  const officialRelegated = new Set(bonusResult.relegated_team_ids ?? []);
+  (bonusTip.relegated_team_ids ?? []).forEach((teamId) => {
+    if (officialRelegated.has(teamId)) points += bundesligaBonusPointValues.relegatedTeam;
+  });
+  return points;
+}
+
 export function getFinalScore(match) {
   return (match.matchResults ?? [])
     .slice()
@@ -117,6 +145,48 @@ export function buildDemoRanking(participants, tips, results) {
   });
 
   totals.forEach((row) => {
+    row.averagePoints = row.scoredTipCount > 0 ? row.matchPoints / row.scoredTipCount : 0;
+  });
+
+  return Array.from(totals.values()).sort((first, second) =>
+    second.points - first.points || first.name.localeCompare(second.name, "de"),
+  );
+}
+
+export function buildCompetitionRanking(participants, tips, results, bonusTips = [], bonusResult = null, topScorers = []) {
+  const resultsByMatch = new Map((results ?? []).map((result) => [result.match_id, result]));
+  const bonusTipByParticipant = new Map((bonusTips ?? []).map((tip) => [tip.participant_id, tip]));
+  const totals = new Map(
+    (participants ?? []).map((participant) => [
+      participant.id,
+      {
+        id: participant.id,
+        name: participant.display_name,
+        points: 0,
+        matchPoints: 0,
+        bonusPoints: 0,
+        tipCount: 0,
+        scoredTipCount: 0,
+        averagePoints: 0,
+      },
+    ]),
+  );
+
+  (tips ?? []).forEach((tip) => {
+    const row = totals.get(tip.participant_id);
+    if (!row) return;
+    row.tipCount += 1;
+    const result = resultsByMatch.get(tip.match_id);
+    const points = pointsFor(tip, result);
+    if (result?.status === "final") row.scoredTipCount += 1;
+    row.matchPoints += points;
+    row.points += points;
+  });
+
+  totals.forEach((row, participantId) => {
+    const bonusPoints = buildBundesligaBonusPoints(bonusTipByParticipant.get(participantId), bonusResult, topScorers);
+    row.bonusPoints = bonusPoints;
+    row.points += bonusPoints;
     row.averagePoints = row.scoredTipCount > 0 ? row.matchPoints / row.scoredTipCount : 0;
   });
 
