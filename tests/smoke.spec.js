@@ -51,3 +51,16 @@ test("test mode keeps tips editable without touching Supabase", async ({ page })
   await page.getByRole("button", { name: /Sichtbare Tipps speichern/ }).click();
   await expect(page.getByText("Test-Tipp gespeichert")).toBeVisible();
 });
+
+test("new unsaved tips start empty and can become an active zero", async ({ page }) => {
+  await page.goto("/?test=1#start");
+  await page.getByRole("button", { name: /Offene Tipps bearbeiten/ }).click();
+
+  const emptyCard = page.locator(".match-card").nth(8);
+  await expect(emptyCard.locator(".score-control strong").first()).toHaveText("-");
+  await emptyCard.locator(".score-control button").first().click();
+  await expect(emptyCard.locator(".score-control strong").first()).toHaveText("0");
+  await expect(emptyCard.getByRole("button", { name: "Tipp speichern" })).toBeDisabled();
+  await emptyCard.locator(".score-control").nth(1).locator("button").first().click();
+  await expect(emptyCard.getByRole("button", { name: "Tipp speichern" })).toBeEnabled();
+});

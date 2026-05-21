@@ -246,8 +246,8 @@ function createInitialTips(matches, savedTips = []) {
       return [
         match.id,
         {
-          scoreA: Number.isInteger(saved?.score_a) ? saved.score_a : 0,
-          scoreB: Number.isInteger(saved?.score_b) ? saved.score_b : 0,
+          scoreA: Number.isInteger(saved?.score_a) ? saved.score_a : null,
+          scoreB: Number.isInteger(saved?.score_b) ? saved.score_b : null,
           saved: Boolean(saved),
         },
       ];
@@ -517,6 +517,10 @@ function clampScore(value) {
   return Math.max(0, Math.min(12, value));
 }
 
+function isCompleteTip(tip) {
+  return Number.isInteger(tip?.scoreA) && Number.isInteger(tip?.scoreB);
+}
+
 function formatDate(date) {
   return new Intl.DateTimeFormat("de-DE", {
     weekday: "short",
@@ -575,6 +579,7 @@ function isDeadlinePassed(deadline) {
 }
 
 function pointsFor(tip, result) {
+  if (!isCompleteTip(tip)) return 0;
   if (!result || result.status !== "final") return 0;
   if (tip.scoreA === result.score_a && tip.scoreB === result.score_b) return 4;
   const tipGoalDiff = tip.scoreA - tip.scoreB;
@@ -966,7 +971,9 @@ export default function App() {
       ...current,
       [matchId]: {
         ...current[matchId],
-        [side]: clampScore(current[matchId][side] + delta),
+        [side]: Number.isInteger(current[matchId]?.[side])
+          ? clampScore(current[matchId][side] + delta)
+          : 0,
         saved: false,
       },
     }));
@@ -1064,7 +1071,11 @@ export default function App() {
     const pendingIds = Object.entries(tipSaveStatuses)
       .filter(([, status]) => status === "pending")
       .map(([matchId]) => matchId)
-      .filter((matchId) => participant?.id && !isLockedForUsers(matches.find((match) => match.id === matchId)));
+      .filter((matchId) =>
+        participant?.id &&
+        !isLockedForUsers(matches.find((match) => match.id === matchId)) &&
+        isCompleteTip(tipsRef.current[matchId])
+      );
 
     if (pendingIds.length === 0) return undefined;
 
@@ -1099,9 +1110,12 @@ export default function App() {
 
     const unlockedMatchIds = matchIds.filter((matchId) => {
       const match = matches.find((item) => item.id === matchId);
-      return match && !isLockedForUsers(match) && sourceTips[matchId];
+      return match && !isLockedForUsers(match) && isCompleteTip(sourceTips[matchId]);
     });
-    if (unlockedMatchIds.length === 0) return;
+    if (unlockedMatchIds.length === 0) {
+      setAppStatus("Bitte erst beide Torzahlen auswählen. Neue Tipps starten mit -:-.");
+      return;
+    }
 
     const submittedTips = Object.fromEntries(
       unlockedMatchIds.map((matchId) => [matchId, { ...sourceTips[matchId] }]),
@@ -2348,7 +2362,7 @@ function MatchCard({
         <button
           className="save-tip"
           onClick={() => saveTip(match.id)}
-          disabled={isLocked}
+          disabled={isLocked || !isCompleteTip(tip)}
         >
           <ShieldCheck size={17} />
           Tipp speichern
@@ -2425,7 +2439,7 @@ function ScoreControl({ value, onIncrease, onDecrease, disabled }) {
       <button type="button" onClick={onIncrease} disabled={disabled} aria-label="Tor hinzufügen">
         <ChevronUp size={22} />
       </button>
-      <strong>{value}</strong>
+      <strong>{Number.isInteger(value) ? value : "-"}</strong>
       <button type="button" onClick={onDecrease} disabled={disabled} aria-label="Tor entfernen">
         <ChevronDown size={22} />
       </button>
@@ -2710,12 +2724,20 @@ function AdminPanel({
   const [officialLoading, setOfficialLoading] = useState(false);
   const [playerDraft, setPlayerDraft] = useState({ displayName: "", teamName: "", aliases: "", active: true });
   const [adminCompetition, setAdminCompetition] = useState(competitions.wm2026.id);
+  const [bundesligaData, setBundesligaData] = useState(null);
+  const [bundesligaMessage, setBundesligaMessage] = useState("");
+  const [bundesligaLoading, setBundesligaLoading] = useState(false);
   const activePlayers = players.filter((player) => player.active !== false);
   const isBundesligaAdmin = adminCompetition === competitions.bundesliga.id;
 
   useEffect(() => {
     setBonusResultDraft(createInitialBonusResults(matches, bonusResults, players));
   }, [matches, bonusResults, players]);
+
+  useEffect(() => {
+    if (!isBundesligaAdmin || !session?.access_token) return;
+    void loadBundesligaData();
+  }, [isBundesligaAdmin, session?.access_token]);
 
   const unresolvedTopScorers = useMemo(() => {
     const rows = new Map();
@@ -2916,8 +2938,8 @@ function AdminPanel({
         return [
           match.id,
           {
-            scoreA: Number.isInteger(tip?.score_a) ? tip.score_a : 0,
-            scoreB: Number.isInteger(tip?.score_b) ? tip.score_b : 0,
+            scoreA: Number.isInteger(tip?.score_a) ? tip.score_a : null,
+            scoreB: Number.isInteger(tip?.score_b) ? tip.score_b : null,
             saved: Boolean(tip),
           },
         ];
@@ -2930,10 +2952,15 @@ function AdminPanel({
 
   async function saveSelectedParticipantTips(matchIds) {
     if (!selectedParticipant) return;
+    const completeMatchIds = matchIds.filter((matchId) => isCompleteTip(participantTipDrafts[matchId]));
+    if (completeMatchIds.length === 0) {
+      setAdminMessage("Bitte erst beide Torzahlen eintragen. Leere Tipps bleiben -:-.");
+      return;
+    }
     try {
       const payload = await onSaveParticipantTips(
         selectedParticipant.id,
-        matchIds.map((matchId) => ({
+        completeMatchIds.map((matchId) => ({
           matchId,
           scoreA: participantTipDrafts[matchId].scoreA,
           scoreB: participantTipDrafts[matchId].scoreB,
@@ -3045,6 +3072,45 @@ function AdminPanel({
     }
   }
 
+  async function loadBundesligaData() {
+    setBundesligaLoading(true);
+    try {
+      const payload = await apiGetWithAuth("/api/admin-bundesliga-data", session?.access_token);
+      setBundesligaData(payload);
+    } catch (error) {
+      setBundesligaMessage(error.message);
+    } finally {
+      setBundesligaLoading(false);
+    }
+  }
+
+  async function runBundesligaAction(action, body = {}) {
+    setBundesligaLoading(true);
+    try {
+      const payload = await apiPost("/api/admin-bundesliga-test-actions", { action, ...body }, session?.access_token);
+      await loadBundesligaData();
+      return payload;
+    } catch (error) {
+      setBundesligaMessage(error.message);
+      return null;
+    } finally {
+      setBundesligaLoading(false);
+    }
+  }
+
+  async function importBundesliga(includeRelegation) {
+    setBundesligaLoading(true);
+    try {
+      const payload = await apiPost("/api/admin-bundesliga-import", { includeRelegation }, session?.access_token);
+      setBundesligaMessage(`${payload.importedMatches} Spiele, ${payload.importedTeams} Teams und ${payload.importedGoals} Tore importiert.`);
+      await loadBundesligaData();
+    } catch (error) {
+      setBundesligaMessage(error.message);
+    } finally {
+      setBundesligaLoading(false);
+    }
+  }
+
   if (!session) {
     return (
       <section className="admin-panel panel">
@@ -3110,6 +3176,27 @@ function AdminPanel({
 
       {isBundesligaAdmin && (
         <BundesligaAdminSetup
+          data={bundesligaData}
+          loading={bundesligaLoading}
+          message={bundesligaMessage}
+          onRefresh={loadBundesligaData}
+          onImport={importBundesliga}
+          onCreateDemoParticipant={async (displayName) => {
+            const payload = await runBundesligaAction("create-demo-participant", { displayName });
+            if (payload?.participant) setBundesligaMessage(`Demo-Tipper ${payload.participant.display_name} angelegt.`);
+          }}
+          onGenerateDemoTips={async () => {
+            const payload = await runBundesligaAction("generate-demo-tips");
+            if (payload) setBundesligaMessage(`${payload.tips?.length ?? 0} Demo-Tipps gespeichert.`);
+          }}
+          onImportResults={async (throughMatchday) => {
+            const payload = await runBundesligaAction("import-results", { throughMatchday });
+            if (payload) setBundesligaMessage(`Ergebnisse bis Spieltag ${payload.throughMatchday} importiert.`);
+          }}
+          onResetResults={async () => {
+            const payload = await runBundesligaAction("reset-results");
+            if (payload) setBundesligaMessage("Bundesliga-Test-Ergebnisse zurückgesetzt.");
+          }}
           onBackToWorldCup={() => setAdminCompetition(competitions.wm2026.id)}
         />
       )}
@@ -3728,7 +3815,7 @@ function AdminPanel({
 
             <div className="participant-tip-list">
               {matches.map((match) => {
-                const draft = participantTipDrafts[match.id] ?? { scoreA: 0, scoreB: 0 };
+                const draft = participantTipDrafts[match.id] ?? { scoreA: null, scoreB: null };
                 return (
                   <div className="participant-tip-row" key={match.id}>
                     <span>Spiel {match.matchNumber}</span>
@@ -3737,13 +3824,14 @@ function AdminPanel({
                       type="number"
                       min="0"
                       max="12"
-                      value={draft.scoreA}
+                      placeholder="-"
+                      value={Number.isInteger(draft.scoreA) ? draft.scoreA : ""}
                       onChange={(event) =>
                         setParticipantTipDrafts((current) => ({
                           ...current,
                           [match.id]: {
                             ...current[match.id],
-                            scoreA: Number(event.target.value),
+                            scoreA: event.target.value === "" ? null : Number(event.target.value),
                             saved: false,
                           },
                         }))
@@ -3753,19 +3841,20 @@ function AdminPanel({
                       type="number"
                       min="0"
                       max="12"
-                      value={draft.scoreB}
+                      placeholder="-"
+                      value={Number.isInteger(draft.scoreB) ? draft.scoreB : ""}
                       onChange={(event) =>
                         setParticipantTipDrafts((current) => ({
                           ...current,
                           [match.id]: {
                             ...current[match.id],
-                            scoreB: Number(event.target.value),
+                            scoreB: event.target.value === "" ? null : Number(event.target.value),
                             saved: false,
                           },
                         }))
                       }
                     />
-                    <button type="button" className="save-tip" onClick={() => saveSelectedParticipantTips([match.id])}>
+                    <button type="button" className="save-tip" onClick={() => saveSelectedParticipantTips([match.id])} disabled={!isCompleteTip(draft)}>
                       {draft.saved ? "Gespeichert" : "Speichern"}
                     </button>
                   </div>
@@ -3791,17 +3880,42 @@ function AdminPanel({
   );
 }
 
-function BundesligaAdminSetup({ onBackToWorldCup }) {
+function BundesligaAdminSetup({
+  data,
+  loading,
+  message,
+  onRefresh,
+  onImport,
+  onCreateDemoParticipant,
+  onGenerateDemoTips,
+  onImportResults,
+  onResetResults,
+  onBackToWorldCup,
+}) {
+  const [includeRelegation, setIncludeRelegation] = useState(true);
+  const [throughMatchday, setThroughMatchday] = useState(1);
+  const [demoName, setDemoName] = useState("");
+  const matches = data?.matches ?? [];
+  const leagueMatches = matches.filter((match) => match.phase === "league");
+  const resultCount = data?.results?.length ?? 0;
+  const maxMatchday = Math.max(34, ...leagueMatches.map((match) => Number(match.matchday) || 0));
+  const nextMatchday = Math.min(maxMatchday, Math.max(1, throughMatchday));
+
+  async function createDemoParticipant() {
+    await onCreateDemoParticipant(demoName);
+    setDemoName("");
+  }
+
   return (
     <section className="bundesliga-admin-setup">
       <div className="bundesliga-status-card">
         <Trophy size={30} />
         <div>
-          <span>Nicht öffentlich</span>
-          <strong>Bundesliga-Grundversion vorbereitet</strong>
+          <span>Admin-only Testumgebung</span>
+          <strong>Bundesliga 2025/2026</strong>
           <p>
-            Dieser Bereich ist nur im Admin sichtbar. Nutzer bleiben weiter in der WM-Version,
-            bis die Bundesliga bewusst freigeschaltet wird.
+            OpenLigaDB liefert Spielplan, Ergebnisse, Teams, Logos und Tore. Normale Nutzer bleiben
+            weiter in der WM-Version, bis die Bundesliga bewusst freigeschaltet wird.
           </p>
         </div>
       </div>
@@ -3809,31 +3923,189 @@ function BundesligaAdminSetup({ onBackToWorldCup }) {
       <div className="bundesliga-setup-grid">
         <article>
           <span>Spielplanquelle</span>
-          <strong>API später</strong>
-          <p>Der Import wird vorbereitet, aber noch nicht an einen Anbieter gebunden.</p>
+          <strong>OpenLigaDB bl1/2025</strong>
+          <p>{matches.length} Spiele importiert, davon {leagueMatches.length} Liga-Spiele.</p>
         </article>
         <article>
-          <span>Bundesliga-Spielplan</span>
-          <strong>Platzhalter</strong>
-          <p>Hier kann später der Spielplan geladen, geprüft und veröffentlicht werden.</p>
+          <span>Teams & Logos</span>
+          <strong>{data?.teams?.length ?? 0} Teams</strong>
+          <p>Logos werden aus den OpenLigaDB-Teamdaten übernommen.</p>
         </article>
         <article>
-          <span>Bundesliga-Tipps</span>
-          <strong>Noch geschlossen</strong>
-          <p>Es werden aktuell keine Bundesliga-Tipps gespeichert oder öffentlich angezeigt.</p>
+          <span>Demo-Tipps</span>
+          <strong>{data?.demoTips?.length ?? 0} Tipps</strong>
+          <p>{data?.demoParticipants?.length ?? 0} Admin-Demo-Tipper testen die Saison im Zeitraffer.</p>
         </article>
         <article>
-          <span>Bundesliga-Rangliste</span>
-          <strong>Noch leer</strong>
-          <p>Die Wertung bleibt getrennt von der WM und wird erst mit echten Daten aktiviert.</p>
+          <span>Ergebnisstand</span>
+          <strong>{resultCount} Ergebnisse</strong>
+          <p>Ergebnisse können spieltagweise importiert und wieder zurückgesetzt werden.</p>
         </article>
+      </div>
+
+      <div className="bundesliga-toolbar">
+        <button type="button" className="primary-button compact" onClick={() => onImport(includeRelegation)} disabled={loading}>
+          OpenLigaDB importieren
+        </button>
+        <label>
+          <input
+            type="checkbox"
+            checked={includeRelegation}
+            onChange={(event) => setIncludeRelegation(event.target.checked)}
+          />
+          Relegation mitladen
+        </label>
+        <button type="button" className="ghost-button" onClick={onRefresh} disabled={loading}>
+          Aktualisieren
+        </button>
+      </div>
+
+      {message && <p className="admin-message">{message}</p>}
+
+      <section className="bundesliga-test-controls">
+        <div>
+          <strong>Test im Zeitraffer</strong>
+          <p>Erst Demo-Tipps füllen, dann Ergebnisse bis zu einem Spieltag importieren und Rangliste/Tabelle prüfen.</p>
+        </div>
+        <button type="button" className="ghost-button" onClick={onGenerateDemoTips} disabled={loading || leagueMatches.length === 0}>
+          Demo-Tipps automatisch füllen
+        </button>
+        <label>
+          Ergebnisse bis Spieltag
+          <input
+            type="number"
+            min="1"
+            max={maxMatchday}
+            value={nextMatchday}
+            onChange={(event) => setThroughMatchday(Number(event.target.value))}
+          />
+        </label>
+        <button type="button" className="primary-button compact" onClick={() => onImportResults(nextMatchday)} disabled={loading || leagueMatches.length === 0}>
+          Ergebnisse importieren
+        </button>
+        <button type="button" className="danger-button" onClick={onResetResults} disabled={loading || resultCount === 0}>
+          Test-Ergebnisse zurücksetzen
+        </button>
+      </section>
+
+      <section className="bundesliga-demo-create">
+        <label>
+          Demo-Tipper anlegen
+          <input
+            value={demoName}
+            onChange={(event) => setDemoName(event.target.value)}
+            placeholder="Name des Test-Tippers"
+          />
+        </label>
+        <button type="button" className="primary-button compact" onClick={createDemoParticipant} disabled={loading || demoName.trim().length < 2}>
+          Demo-Tipper speichern
+        </button>
+      </section>
+
+      <div className="bundesliga-admin-grid">
+        <section>
+          <header className="section-title">
+            <Trophy size={22} />
+            <h2>Bundesliga-Tabelle</h2>
+          </header>
+          <div className="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Platz</th>
+                  <th>Team</th>
+                  <th>Sp</th>
+                  <th>TD</th>
+                  <th>Pt</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(data?.table ?? []).map((row, index) => (
+                  <tr key={row.teamId}>
+                    <td>{index + 1}</td>
+                    <td>
+                      <span className="table-team">
+                        {row.logoUrl && <img src={row.logoUrl} alt="" />}
+                        <span>{row.team}</span>
+                      </span>
+                    </td>
+                    <td>{row.played}</td>
+                    <td>{row.goalsFor - row.goalsAgainst}</td>
+                    <td>{row.points}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section>
+          <header className="section-title">
+            <UsersRound size={22} />
+            <h2>Demo-Rangliste</h2>
+          </header>
+          <div className="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Platz</th>
+                  <th>Name</th>
+                  <th>Tipps</th>
+                  <th>Punkte</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(data?.ranking ?? []).map((row, index) => (
+                  <tr key={row.id}>
+                    <td>{index + 1}</td>
+                    <td>{row.name}</td>
+                    <td>{row.tipCount}</td>
+                    <td>{row.points}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      <div className="bundesliga-admin-grid">
+        <section>
+          <header className="section-title">
+            <Goal size={22} />
+            <h2>Torschützen</h2>
+          </header>
+          <div className="bundesliga-scorer-list">
+            {(data?.topScorers ?? []).slice(0, 10).map((row) => (
+              <span key={row.name}>{row.name}<strong>{row.goals}</strong></span>
+            ))}
+            {(data?.topScorers ?? []).length === 0 && <p className="fine-print">Noch keine Torschützen importiert.</p>}
+          </div>
+        </section>
+
+        <section>
+          <header className="section-title">
+            <CalendarDays size={22} />
+            <h2>Spielplan-Auszug</h2>
+          </header>
+          <div className="bundesliga-match-list">
+            {leagueMatches.slice(0, 8).map((match) => (
+              <div key={match.id}>
+                <span>ST {match.matchday}</span>
+                <strong>{match.team_a_name} - {match.team_b_name}</strong>
+                <small>{formatDateTime(match.kickoff_at)}</small>
+              </div>
+            ))}
+            {leagueMatches.length === 0 && <p className="fine-print">Noch kein Spielplan importiert.</p>}
+          </div>
+        </section>
       </div>
 
       <div className="bundesliga-next-steps">
         <strong>Nächste Ausbaustufe</strong>
         <p>
-          Als nächstes können wir Wettbewerbe in der Datenbank trennen, eine Spielplan-API auswählen
-          und eigene Bundesliga-Regeln für Tipps, Bonusfragen und Rangliste festlegen.
+          Nach dem Testlauf können wir die dann aktuelle Bundesliga-Saison anlegen, echte Teilnehmer
+          freischalten und die öffentliche Navigation aktivieren.
         </p>
         <button type="button" className="ghost-button" onClick={onBackToWorldCup}>
           Zur WM-Verwaltung zurück
