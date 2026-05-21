@@ -42,6 +42,151 @@ export const bundesligaBonusPointValues = {
   relegatedTeam: 4,
 };
 
+export const bundesligaRulesSummary = {
+  matchPoints: [
+    ["Exaktes Ergebnis", "4 Punkte"],
+    ["Richtige Tordifferenz", "3 Punkte"],
+    ["Richtige Tendenz", "2 Punkte"],
+    ["Falsch", "0 Punkte"],
+  ],
+  bonusPoints: [
+    ["Meister", "6 Punkte"],
+    ["Torschützenkönig", "6 Punkte"],
+    ["Absteiger", "4 Punkte je Verein"],
+  ],
+  visibility: "Fremde Tipps werden pro Spiel ab Anpfiff sichtbar.",
+  tieBreaker: "Bei Punktgleichstand zählen zuerst die Spieltagssiege.",
+};
+
+export function canViewMatchTips(match, now = new Date()) {
+  if (!match?.kickoff_at) return false;
+  const kickoff = new Date(match.kickoff_at);
+  return !Number.isNaN(kickoff.getTime()) && kickoff <= now;
+}
+
+export function getBundesligaMatchStatus(match, result = null, now = new Date()) {
+  if (result?.status === "final") return "finished";
+  return canViewMatchTips(match, now) ? "locked" : "open";
+}
+
+export function buildBonusStatus(bonusTip = null) {
+  const relegatedCount = Array.isArray(bonusTip?.relegated_team_ids) ? bonusTip.relegated_team_ids.length : 0;
+  const doneCount = (bonusTip?.champion_team_id ? 1 : 0) + (bonusTip?.top_scorer_id || bonusTip?.top_scorer ? 1 : 0) + Math.min(3, relegatedCount);
+  return {
+    doneCount,
+    totalCount: 5,
+    championDone: Boolean(bonusTip?.champion_team_id),
+    topScorerDone: Boolean(bonusTip?.top_scorer_id || bonusTip?.top_scorer),
+    relegatedDoneCount: Math.min(3, relegatedCount),
+    complete: doneCount >= 5,
+  };
+}
+
+export function buildMatchdayStatus(matches = [], tips = [], results = [], now = new Date()) {
+  const tipsByMatch = new Map((tips ?? []).map((tip) => [tip.match_id, tip]));
+  const resultsByMatch = new Map((results ?? []).map((result) => [result.match_id, result]));
+  const grouped = new Map();
+
+  (matches ?? []).forEach((match) => {
+    const matchday = Number(match.matchday) || 0;
+    if (!matchday) return;
+    const tip = tipsByMatch.get(match.id);
+    const result = resultsByMatch.get(match.id);
+    const row = grouped.get(matchday) ?? {
+      matchday,
+      matchCount: 0,
+      savedTipCount: 0,
+      openTipCount: 0,
+      lockedCount: 0,
+      finishedCount: 0,
+      status: "open",
+    };
+    row.matchCount += 1;
+    if (tip) row.savedTipCount += 1;
+    if (!tip) row.openTipCount += 1;
+    const status = getBundesligaMatchStatus(match, result, now);
+    if (status === "locked") row.lockedCount += 1;
+    if (status === "finished") row.finishedCount += 1;
+    grouped.set(matchday, row);
+  });
+
+  return Array.from(grouped.values())
+    .map((row) => ({
+      ...row,
+      status: row.finishedCount === row.matchCount
+        ? "finished"
+        : row.openTipCount === 0
+          ? "complete"
+          : row.lockedCount > 0
+            ? "locked"
+            : "open",
+    }))
+    .sort((first, second) => first.matchday - second.matchday);
+}
+
+export function buildMatchdayPointRows(participants = [], tips = [], matches = [], results = []) {
+  const matchesById = new Map((matches ?? []).map((match) => [match.id, match]));
+  const resultsByMatch = new Map((results ?? []).map((result) => [result.match_id, result]));
+  const grouped = new Map();
+
+  (participants ?? []).forEach((participant) => {
+    (matches ?? []).forEach((match) => {
+      const matchday = Number(match.matchday) || 0;
+      if (!matchday) return;
+      const key = `${matchday}:${participant.id}`;
+      if (!grouped.has(key)) {
+        grouped.set(key, {
+          matchday,
+          participantId: participant.id,
+          name: participant.display_name,
+          points: 0,
+          tipCount: 0,
+          scoredTipCount: 0,
+        });
+      }
+    });
+  });
+
+  (tips ?? []).forEach((tip) => {
+    const match = matchesById.get(tip.match_id);
+    if (!match) return;
+    const matchday = Number(match.matchday) || 0;
+    const key = `${matchday}:${tip.participant_id}`;
+    const row = grouped.get(key);
+    if (!row) return;
+    const result = resultsByMatch.get(tip.match_id);
+    row.tipCount += 1;
+    if (result?.status === "final") row.scoredTipCount += 1;
+    row.points += pointsFor(tip, result);
+  });
+
+  return Array.from(grouped.values()).sort((first, second) =>
+    first.matchday - second.matchday || second.points - first.points || first.name.localeCompare(second.name, "de"),
+  );
+}
+
+export function buildMatchdayWins(participants = [], tips = [], matches = [], results = []) {
+  const wins = new Map((participants ?? []).map((participant) => [participant.id, 0]));
+  const pointRows = buildMatchdayPointRows(participants, tips, matches, results);
+  const rowsByMatchday = new Map();
+  pointRows.forEach((row) => {
+    const rows = rowsByMatchday.get(row.matchday) ?? [];
+    rows.push(row);
+    rowsByMatchday.set(row.matchday, rows);
+  });
+
+  rowsByMatchday.forEach((rows) => {
+    const scoredRows = rows.filter((row) => row.scoredTipCount > 0);
+    if (!scoredRows.length) return;
+    const best = Math.max(...scoredRows.map((row) => row.points));
+    scoredRows
+      .filter((row) => row.points === best)
+      .forEach((row) => wins.set(row.participantId, (wins.get(row.participantId) ?? 0) + 1));
+  });
+
+  return wins;
+}
+
 export function buildBundesligaBonusPoints(bonusTip, bonusResult, topScorers = []) {
   if (!bonusTip || !bonusResult) return 0;
   let points = 0;
@@ -173,9 +318,11 @@ export function buildDemoRanking(participants, tips, results) {
   );
 }
 
-export function buildCompetitionRanking(participants, tips, results, bonusTips = [], bonusResult = null, topScorers = []) {
+export function buildCompetitionRanking(participants, tips, results, bonusTips = [], bonusResult = null, topScorers = [], matches = []) {
   const resultsByMatch = new Map((results ?? []).map((result) => [result.match_id, result]));
   const bonusTipByParticipant = new Map((bonusTips ?? []).map((tip) => [tip.participant_id, tip]));
+  const matchdayWins = buildMatchdayWins(participants, tips, matches, results);
+  const matchdayPointRows = buildMatchdayPointRows(participants, tips, matches, results);
   const totals = new Map(
     (participants ?? []).map((participant) => [
       participant.id,
@@ -188,6 +335,8 @@ export function buildCompetitionRanking(participants, tips, results, bonusTips =
         tipCount: 0,
         scoredTipCount: 0,
         averagePoints: 0,
+        matchdayWins: 0,
+        matchdayPoints: {},
       },
     ]),
   );
@@ -207,12 +356,62 @@ export function buildCompetitionRanking(participants, tips, results, bonusTips =
     const bonusPoints = buildBundesligaBonusPoints(bonusTipByParticipant.get(participantId), bonusResult, topScorers);
     row.bonusPoints = bonusPoints;
     row.points += bonusPoints;
+    row.matchdayWins = matchdayWins.get(participantId) ?? 0;
+    row.matchdayPoints = Object.fromEntries(
+      matchdayPointRows
+        .filter((item) => item.participantId === participantId)
+        .map((item) => [item.matchday, item.points]),
+    );
     row.averagePoints = row.scoredTipCount > 0 ? row.matchPoints / row.scoredTipCount : 0;
   });
 
   return Array.from(totals.values()).sort((first, second) =>
-    second.points - first.points || first.name.localeCompare(second.name, "de"),
+    second.points - first.points ||
+    second.matchdayWins - first.matchdayWins ||
+    second.matchPoints - first.matchPoints ||
+    first.name.localeCompare(second.name, "de"),
   );
+}
+
+export function buildMatchdayLive(matches = [], participants = [], tips = [], results = [], participantId = "", matchday = 1, now = new Date()) {
+  const visibleMatches = (matches ?? []).filter((match) => Number(match.matchday) === Number(matchday));
+  const resultsByMatch = new Map((results ?? []).map((result) => [result.match_id, result]));
+  const participantsById = new Map((participants ?? []).map((participant) => [participant.id, participant]));
+  const pointRows = buildMatchdayPointRows(participants, tips, visibleMatches, results);
+
+  return {
+    matchday: Number(matchday),
+    standings: pointRows.filter((row) => row.tipCount > 0 || row.scoredTipCount > 0),
+    matches: visibleMatches.map((match) => {
+      const result = resultsByMatch.get(match.id) ?? null;
+      const visible = canViewMatchTips(match, now);
+      const matchTips = (tips ?? [])
+        .filter((tip) => tip.match_id === match.id)
+        .map((tip) => {
+          const isOwnTip = tip.participant_id === participantId;
+          return {
+            participantId: tip.participant_id,
+            participantName: participantsById.get(tip.participant_id)?.display_name ?? "Teilnehmer",
+            isOwnTip,
+            visible: visible || isOwnTip,
+            scoreA: visible || isOwnTip ? tip.score_a : null,
+            scoreB: visible || isOwnTip ? tip.score_b : null,
+            points: result?.status === "final" && (visible || isOwnTip) ? pointsFor(tip, result) : null,
+          };
+        });
+      return {
+        id: match.id,
+        matchday: match.matchday,
+        kickoffAt: match.kickoff_at,
+        teamA: match.team_a_name,
+        teamB: match.team_b_name,
+        result,
+        status: getBundesligaMatchStatus(match, result, now),
+        tipsVisible: visible,
+        tips: matchTips,
+      };
+    }),
+  };
 }
 
 export function buildTopScorers(goals) {

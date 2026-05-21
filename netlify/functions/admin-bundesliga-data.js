@@ -2,6 +2,8 @@ import { requireAdmin } from "./_shared/admin.js";
 import { json } from "./_shared/supabase.js";
 import {
   BUNDESLIGA_COMPETITION_ID,
+  buildMatchdayLive,
+  buildMatchdayStatus,
   buildCompetitionRanking,
   buildDemoRanking,
   buildLeagueTable,
@@ -147,6 +149,17 @@ export default async (req) => {
       participantBonusTips.data ?? [],
       bonusResults.data ?? null,
       topScorers,
+      leagueMatches,
+    );
+    const participantMatchdayStatus = buildMatchdayStatus(leagueMatches, participantTips.data ?? [], results.data ?? []);
+    const demoMatchdayStatus = buildMatchdayStatus(leagueMatches, demoTips.data ?? [], results.data ?? []);
+    const activeLive = buildMatchdayLive(
+      leagueMatches,
+      participants.data ?? [],
+      participantTips.data ?? [],
+      results.data ?? [],
+      "",
+      Number(new URL(req.url).searchParams.get("matchday")) || 1,
     );
 
     return json({
@@ -164,6 +177,9 @@ export default async (req) => {
       participantTips: participantTips.data ?? [],
       participantBonusTips: participantBonusTips.data ?? [],
       participantRanking,
+      participantMatchdayStatus,
+      demoMatchdayStatus,
+      activeLive,
       topScorers: topScorerRows,
       inviteCodes: inviteCodes.data ?? [],
       dataQuality: {

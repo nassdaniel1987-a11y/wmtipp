@@ -1,8 +1,11 @@
 import { getServiceClient, json } from "./_shared/supabase.js";
 import {
   BUNDESLIGA_COMPETITION_ID,
+  buildBonusStatus,
   buildLeagueTable,
+  buildMatchdayStatus,
   normalizeTeamLogoUrl,
+  bundesligaRulesSummary,
 } from "./_shared/bundesliga.js";
 
 export default async (req) => {
@@ -36,6 +39,9 @@ export default async (req) => {
       topScorers: topScorers.data ?? [],
       bonusResults: bonusResults.data ?? null,
       table: buildLeagueTable(matches.data ?? [], results.data ?? [], normalizedTeams),
+      matchdayStatus: buildMatchdayStatus(matches.data ?? [], [], results.data ?? []),
+      bonusStatus: buildBonusStatus(null),
+      rulesSummary: bundesligaRulesSummary,
     });
   } catch (error) {
     return json({ error: error.message || "Bundesliga-Daten konnten nicht geladen werden." }, 500);

@@ -75,6 +75,10 @@ test("hidden Bundesliga test flow supports tips, bonus and ranking", async ({ pa
   await expect(page).toHaveURL(/#bundesliga-tippen$/);
   await expect(page.getByRole("heading", { name: "Spieltag tippen" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Alle Tipps dieses Spieltags speichern" })).toBeVisible();
+  await expect(page.getByText("Offene Tipps fertig machen")).toBeVisible();
+  await expect(page.getByText("Live-Spieltag")).toBeVisible();
+  await expect(page.getByText("versteckt bis Anpfiff").first()).toBeVisible();
+  await expect(page.getByText("Fremde Tipps sind pro Spiel ab Anpfiff sichtbar.")).toBeVisible();
   await expect(page.getByText("Exaktes Ergebnis")).toBeVisible();
   await expect(page.locator(".bundesliga-rule-list").getByText("4 Punkte")).toBeVisible();
   const firstCard = page.locator(".bundesliga-user-match-card").first();
@@ -84,8 +88,9 @@ test("hidden Bundesliga test flow supports tips, bonus and ranking", async ({ pa
   await expect(firstCard.locator(".score-control strong").first()).toHaveText("0");
   await expect(firstCard.getByRole("button", { name: "Speichern" })).toBeEnabled();
 
-  await page.getByRole("button", { name: "Bonus" }).click();
+  await page.getByRole("button", { name: "Bonus", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Bonus tippen" })).toBeVisible();
+  await expect(page.getByText("0 / 5 Bonus-Tipps erledigt")).toBeVisible();
   await page.getByRole("button", { name: /FC Bayern München/ }).first().click();
   await page.getByRole("button", { name: /Harry Kane/ }).click();
   await expect(page.getByRole("button", { name: "Bonus speichern" })).toBeVisible();
@@ -93,4 +98,5 @@ test("hidden Bundesliga test flow supports tips, bonus and ranking", async ({ pa
   await page.getByRole("button", { name: "Rangliste" }).click();
   await expect(page.getByRole("heading", { name: "Bundesliga Rangliste" })).toBeVisible();
   await expect(page.locator(".bundesliga-public-ranking").getByText("Daniel BL", { exact: true })).toBeVisible();
+  await expect(page.locator(".bundesliga-public-ranking").getByText("Siege")).toBeVisible();
 });

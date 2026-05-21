@@ -262,22 +262,154 @@ function createTestBundesligaData() {
     { id: "stuttgart", name: "VfB Stuttgart", short_name: "VfB", logo_url: "https://upload.wikimedia.org/wikipedia/commons/e/eb/VfB_Stuttgart_1893_Logo.svg" },
   ];
   const matches = [
-    { id: "bl-test-1", match_number: 1, matchday: 1, phase: "league", match_date: "2026-08-14", match_time: "20:30", kickoff_at: "2026-08-14T18:30:00Z", team_a_id: "bayern", team_b_id: "dortmund", team_a_name: "FC Bayern München", team_b_name: "Borussia Dortmund", status: "scheduled" },
+    { id: "bl-test-1", match_number: 1, matchday: 1, phase: "league", match_date: "2026-05-01", match_time: "20:30", kickoff_at: "2026-05-01T18:30:00Z", team_a_id: "bayern", team_b_id: "dortmund", team_a_name: "FC Bayern München", team_b_name: "Borussia Dortmund", status: "final" },
     { id: "bl-test-2", match_number: 2, matchday: 1, phase: "league", match_date: "2026-08-15", match_time: "15:30", kickoff_at: "2026-08-15T13:30:00Z", team_a_id: "leipzig", team_b_id: "stuttgart", team_a_name: "RB Leipzig", team_b_name: "VfB Stuttgart", status: "scheduled" },
     { id: "bl-test-3", match_number: 3, matchday: 2, phase: "league", match_date: "2026-08-21", match_time: "20:30", kickoff_at: "2026-08-21T18:30:00Z", team_a_id: "dortmund", team_b_id: "leipzig", team_a_name: "Borussia Dortmund", team_b_name: "RB Leipzig", status: "scheduled" },
+  ];
+  const participants = [
+    { id: "bl-test", display_name: "Daniel BL" },
+    { id: "bl-rival", display_name: "Aaron BL" },
+  ];
+  const participantTips = [
+    { participant_id: "bl-test", match_id: "bl-test-1", score_a: 2, score_b: 1 },
+    { participant_id: "bl-rival", match_id: "bl-test-1", score_a: 1, score_b: 1 },
+    { participant_id: "bl-rival", match_id: "bl-test-2", score_a: 2, score_b: 0 },
   ];
   return {
     competition: { id: "bundesliga-2025", status: "admin_test", public_enabled: false },
     teams,
     matches,
     results: [{ match_id: "bl-test-1", score_a: 2, score_b: 1, status: "final" }],
+    participants,
+    participantTips,
     topScorers: [
       { id: "kane", display_name: "Harry Kane", goals: 36 },
       { id: "undav", display_name: "Deniz Undav", goals: 19 },
     ],
     ranking: [
-      { name: "Daniel BL", points: 4, matchPoints: 4, bonusPoints: 0, tipCount: 1, scoredTipCount: 1, averagePoints: 4 },
+      { id: "bl-test", name: "Daniel BL", points: 4, matchPoints: 4, bonusPoints: 0, tipCount: 1, scoredTipCount: 1, averagePoints: 4, matchdayWins: 1, matchdayPoints: { 1: 4 } },
+      { id: "bl-rival", name: "Aaron BL", points: 0, matchPoints: 0, bonusPoints: 0, tipCount: 2, scoredTipCount: 1, averagePoints: 0, matchdayWins: 0, matchdayPoints: { 1: 0 } },
     ],
+  };
+}
+
+function canViewBundesligaTips(match) {
+  if (!match?.kickoffAt) return false;
+  const kickoff = new Date(match.kickoffAt);
+  return !Number.isNaN(kickoff.getTime()) && kickoff <= new Date();
+}
+
+function getBundesligaMatchState(match, result) {
+  if (result?.status === "final") return "finished";
+  return canViewBundesligaTips(match) ? "locked" : "open";
+}
+
+function buildBundesligaBonusStatus(bonusTip) {
+  const relegatedDoneCount = Math.min(3, bonusTip?.relegatedTeamIds?.length ?? 0);
+  const doneCount = (bonusTip?.championTeamId ? 1 : 0) + (bonusTip?.topScorerId || bonusTip?.topScorer ? 1 : 0) + relegatedDoneCount;
+  return {
+    doneCount,
+    totalCount: 5,
+    relegatedDoneCount,
+    complete: doneCount >= 5,
+  };
+}
+
+function buildBundesligaMatchdayStatus(matches, tips, resultsByMatch) {
+  const grouped = new Map();
+  matches.forEach((match) => {
+    const matchday = Number(match.matchday);
+    if (!Number.isInteger(matchday)) return;
+    const row = grouped.get(matchday) ?? {
+      matchday,
+      matchCount: 0,
+      savedTipCount: 0,
+      openTipCount: 0,
+      lockedCount: 0,
+      finishedCount: 0,
+      status: "open",
+    };
+    const tip = tips[match.id];
+    const result = resultsByMatch.get(match.id);
+    row.matchCount += 1;
+    if (tip?.saved) row.savedTipCount += 1;
+    if (!tip?.saved) row.openTipCount += 1;
+    const state = getBundesligaMatchState(match, result);
+    if (state === "locked") row.lockedCount += 1;
+    if (state === "finished") row.finishedCount += 1;
+    grouped.set(matchday, row);
+  });
+  return Array.from(grouped.values()).map((row) => ({
+    ...row,
+    status: row.finishedCount === row.matchCount
+      ? "finished"
+      : row.openTipCount === 0
+        ? "complete"
+        : row.lockedCount > 0
+          ? "locked"
+          : "open",
+  }));
+}
+
+function buildBundesligaLiveFromData(data, participant, selectedMatchday) {
+  const rawMatches = (data?.matches ?? []).map(mapBundesligaMatch).filter((match) => Number(match.matchday) === Number(selectedMatchday));
+  const participants = data?.participants ?? [];
+  const participantTips = data?.participantTips ?? [];
+  const resultsByMatch = new Map((data?.results ?? []).map((result) => [result.match_id, result]));
+  const standings = new Map(participants.map((row) => [row.id, {
+    participantId: row.id,
+    name: row.display_name,
+    points: 0,
+    tipCount: 0,
+    scoredTipCount: 0,
+  }]));
+
+  rawMatches.forEach((match) => {
+    const result = resultsByMatch.get(match.id);
+    participantTips.filter((tip) => tip.match_id === match.id).forEach((tip) => {
+      const row = standings.get(tip.participant_id);
+      if (!row) return;
+      row.tipCount += 1;
+      if (result?.status === "final") row.scoredTipCount += 1;
+      row.points += pointsFor({ scoreA: tip.score_a, scoreB: tip.score_b }, result);
+    });
+  });
+
+  return {
+    matchday: Number(selectedMatchday),
+    standings: Array.from(standings.values())
+      .filter((row) => row.tipCount > 0 || row.scoredTipCount > 0)
+      .sort((first, second) => second.points - first.points || first.name.localeCompare(second.name, "de")),
+    matches: rawMatches.map((match) => {
+      const result = resultsByMatch.get(match.id) ?? null;
+      const tipsVisible = canViewBundesligaTips(match) || result?.status === "final";
+      return {
+        id: match.id,
+        matchday: match.matchday,
+        kickoffAt: match.kickoffAt,
+        teamA: match.teamA,
+        teamB: match.teamB,
+        result,
+        status: getBundesligaMatchState(match, result),
+        tipsVisible,
+        tips: participantTips
+          .filter((tip) => tip.match_id === match.id)
+          .map((tip) => {
+            const isOwnTip = tip.participant_id === participant?.id;
+            return {
+              participantId: tip.participant_id,
+              participantName: participants.find((row) => row.id === tip.participant_id)?.display_name ?? "Teilnehmer",
+              isOwnTip,
+              visible: tipsVisible || isOwnTip,
+              scoreA: tipsVisible || isOwnTip ? tip.score_a : null,
+              scoreB: tipsVisible || isOwnTip ? tip.score_b : null,
+              points: result?.status === "final" && (tipsVisible || isOwnTip)
+                ? pointsFor({ scoreA: tip.score_a, scoreB: tip.score_b }, result)
+                : null,
+            };
+          }),
+      };
+    }),
   };
 }
 
@@ -4067,6 +4199,8 @@ function BundesligaParticipantApp({ isTestMode }) {
   const [selectedMatchday, setSelectedMatchday] = useState(1);
   const [message, setMessage] = useState(isTestMode ? "Bundesliga-Testmodus aktiv" : "Bundesliga wird geladen...");
   const [tipStatuses, setTipStatuses] = useState({});
+  const [liveData, setLiveData] = useState(null);
+  const [liveRefreshKey, setLiveRefreshKey] = useState(0);
   const tipsRef = useRef(tips);
   const bonusRef = useRef(bonusTip);
 
@@ -4082,6 +4216,18 @@ function BundesligaParticipantApp({ isTestMode }) {
   const savedTipCount = Object.values(tips).filter((tip) => tip.saved).length;
   const visibleSavedTipCount = visibleMatches.filter((match) => tips[match.id]?.saved).length;
   const selectedMatchdayIndex = Math.max(0, matchdayOptions.indexOf(Number(selectedMatchday)));
+  const matchdayStatusRows = useMemo(() => buildBundesligaMatchdayStatus(matches, tips, resultsByMatch), [matches, tips, resultsByMatch]);
+  const selectedMatchdayStatus = matchdayStatusRows.find((row) => Number(row.matchday) === Number(selectedMatchday)) ?? {
+    matchday: selectedMatchday,
+    matchCount: visibleMatches.length,
+    savedTipCount: visibleSavedTipCount,
+    openTipCount: Math.max(0, visibleMatches.length - visibleSavedTipCount),
+    lockedCount: 0,
+    finishedCount: 0,
+    status: "open",
+  };
+  const bonusStatus = buildBundesligaBonusStatus(bonusTip);
+  const rulesSummary = data?.rulesSummary;
 
   useEffect(() => {
     tipsRef.current = tips;
@@ -4162,6 +4308,30 @@ function BundesligaParticipantApp({ isTestMode }) {
   }, [participant?.id, matches, isTestMode]);
 
   useEffect(() => {
+    if (!participant?.id) {
+      setLiveData(null);
+      return undefined;
+    }
+    let cancelled = false;
+    async function loadLiveData() {
+      if (isTestMode) {
+        setLiveData(buildBundesligaLiveFromData(data, participant, selectedMatchday));
+        return;
+      }
+      try {
+        const payload = await apiGet(`/api/bundesliga-matchday-live?matchday=${encodeURIComponent(selectedMatchday)}&participantId=${encodeURIComponent(participant.id)}`);
+        if (!cancelled) setLiveData(payload.live ?? null);
+      } catch {
+        if (!cancelled) setLiveData(null);
+      }
+    }
+    loadLiveData();
+    return () => {
+      cancelled = true;
+    };
+  }, [participant?.id, selectedMatchday, data, isTestMode, liveRefreshKey]);
+
+  useEffect(() => {
     const pendingIds = Object.entries(tipStatuses)
       .filter(([, status]) => status === "pending")
       .map(([matchId]) => matchId)
@@ -4239,6 +4409,7 @@ function BundesligaParticipantApp({ isTestMode }) {
       setTips((current) => ({ ...current, ...Object.fromEntries(completeIds.map((id) => [id, { ...current[id], saved: true }])) }));
       setTipStatuses((current) => ({ ...current, ...Object.fromEntries(completeIds.map((id) => [id, "saved"])) }));
       setMessage("Bundesliga-Testtipp gespeichert.");
+      setLiveRefreshKey((current) => current + 1);
       return;
     }
     try {
@@ -4258,6 +4429,7 @@ function BundesligaParticipantApp({ isTestMode }) {
       });
       setTipStatuses((current) => ({ ...current, ...Object.fromEntries([...savedIds].map((id) => [id, "saved"])) }));
       setMessage("Bundesliga-Tipp gespeichert.");
+      setLiveRefreshKey((current) => current + 1);
       await refreshRanking();
     } catch (error) {
       setMessage(error.message);
@@ -4266,6 +4438,16 @@ function BundesligaParticipantApp({ isTestMode }) {
 
   async function saveVisibleMatchdayTips() {
     await saveTipRows(visibleMatches.map((match) => match.id));
+  }
+
+  function jumpToFirstOpenTip() {
+    const firstOpen = visibleMatches.find((match) => !tips[match.id]?.saved);
+    if (firstOpen) {
+      document.getElementById(`bundesliga-match-${firstOpen.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+    const firstOpenStatus = matchdayStatusRows.find((row) => row.openTipCount > 0);
+    if (firstOpenStatus) setSelectedMatchday(firstOpenStatus.matchday);
   }
 
   function updateBonus(patch) {
@@ -4323,6 +4505,95 @@ function BundesligaParticipantApp({ isTestMode }) {
     }
   }
 
+  function renderBonusReminder() {
+    return (
+      <section className={`bundesliga-public-card bundesliga-bonus-reminder ${bonusStatus.complete ? "complete" : ""}`}>
+        <h2>Bonusfragen</h2>
+        <p>{bonusStatus.doneCount} / {bonusStatus.totalCount} Bonus-Tipps erledigt · Meister, Torschützenkönig und Absteiger bis zum Saisonstart.</p>
+        <div>
+          <span className={bonusTip.championTeamId ? "done" : ""}>Meister</span>
+          <span className={bonusTip.topScorerId || bonusTip.topScorer ? "done" : ""}>Torschützenkönig</span>
+          <span className={bonusStatus.relegatedDoneCount === 3 ? "done" : ""}>Absteiger {bonusStatus.relegatedDoneCount}/3</span>
+        </div>
+        <button type="button" onClick={() => setBundesligaTab("bundesliga-bonus")}>
+          Bonus öffnen
+        </button>
+      </section>
+    );
+  }
+
+  function renderRulesCard() {
+    return (
+      <section className="bundesliga-public-card bundesliga-rules-card">
+        <h2>Regeln</h2>
+        <div className="bundesliga-rule-list compact">
+          {(rulesSummary?.matchPoints ?? bundesligaRuleRows.slice(0, 4)).map(([label, value]) => (
+            <div key={label}><span>{label}</span><b>{value}</b></div>
+          ))}
+        </div>
+        <p>Fremde Tipps sind pro Spiel ab Anpfiff sichtbar. Bei Punktgleichstand zählen zuerst Spieltagssiege.</p>
+      </section>
+    );
+  }
+
+  function renderMatchdayCenter() {
+    return (
+      <section className="bundesliga-matchday-center">
+        <div>
+          <strong>Spieltag {selectedMatchday}</strong>
+          <span>{selectedMatchdayStatus.savedTipCount}/{selectedMatchdayStatus.matchCount} Tipps gespeichert</span>
+        </div>
+        <div>
+          <span className="open">{selectedMatchdayStatus.openTipCount} offen</span>
+          <span>{selectedMatchdayStatus.lockedCount} gesperrt</span>
+          <span>{selectedMatchdayStatus.finishedCount} ausgewertet</span>
+        </div>
+        <button type="button" onClick={jumpToFirstOpenTip}>Offene Tipps fertig machen</button>
+      </section>
+    );
+  }
+
+  function renderLivePanel() {
+    const live = liveData;
+    return (
+      <section className="bundesliga-public-card bundesliga-live-panel">
+        <h2>Live-Spieltag</h2>
+        <div className="bundesliga-live-standings">
+          {(live?.standings ?? []).slice(0, 5).map((row, index) => (
+            <div key={row.participantId ?? row.name}>
+              <span>{index + 1}</span>
+              <strong>{row.name}</strong>
+              <b>{row.points}</b>
+            </div>
+          ))}
+          {(!live?.standings || live.standings.length === 0) && <p>Noch keine sichtbare Spieltag-Auswertung.</p>}
+        </div>
+        <div className="bundesliga-live-match-list">
+          {(live?.matches ?? []).map((match) => (
+            <article key={match.id}>
+              <header>
+                <small>{formatDateTime(match.kickoffAt)}</small>
+                <strong>{match.teamA}</strong>
+                <b>{match.result ? `${match.result.score_a}:${match.result.score_b}` : "-:-"}</b>
+                <strong>{match.teamB}</strong>
+              </header>
+              <div>
+                {(match.tips ?? []).map((tip) => (
+                  <span key={`${match.id}:${tip.participantId}`} className={tip.isOwnTip ? "own" : ""}>
+                    <strong>{tip.participantName}</strong>
+                    <em>{tip.visible ? `${tip.scoreA}:${tip.scoreB}` : "versteckt bis Anpfiff"}</em>
+                    <b>{Number.isInteger(tip.points) ? `${tip.points} P` : ""}</b>
+                  </span>
+                ))}
+                {(match.tips ?? []).length === 0 && <p>{match.tipsVisible ? "Noch keine Tipps für dieses Spiel." : "Tipps werden ab Anpfiff sichtbar."}</p>}
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+    );
+  }
+
   const tableRows = data?.table ?? [];
   const displayTableRows = tableRows.length
     ? tableRows
@@ -4377,6 +4648,7 @@ function BundesligaParticipantApp({ isTestMode }) {
                 <small>Status: {codeStatus}</small>
               </form>
             </section>
+            {renderBonusReminder()}
 
             <aside className="bundesliga-side-stack">
               <section className="bundesliga-public-card">
@@ -4429,19 +4701,23 @@ function BundesligaParticipantApp({ isTestMode }) {
                   </button>
                 </div>
               </div>
+              {renderMatchdayCenter()}
               <div className="bundesliga-matchday-chips" aria-label="Schnellauswahl Spieltage">
-                {matchdayOptions.slice(0, 17).map((day) => (
-                  <button key={day} type="button" className={Number(selectedMatchday) === day ? "active" : ""} onClick={() => setSelectedMatchday(day)}>
+                {matchdayOptions.map((day) => {
+                  const status = matchdayStatusRows.find((row) => row.matchday === day)?.status ?? "open";
+                  return (
+                  <button key={day} type="button" className={[Number(selectedMatchday) === day ? "active" : "", `status-${status}`].filter(Boolean).join(" ")} onClick={() => setSelectedMatchday(day)}>
                     {day}
                   </button>
-                ))}
+                  );
+                })}
               </div>
               <div className="bundesliga-tip-card-list">
                 {visibleMatches.map((match) => {
                   const tip = tips[match.id] ?? { scoreA: null, scoreB: null, saved: false };
                   const result = resultsByMatch.get(match.id);
                   return (
-                    <article key={match.id} className="bundesliga-user-match-card">
+                    <article key={match.id} id={`bundesliga-match-${match.id}`} className={`bundesliga-user-match-card status-${getBundesligaMatchState(match, result)}`}>
                       <header>
                         <span>{formatDateTime(match.kickoffAt)}</span>
                         <b>{result ? `${result.score_a}:${result.score_b}` : "-:-"}</b>
@@ -4466,6 +4742,8 @@ function BundesligaParticipantApp({ isTestMode }) {
             </section>
 
             <aside className="bundesliga-side-stack">
+              {renderBonusReminder()}
+              {renderLivePanel()}
               <section className="bundesliga-public-card">
                 <h2>Live-Tabelle</h2>
                 <div className="bundesliga-mini-table">
@@ -4491,14 +4769,7 @@ function BundesligaParticipantApp({ isTestMode }) {
                   ))}
                 </div>
               </section>
-              <section className="bundesliga-public-card">
-                <h2>Regeln</h2>
-                <div className="bundesliga-rule-list compact">
-                  {bundesligaRuleRows.slice(0, 4).map(([label, value]) => (
-                    <div key={label}><span>{label}</span><b>{value}</b></div>
-                  ))}
-                </div>
-              </section>
+              {renderRulesCard()}
             </aside>
           </section>
         )}
@@ -4549,6 +4820,7 @@ function BundesligaParticipantApp({ isTestMode }) {
               </section>
             </section>
             <aside className="bundesliga-side-stack">
+              {renderBonusReminder()}
               <section className="bundesliga-public-card">
                 <h2>Dein Bonus</h2>
                 <div className="bundesliga-bonus-summary">
@@ -4574,12 +4846,13 @@ function BundesligaParticipantApp({ isTestMode }) {
             <section className="bundesliga-public-card">
               <h2>Bundesliga Rangliste</h2>
               <div className="bundesliga-public-ranking">
-                <div className="head"><span>Pl.</span><strong>Name</strong><span>Tipps</span><span>Spiel</span><span>Bonus</span><b>Gesamt</b></div>
+                <div className="head"><span>Pl.</span><strong>Name</strong><span>Tipps</span><span>Siege</span><span>Spiel</span><span>Bonus</span><b>Gesamt</b></div>
                 {ranking.map((row, index) => (
                   <div key={row.id ?? row.name} className={participant?.id === row.id || participant?.name === row.name ? "current" : ""}>
                     <span>{index + 1}</span>
                     <strong>{row.name}</strong>
                     <span>{row.tipCount}</span>
+                    <span>{row.matchdayWins ?? 0}</span>
                     <span>{row.matchPoints}</span>
                     <span>{row.bonusPoints}</span>
                     <b>{row.points}</b>
@@ -4588,6 +4861,8 @@ function BundesligaParticipantApp({ isTestMode }) {
               </div>
             </section>
             <aside className="bundesliga-side-stack">
+              {renderLivePanel()}
+              {renderRulesCard()}
               <section className="bundesliga-public-card">
                 <h2>Live-Tabelle</h2>
                 <div className="bundesliga-mini-table">
@@ -4708,6 +4983,26 @@ function BundesligaAdminSetup({
       label: "Öffentliche Freigabe noch aus",
       done: !data?.competition?.public_enabled,
       detail: data?.competition?.public_enabled ? "öffentlich aktiv" : "weiter versteckt",
+    },
+    {
+      label: "Spieltag-Zentrale aktiv",
+      done: Boolean(data?.participantMatchdayStatus || data?.demoMatchdayStatus),
+      detail: "Status für offene, gesperrte und ausgewertete Spiele",
+    },
+    {
+      label: "Live-Auswertung verfügbar",
+      done: Boolean(data?.activeLive),
+      detail: "Spieltagssieger und sichtbare Tipps werden berechnet",
+    },
+    {
+      label: "Bonus-Erinnerung sichtbar",
+      done: true,
+      detail: "Teilnehmer sehen Bonus-Fortschritt auf Start und Tippen",
+    },
+    {
+      label: "Regeln sichtbar",
+      done: true,
+      detail: "Punkte, Sichtbarkeit und Tie-Breaker sind erklärt",
     },
   ];
   const importedThrough = leagueMatches.reduce((max, match) => {
@@ -5040,14 +5335,17 @@ function BundesligaAdminSetup({
                 <strong>{match.team_b_name}</strong>
               </div>
               <div className="bundesliga-tip-evaluation">
-                {(match.participantTips ?? []).map((tip) => (
-                  <div key={tip.id}>
-                    <strong>{tip.participantName}</strong>
-                    <span>{tip.score_a}:{tip.score_b}</span>
-                    <span>{match.result ? `${match.result.score_a}:${match.result.score_b}` : "-:-"}</span>
-                    <b className={tip.points > 0 ? "positive" : ""}>{tip.hasResult ? tip.points : "offen"}</b>
-                  </div>
-                ))}
+                {(match.participantTips ?? []).map((tip) => {
+                  const visible = match.result?.status === "final" || (match.kickoff_at && new Date(match.kickoff_at) <= new Date());
+                  return (
+                    <div key={tip.id}>
+                      <strong>{tip.participantName}</strong>
+                      <span>{visible ? `${tip.score_a}:${tip.score_b}` : "versteckt bis Anpfiff"}</span>
+                      <span>{match.result ? `${match.result.score_a}:${match.result.score_b}` : "-:-"}</span>
+                      <b className={tip.points > 0 ? "positive" : ""}>{tip.hasResult && visible ? tip.points : "offen"}</b>
+                    </div>
+                  );
+                })}
                 {(match.participantTips ?? []).length === 0 && <p>Noch keine echten Tipps für dieses Spiel.</p>}
               </div>
             </div>
@@ -5323,6 +5621,7 @@ function BundesligaAdminSetup({
                 <th>Pl.</th>
                 <th>Name</th>
                 <th>Punkte</th>
+                <th>Siege</th>
                 <th>Spielpunkte</th>
                 <th>Bonus</th>
                 <th>Tipps</th>
@@ -5335,6 +5634,7 @@ function BundesligaAdminSetup({
                   <td>{index + 1}</td>
                   <td>{row.name}</td>
                   <td>{row.points}</td>
+                  <td>{row.matchdayWins ?? 0}</td>
                   <td>{row.matchPoints}</td>
                   <td>{row.bonusPoints}</td>
                   <td>{row.tipCount}</td>
@@ -5353,6 +5653,7 @@ function BundesligaAdminSetup({
                 <th>Pl.</th>
                 <th>Name</th>
                 <th>Punkte</th>
+                <th>Siege</th>
                 <th>Spielpunkte</th>
                 <th>gewertet</th>
                 <th>Tipps</th>
@@ -5365,6 +5666,7 @@ function BundesligaAdminSetup({
                   <td>{index + 1}</td>
                   <td>{row.name}</td>
                   <td>{row.points}</td>
+                  <td>{row.matchdayWins ?? 0}</td>
                   <td>{row.matchPoints}</td>
                   <td>{row.scoredTipCount}</td>
                   <td>{row.tipCount}</td>

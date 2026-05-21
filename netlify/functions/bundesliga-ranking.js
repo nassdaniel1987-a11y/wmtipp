@@ -9,16 +9,17 @@ export default async (req) => {
 
   try {
     const supabase = getServiceClient();
-    const [participants, tips, results, bonusTips, bonusResults, topScorers] = await Promise.all([
+    const [participants, tips, results, bonusTips, bonusResults, topScorers, matches] = await Promise.all([
       supabase.from("competition_participants").select("id, display_name").eq("competition_id", BUNDESLIGA_COMPETITION_ID),
       supabase.from("competition_tips").select("participant_id, match_id, score_a, score_b").eq("competition_id", BUNDESLIGA_COMPETITION_ID),
       supabase.from("competition_results").select("match_id, score_a, score_b, status").eq("competition_id", BUNDESLIGA_COMPETITION_ID),
       supabase.from("competition_participant_bonus_tips").select("*").eq("competition_id", BUNDESLIGA_COMPETITION_ID),
       supabase.from("competition_bonus_results").select("*").eq("competition_id", BUNDESLIGA_COMPETITION_ID).maybeSingle(),
       supabase.from("competition_top_scorers").select("id, display_name").eq("competition_id", BUNDESLIGA_COMPETITION_ID),
+      supabase.from("competition_matches").select("id, matchday").eq("competition_id", BUNDESLIGA_COMPETITION_ID).eq("phase", "league"),
     ]);
 
-    for (const response of [participants, tips, results, bonusTips, bonusResults, topScorers]) {
+    for (const response of [participants, tips, results, bonusTips, bonusResults, topScorers, matches]) {
       if (response.error) throw response.error;
     }
 
@@ -30,6 +31,7 @@ export default async (req) => {
         bonusTips.data ?? [],
         bonusResults.data ?? null,
         topScorers.data ?? [],
+        matches.data ?? [],
       ),
     });
   } catch (error) {
