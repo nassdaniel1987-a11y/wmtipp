@@ -6,6 +6,8 @@ import {
   buildDemoRanking,
   buildLeagueTable,
   buildTopScorers,
+  hasLikelyBrokenTeamLogoUrl,
+  normalizeTeamLogoUrl,
   pointsFor,
 } from "./_shared/bundesliga.js";
 
@@ -64,9 +66,26 @@ export default async (req) => {
       if (response.error) throw response.error;
     }
 
+    const rawTeams = teams.data ?? [];
+    const normalizedTeams = rawTeams.map((team) => ({
+      ...team,
+      logo_url: normalizeTeamLogoUrl(team.logo_url),
+    }));
+    const logoIssues = normalizedTeams
+      .filter((team) => !team.logo_url)
+      .map((team) => ({
+        id: team.id,
+        name: team.name,
+        reason: "missing",
+      }));
+    const normalizedLogoCount = rawTeams.filter((team) => (
+      team.logo_url && normalizeTeamLogoUrl(team.logo_url) !== team.logo_url
+    )).length;
+    const likelyBrokenLogoCount = rawTeams.filter((team) => hasLikelyBrokenTeamLogoUrl(team.logo_url)).length;
+
     const leagueMatches = (matches.data ?? []).filter((match) => match.phase === "league");
     const leagueTeamIds = new Set(leagueMatches.flatMap((match) => [match.team_a_id, match.team_b_id]).filter(Boolean));
-    const leagueTeams = (teams.data ?? []).filter((team) => leagueTeamIds.has(team.id));
+    const leagueTeams = normalizedTeams.filter((team) => leagueTeamIds.has(team.id));
     const resultsByMatch = new Map((results.data ?? []).map((result) => [result.match_id, result]));
     const participantsById = new Map((demoParticipants.data ?? []).map((participant) => [participant.id, participant]));
     const realParticipantsById = new Map((participants.data ?? []).map((participant) => [participant.id, participant]));
@@ -132,7 +151,7 @@ export default async (req) => {
 
     return json({
       competition: competition.data,
-      teams: teams.data ?? [],
+      teams: normalizedTeams,
       matches: enrichedMatches,
       results: results.data ?? [],
       goals: goals.data ?? [],
@@ -152,6 +171,10 @@ export default async (req) => {
         topScorerSource: topScorers.length ? "goalgetters" : "match_goals_fallback",
         topScorerCount: topScorerRows.length,
         incompleteTopScorers,
+        logoIssueCount: logoIssues.length,
+        logoIssues,
+        normalizedLogoCount,
+        likelyBrokenLogoCount,
         lastTopScorerImportAt: topScorers.reduce((latest, row) => {
           if (!row.updated_at) return latest;
           return !latest || row.updated_at > latest ? row.updated_at : latest;

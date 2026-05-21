@@ -2,6 +2,7 @@ import { getServiceClient, json } from "./_shared/supabase.js";
 import {
   BUNDESLIGA_COMPETITION_ID,
   buildLeagueTable,
+  normalizeTeamLogoUrl,
 } from "./_shared/bundesliga.js";
 
 export default async (req) => {
@@ -22,14 +23,19 @@ export default async (req) => {
       if (response.error) throw response.error;
     }
 
+    const normalizedTeams = (teams.data ?? []).map((team) => ({
+      ...team,
+      logo_url: normalizeTeamLogoUrl(team.logo_url),
+    }));
+
     return json({
       competition: competition.data,
-      teams: teams.data ?? [],
+      teams: normalizedTeams,
       matches: matches.data ?? [],
       results: results.data ?? [],
       topScorers: topScorers.data ?? [],
       bonusResults: bonusResults.data ?? null,
-      table: buildLeagueTable(matches.data ?? [], results.data ?? [], teams.data ?? []),
+      table: buildLeagueTable(matches.data ?? [], results.data ?? [], normalizedTeams),
     });
   } catch (error) {
     return json({ error: error.message || "Bundesliga-Daten konnten nicht geladen werden." }, 500);

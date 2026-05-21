@@ -3,6 +3,26 @@ export const BUNDESLIGA_SOURCE_SEASON = 2025;
 export const BUNDESLIGA_SOURCE_LEAGUE = "bl1";
 export const BUNDESLIGA_RELEGATION_LEAGUE = "rel";
 
+const WIKIMEDIA_SVG_THUMBNAIL_SIZE_PATTERN = /\/(\d+)px-([^/]+\.svg\.png)$/i;
+
+export function normalizeTeamLogoUrl(url) {
+  const value = String(url || "").trim();
+  if (!value) return null;
+
+  return value.replace(WIKIMEDIA_SVG_THUMBNAIL_SIZE_PATTERN, (match, size, fileName) => {
+    const numericSize = Number(size);
+    if (!Number.isFinite(numericSize) || numericSize <= 500) return match;
+    return `/500px-${fileName}`;
+  });
+}
+
+export function hasLikelyBrokenTeamLogoUrl(url) {
+  const value = String(url || "").trim();
+  const match = value.match(WIKIMEDIA_SVG_THUMBNAIL_SIZE_PATTERN);
+  if (!match) return false;
+  return Number(match[1]) > 500;
+}
+
 export function pointsFor(tip, result) {
   if (!result || result.status !== "final") return 0;
   if (tip.score_a === result.score_a && tip.score_b === result.score_b) return 4;
@@ -61,7 +81,7 @@ export function buildLeagueTable(matches, results, teams = []) {
       teamId: team.id,
       team: team.name,
       shortName: team.short_name,
-      logoUrl: team.logo_url,
+      logoUrl: normalizeTeamLogoUrl(team.logo_url),
       played: 0,
       won: 0,
       drawn: 0,
@@ -259,7 +279,7 @@ export function normalizeOpenLigaMatch(match, leagueShortcut, indexOffset = 0) {
       external_id: String(match.team1?.teamId ?? `${externalId}-home`),
       name: match.team1?.teamName ?? "Heimteam",
       short_name: match.team1?.shortName ?? null,
-      logo_url: match.team1?.teamIconUrl ?? null,
+      logo_url: normalizeTeamLogoUrl(match.team1?.teamIconUrl),
       updated_at: new Date().toISOString(),
     },
     awayTeam: {
@@ -267,7 +287,7 @@ export function normalizeOpenLigaMatch(match, leagueShortcut, indexOffset = 0) {
       external_id: String(match.team2?.teamId ?? `${externalId}-away`),
       name: match.team2?.teamName ?? "Auswärtsteam",
       short_name: match.team2?.shortName ?? null,
-      logo_url: match.team2?.teamIconUrl ?? null,
+      logo_url: normalizeTeamLogoUrl(match.team2?.teamIconUrl),
       updated_at: new Date().toISOString(),
     },
     resultRow: finalScore && match.matchIsFinished

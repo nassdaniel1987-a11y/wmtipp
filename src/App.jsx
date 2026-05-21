@@ -182,6 +182,33 @@ function getBundesligaInviteUrl(code) {
   return url.toString();
 }
 
+function getBundesligaLogoFallback(name) {
+  return String(name || "BL")
+    .replace(/^\d+\.\s*/, "")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 3) || "BL";
+}
+
+function BundesligaLogo({ src, name, className = "bundesliga-team-logo" }) {
+  const [failed, setFailed] = useState(false);
+  const fallback = getBundesligaLogoFallback(name);
+
+  return (
+    <span className={className} aria-hidden="true">
+      {src && !failed ? (
+        <img src={src} alt="" onError={() => setFailed(true)} />
+      ) : (
+        <span>{fallback}</span>
+      )}
+    </span>
+  );
+}
+
 function loadSavedParticipant() {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
@@ -4263,9 +4290,7 @@ function BundesligaParticipantApp({ isTestMode }) {
     const team = teamsById.get(teamId);
     return (
       <span className={`bundesliga-team-badge ${align === "right" ? "reverse" : ""}`}>
-        <span className="bundesliga-team-logo">
-          {team?.logo_url ? <img src={team.logo_url} alt="" /> : name.slice(0, 2).toUpperCase()}
-        </span>
+        <BundesligaLogo src={team?.logo_url} name={team?.name ?? name} />
         <strong>{team?.name ?? name}</strong>
       </span>
     );
@@ -4360,7 +4385,7 @@ function BundesligaParticipantApp({ isTestMode }) {
                   {displayTableRows.slice(0, 8).map((row, index) => (
                     <div key={row.teamId}>
                       <span>{index + 1}</span>
-                      <span className="bundesliga-team-logo">{row.logoUrl ? <img src={row.logoUrl} alt="" /> : row.team.slice(0, 2).toUpperCase()}</span>
+                      <BundesligaLogo src={row.logoUrl} name={row.team} />
                       <strong>{row.team}</strong>
                       <b>{row.points}</b>
                     </div>
@@ -4447,7 +4472,7 @@ function BundesligaParticipantApp({ isTestMode }) {
                   {displayTableRows.slice(0, 6).map((row, index) => (
                     <div key={row.teamId}>
                       <span>{index + 1}</span>
-                      <span className="bundesliga-team-logo">{row.logoUrl ? <img src={row.logoUrl} alt="" /> : row.team.slice(0, 2).toUpperCase()}</span>
+                      <BundesligaLogo src={row.logoUrl} name={row.team} />
                       <strong>{row.team}</strong>
                       <b>{row.points}</b>
                     </div>
@@ -4493,7 +4518,7 @@ function BundesligaParticipantApp({ isTestMode }) {
                 <div className="bundesliga-choice-grid">
                   {teams.map((team) => (
                     <button key={team.id} type="button" className={bonusTip.championTeamId === team.id ? "selected" : ""} onClick={() => updateBonus({ championTeamId: team.id })}>
-                      <span className="bundesliga-team-logo">{team.logo_url ? <img src={team.logo_url} alt="" /> : team.name.slice(0, 2).toUpperCase()}</span>
+                      <BundesligaLogo src={team.logo_url} name={team.name} />
                       <strong>{team.name}</strong>
                     </button>
                   ))}
@@ -4516,7 +4541,7 @@ function BundesligaParticipantApp({ isTestMode }) {
                 <div className="bundesliga-choice-grid compact">
                   {teams.map((team) => (
                     <button key={team.id} type="button" className={bonusTip.relegatedTeamIds.includes(team.id) ? "selected" : ""} onClick={() => toggleRelegatedTeam(team.id)}>
-                      <span className="bundesliga-team-logo">{team.logo_url ? <img src={team.logo_url} alt="" /> : team.name.slice(0, 2).toUpperCase()}</span>
+                      <BundesligaLogo src={team.logo_url} name={team.name} />
                       <strong>{team.name}</strong>
                     </button>
                   ))}
@@ -4569,7 +4594,7 @@ function BundesligaParticipantApp({ isTestMode }) {
                   {displayTableRows.slice(0, 6).map((row, index) => (
                     <div key={row.teamId}>
                       <span>{index + 1}</span>
-                      <span className="bundesliga-team-logo">{row.logoUrl ? <img src={row.logoUrl} alt="" /> : row.team.slice(0, 2).toUpperCase()}</span>
+                      <BundesligaLogo src={row.logoUrl} name={row.team} />
                       <strong>{row.team}</strong>
                       <b>{row.points}</b>
                     </div>
@@ -4640,6 +4665,51 @@ function BundesligaAdminSetup({
   const participantRankingRows = data?.participantRanking ?? [];
   const bonusResults = data?.bonusResults ?? null;
   const dataQuality = data?.dataQuality ?? {};
+  const teamRows = data?.teams ?? [];
+  const logoIssueCount = dataQuality.logoIssueCount ?? 0;
+  const normalizedLogoCount = dataQuality.normalizedLogoCount ?? 0;
+  const bonusResultsPrepared = Boolean(
+    bonusResults?.champion_team_id ||
+    (bonusResults?.top_scorers ?? []).length > 0 ||
+    (bonusResults?.relegated_team_ids ?? []).length > 0,
+  );
+  const releaseChecks = [
+    {
+      label: "Spielplan importiert",
+      done: leagueMatches.length >= 306,
+      detail: `${leagueMatches.length} Liga-Spiele`,
+    },
+    {
+      label: "Teams/Logos vollständig",
+      done: teamRows.length >= 18 && logoIssueCount === 0,
+      detail: `${teamRows.length} Teams · ${logoIssueCount} Logo-Hinweise`,
+    },
+    {
+      label: "Torschützen importiert",
+      done: topScorerRows.length > 0 && dataQuality.topScorerSource !== "match_goals_fallback",
+      detail: `${dataQuality.topScorerCount ?? topScorerRows.length} Spieler`,
+    },
+    {
+      label: "Bonus-Ergebnisse vorbereitet",
+      done: bonusResultsPrepared,
+      detail: bonusResultsPrepared ? "mindestens ein offizieller Bonuswert gesetzt" : "noch offen",
+    },
+    {
+      label: "Codes erzeugt",
+      done: inviteCodes.length > 0,
+      detail: `${inviteCodes.length} Codes im Admin`,
+    },
+    {
+      label: "Testteilnehmer geprüft",
+      done: participants.length > 0 && participantTips.length > 0,
+      detail: `${participants.length} Teilnehmer · ${participantTips.length} Tipps`,
+    },
+    {
+      label: "Öffentliche Freigabe noch aus",
+      done: !data?.competition?.public_enabled,
+      detail: data?.competition?.public_enabled ? "öffentlich aktiv" : "weiter versteckt",
+    },
+  ];
   const importedThrough = leagueMatches.reduce((max, match) => {
     if (!match.result) return max;
     return Math.max(max, Number(match.matchday) || 0);
@@ -4766,6 +4836,53 @@ function BundesligaAdminSetup({
     { id: "rules", label: "Regeln", Icon: Info },
   ];
 
+  function renderReleaseChecklist() {
+    return (
+      <section className="bundesliga-dark-panel bundesliga-release-checklist">
+        <header>
+          <h3>Release-Checkliste</h3>
+          <span>{releaseChecks.filter((item) => item.done).length} / {releaseChecks.length}</span>
+        </header>
+        <div>
+          {releaseChecks.map((item) => (
+            <article key={item.label} className={item.done ? "done" : ""}>
+              <span>{item.done ? "OK" : "!"}</span>
+              <strong>{item.label}</strong>
+              <small>{item.detail}</small>
+            </article>
+          ))}
+        </div>
+      </section>
+    );
+  }
+
+  function renderTeamLogoQuality() {
+    return (
+      <section className="bundesliga-dark-panel bundesliga-team-quality-panel">
+        <header>
+          <h3>Teams & Logos</h3>
+          <span>{logoIssueCount === 0 ? "Logos vollständig" : `${logoIssueCount} Hinweise`}</span>
+        </header>
+        {normalizedLogoCount > 0 && (
+          <p>{normalizedLogoCount} Wikimedia-Logo-URL{normalizedLogoCount === 1 ? "" : "s"} werden beim Laden auf robuste Thumbnail-Größen normalisiert.</p>
+        )}
+        <div className="bundesliga-team-quality-list">
+          {teamRows.map((team) => {
+            const hasLogo = Boolean(team.logo_url);
+            return (
+              <article key={team.id} className={hasLogo ? "ok" : "warning"}>
+                <BundesligaLogo src={team.logo_url} name={team.name} />
+                <strong>{team.name}</strong>
+                <small>{hasLogo ? "Logo ok" : "Logo fehlt"}</small>
+              </article>
+            );
+          })}
+          {teamRows.length === 0 && <p>Noch keine Teams importiert.</p>}
+        </div>
+      </section>
+    );
+  }
+
   function renderStandingsTable() {
     return (
       <section className="bundesliga-table-panel">
@@ -4804,7 +4921,7 @@ function BundesligaAdminSetup({
                     <td>{position <= 4 ? "—" : position >= 17 ? "↓" : "–"}</td>
                     <td>
                       <span className="bundesliga-club">
-                        {row.logoUrl && <img src={row.logoUrl} alt="" />}
+                        <BundesligaLogo src={row.logoUrl} name={row.team} className="bundesliga-club-logo" />
                         <strong>{row.team}</strong>
                       </span>
                     </td>
@@ -5095,7 +5212,7 @@ function BundesligaAdminSetup({
                   className={bonusResultDraft.relegatedTeamIds.includes(team.id) ? "selected" : ""}
                   onClick={() => setBonusResultDraft((current) => ({ ...current, relegatedTeamIds: toggleId(current.relegatedTeamIds, team.id, 3) }))}
                 >
-                  <span className="bundesliga-team-logo">{team.logo_url ? <img src={team.logo_url} alt="" /> : team.name.slice(0, 2).toUpperCase()}</span>
+                  <BundesligaLogo src={team.logo_url} name={team.name} />
                   <strong>{team.name}</strong>
                 </button>
               ))}
@@ -5108,24 +5225,28 @@ function BundesligaAdminSetup({
 
   function renderRules() {
     return (
-      <section className="bundesliga-dark-panel bundesliga-view-panel">
-        <header>
-          <h3>Bundesliga Regeln</h3>
-          <span>Release-v1 Punktelogik</span>
-        </header>
-        <div className="bundesliga-rule-grid">
-          {bundesligaRuleRows.map(([label, value]) => (
-            <div key={label}>
-              <strong>{label}</strong>
-              <b>{value}</b>
-            </div>
-          ))}
-        </div>
-        <div className="bundesliga-status-editor">
-          <span>Status: {data?.competition?.status ?? "admin_test"} · öffentlich: {data?.competition?.public_enabled ? "ja" : "nein"}</span>
-          <button type="button" onClick={() => onSetCompetitionStatus("admin_test", false)}>Versteckt lassen</button>
-        </div>
-      </section>
+      <div className="bundesliga-release-grid">
+        <section className="bundesliga-dark-panel bundesliga-view-panel">
+          <header>
+            <h3>Bundesliga Regeln</h3>
+            <span>Release-v1 Punktelogik</span>
+          </header>
+          <div className="bundesliga-rule-grid">
+            {bundesligaRuleRows.map(([label, value]) => (
+              <div key={label}>
+                <strong>{label}</strong>
+                <b>{value}</b>
+              </div>
+            ))}
+          </div>
+          <div className="bundesliga-status-editor">
+            <span>Status: {data?.competition?.status ?? "admin_test"} · öffentlich: {data?.competition?.public_enabled ? "ja" : "nein"}</span>
+            <button type="button" onClick={() => onSetCompetitionStatus("admin_test", false)}>Versteckt lassen</button>
+          </div>
+        </section>
+        {renderReleaseChecklist()}
+        {renderTeamLogoQuality()}
+      </div>
     );
   }
 
@@ -5386,12 +5507,23 @@ function BundesligaAdminSetup({
             {dataQuality.incompleteTopScorers} Torschützen wirken abgekürzt oder unvollständig und können unten korrigiert werden.
           </p>
         )}
+        {normalizedLogoCount > 0 && (
+          <p className="bundesliga-lab-message">
+            {normalizedLogoCount} Team-Logo-URL{normalizedLogoCount === 1 ? "" : "s"} wurden für die Anzeige automatisch auf robuste Wikimedia-Größen korrigiert.
+          </p>
+        )}
+        {logoIssueCount > 0 && (
+          <p className="bundesliga-lab-message">
+            {logoIssueCount} Team-Logo{logoIssueCount === 1 ? "" : "s"} fehlen noch. In der App wird solange ein Kürzel angezeigt.
+          </p>
+        )}
 
         {activeLabView === "overview" && (
           <div className="bundesliga-lab-layout">
             {renderStandingsTable()}
 
             <aside className="bundesliga-lab-side">
+              {renderReleaseChecklist()}
               {renderResultsPanel({ compact: true })}
               {renderTipEvaluation({ compact: true })}
               {renderTopScorers({ compact: true })}
