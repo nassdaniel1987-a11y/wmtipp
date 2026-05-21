@@ -3894,222 +3894,258 @@ function BundesligaAdminSetup({
 }) {
   const [includeRelegation, setIncludeRelegation] = useState(true);
   const [throughMatchday, setThroughMatchday] = useState(1);
+  const [selectedMatchday, setSelectedMatchday] = useState(34);
   const [demoName, setDemoName] = useState("");
   const matches = data?.matches ?? [];
   const leagueMatches = matches.filter((match) => match.phase === "league");
   const resultCount = data?.results?.length ?? 0;
   const maxMatchday = Math.max(34, ...leagueMatches.map((match) => Number(match.matchday) || 0));
   const nextMatchday = Math.min(maxMatchday, Math.max(1, throughMatchday));
+  const activeMatchday = Math.min(maxMatchday, Math.max(1, selectedMatchday));
+  const matchdayOptions = Array.from(
+    new Set(leagueMatches.map((match) => Number(match.matchday)).filter(Number.isInteger)),
+  ).sort((first, second) => first - second);
+  const visibleMatches = leagueMatches.filter((match) => Number(match.matchday) === activeMatchday);
+  const selectedMatch = visibleMatches.find((match) => match.demoTips?.length) ?? visibleMatches[0];
+  const visibleTipRows = selectedMatch?.demoTips ?? [];
+  const tableRows = data?.table ?? [];
+  const importedThrough = leagueMatches.reduce((max, match) => {
+    if (!match.result) return max;
+    return Math.max(max, Number(match.matchday) || 0);
+  }, 0);
 
   async function createDemoParticipant() {
     await onCreateDemoParticipant(demoName);
     setDemoName("");
   }
 
+  const labNavItems = [
+    { label: "Übersicht", Icon: House },
+    { label: "Spielplan", Icon: CalendarDays },
+    { label: "Tabelle", Icon: Trophy },
+    { label: "Ergebnisse", Icon: ListFilter },
+    { label: "Tipp-Auswertung", Icon: Medal },
+    { label: "Demo-Rangliste", Icon: UsersRound },
+    { label: "Torschützen", Icon: Goal },
+  ];
+
   return (
     <section className="bundesliga-admin-setup">
-      <div className="bundesliga-status-card">
-        <Trophy size={30} />
-        <div>
-          <span>Admin-only Testumgebung</span>
-          <strong>Bundesliga 2025/2026</strong>
-          <p>
-            OpenLigaDB liefert Spielplan, Ergebnisse, Teams, Logos und Tore. Normale Nutzer bleiben
-            weiter in der WM-Version, bis die Bundesliga bewusst freigeschaltet wird.
-          </p>
+      <aside className="bundesliga-lab-rail">
+        <div className="bundesliga-mark">
+          <span>BL</span>
+          <strong>Testlabor</strong>
         </div>
-      </div>
-
-      <div className="bundesliga-setup-grid">
-        <article>
-          <span>Spielplanquelle</span>
-          <strong>OpenLigaDB bl1/2025</strong>
-          <p>{matches.length} Spiele importiert, davon {leagueMatches.length} Liga-Spiele.</p>
-        </article>
-        <article>
-          <span>Teams & Logos</span>
-          <strong>{data?.teams?.length ?? 0} Teams</strong>
-          <p>Logos werden aus den OpenLigaDB-Teamdaten übernommen.</p>
-        </article>
-        <article>
-          <span>Demo-Tipps</span>
-          <strong>{data?.demoTips?.length ?? 0} Tipps</strong>
-          <p>{data?.demoParticipants?.length ?? 0} Admin-Demo-Tipper testen die Saison im Zeitraffer.</p>
-        </article>
-        <article>
-          <span>Ergebnisstand</span>
-          <strong>{resultCount} Ergebnisse</strong>
-          <p>Ergebnisse können spieltagweise importiert und wieder zurückgesetzt werden.</p>
-        </article>
-      </div>
-
-      <div className="bundesliga-toolbar">
-        <button type="button" className="primary-button compact" onClick={() => onImport(includeRelegation)} disabled={loading}>
-          OpenLigaDB importieren
-        </button>
-        <label>
-          <input
-            type="checkbox"
-            checked={includeRelegation}
-            onChange={(event) => setIncludeRelegation(event.target.checked)}
-          />
-          Relegation mitladen
-        </label>
-        <button type="button" className="ghost-button" onClick={onRefresh} disabled={loading}>
-          Aktualisieren
-        </button>
-      </div>
-
-      {message && <p className="admin-message">{message}</p>}
-
-      <section className="bundesliga-test-controls">
-        <div>
-          <strong>Test im Zeitraffer</strong>
-          <p>Erst Demo-Tipps füllen, dann Ergebnisse bis zu einem Spieltag importieren und Rangliste/Tabelle prüfen.</p>
+        {labNavItems.map(({ label, Icon }, index) => (
+          <span key={label} className={index === 0 ? "active" : ""}>
+            <Icon size={18} />
+            {label}
+          </span>
+        ))}
+        <div className="bundesliga-rail-meta">
+          <small>Wettbewerb</small>
+          <strong>Bundesliga</strong>
+          <span>2025/2026</span>
+          <small>Status</small>
+          <b>Testmodus</b>
+          <em>OpenLigaDB · bl1/2025</em>
         </div>
-        <button type="button" className="ghost-button" onClick={onGenerateDemoTips} disabled={loading || leagueMatches.length === 0}>
-          Demo-Tipps automatisch füllen
-        </button>
-        <label>
-          Ergebnisse bis Spieltag
-          <input
-            type="number"
-            min="1"
-            max={maxMatchday}
-            value={nextMatchday}
-            onChange={(event) => setThroughMatchday(Number(event.target.value))}
-          />
-        </label>
-        <button type="button" className="primary-button compact" onClick={() => onImportResults(nextMatchday)} disabled={loading || leagueMatches.length === 0}>
-          Ergebnisse importieren
-        </button>
-        <button type="button" className="danger-button" onClick={onResetResults} disabled={loading || resultCount === 0}>
-          Test-Ergebnisse zurücksetzen
-        </button>
-      </section>
+      </aside>
 
-      <section className="bundesliga-demo-create">
-        <label>
-          Demo-Tipper anlegen
-          <input
-            value={demoName}
-            onChange={(event) => setDemoName(event.target.value)}
-            placeholder="Name des Test-Tippers"
-          />
-        </label>
-        <button type="button" className="primary-button compact" onClick={createDemoParticipant} disabled={loading || demoName.trim().length < 2}>
-          Demo-Tipper speichern
-        </button>
-      </section>
-
-      <div className="bundesliga-admin-grid">
-        <section>
-          <header className="section-title">
-            <Trophy size={22} />
-            <h2>Bundesliga-Tabelle</h2>
-          </header>
-          <div className="table-scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>Platz</th>
-                  <th>Team</th>
-                  <th>Sp</th>
-                  <th>TD</th>
-                  <th>Pt</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(data?.table ?? []).map((row, index) => (
-                  <tr key={row.teamId}>
-                    <td>{index + 1}</td>
-                    <td>
-                      <span className="table-team">
-                        {row.logoUrl && <img src={row.logoUrl} alt="" />}
-                        <span>{row.team}</span>
-                      </span>
-                    </td>
-                    <td>{row.played}</td>
-                    <td>{row.goalsFor - row.goalsAgainst}</td>
-                    <td>{row.points}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      <div className="bundesliga-lab-main">
+        <header className="bundesliga-lab-header">
+          <div>
+            <h2>Bundesliga Testlabor</h2>
+            <p>Admin · Testumgebung 2025/2026</p>
           </div>
-        </section>
+          <span>Testmodus: <strong>Admin</strong></span>
+          <button type="button" onClick={onBackToWorldCup}>Zur WM-2026 Version</button>
+        </header>
 
-        <section>
-          <header className="section-title">
-            <UsersRound size={22} />
-            <h2>Demo-Rangliste</h2>
-          </header>
-          <div className="table-scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>Platz</th>
-                  <th>Name</th>
-                  <th>Tipps</th>
-                  <th>Punkte</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(data?.ranking ?? []).map((row, index) => (
-                  <tr key={row.id}>
-                    <td>{index + 1}</td>
-                    <td>{row.name}</td>
-                    <td>{row.tipCount}</td>
-                    <td>{row.points}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </div>
-
-      <div className="bundesliga-admin-grid">
-        <section>
-          <header className="section-title">
-            <Goal size={22} />
-            <h2>Torschützen</h2>
-          </header>
-          <div className="bundesliga-scorer-list">
-            {(data?.topScorers ?? []).slice(0, 10).map((row) => (
-              <span key={row.name}>{row.name}<strong>{row.goals}</strong></span>
-            ))}
-            {(data?.topScorers ?? []).length === 0 && <p className="fine-print">Noch keine Torschützen importiert.</p>}
-          </div>
-        </section>
-
-        <section>
-          <header className="section-title">
+        <section className="bundesliga-command-grid">
+          <button type="button" onClick={() => onImport(includeRelegation)} disabled={loading}>
+            <Download size={23} />
+            <span><strong>OpenLigaDB importieren</strong><small>Teams, Spielplan, Logos</small></span>
+          </button>
+          <button type="button" onClick={onGenerateDemoTips} disabled={loading || leagueMatches.length === 0}>
+            <UsersRound size={23} />
+            <span><strong>Demo-Tipps füllen</strong><small>Alle Spiele für Demo-Tipper</small></span>
+          </button>
+          <div className="bundesliga-import-control">
             <CalendarDays size={22} />
-            <h2>Spielplan-Auszug</h2>
-          </header>
-          <div className="bundesliga-match-list">
-            {leagueMatches.slice(0, 8).map((match) => (
-              <div key={match.id}>
-                <span>ST {match.matchday}</span>
-                <strong>{match.team_a_name} - {match.team_b_name}</strong>
-                <small>{formatDateTime(match.kickoff_at)}</small>
-              </div>
-            ))}
-            {leagueMatches.length === 0 && <p className="fine-print">Noch kein Spielplan importiert.</p>}
+            <span><strong>Ergebnisse bis Spieltag</strong></span>
+            <input
+              type="number"
+              min="1"
+              max={maxMatchday}
+              value={nextMatchday}
+              onChange={(event) => setThroughMatchday(Number(event.target.value))}
+            />
+            <button type="button" onClick={() => onImportResults(nextMatchday)} disabled={loading || leagueMatches.length === 0}>
+              Importieren
+            </button>
           </div>
+          <button type="button" onClick={onResetResults} disabled={loading || resultCount === 0}>
+            <ShieldCheck size={23} />
+            <span><strong>Ergebnisse zurücksetzen</strong><small>Nur Bundesliga-Testdaten</small></span>
+          </button>
         </section>
-      </div>
 
-      <div className="bundesliga-next-steps">
-        <strong>Nächste Ausbaustufe</strong>
-        <p>
-          Nach dem Testlauf können wir die dann aktuelle Bundesliga-Saison anlegen, echte Teilnehmer
-          freischalten und die öffentliche Navigation aktivieren.
-        </p>
-        <button type="button" className="ghost-button" onClick={onBackToWorldCup}>
-          Zur WM-Verwaltung zurück
-        </button>
+        <section className="bundesliga-lab-stats" aria-label="Bundesliga Teststatus">
+          <span><strong>{leagueMatches.length}</strong> Liga-Spiele</span>
+          <span><strong>{data?.teams?.length ?? 0}</strong> Teams</span>
+          <span><strong>{data?.demoTips?.length ?? 0}</strong> Demo-Tipps</span>
+          <span><strong>{importedThrough || 0}</strong> Spieltage gewertet</span>
+          <label>
+            <input
+              type="checkbox"
+              checked={includeRelegation}
+              onChange={(event) => setIncludeRelegation(event.target.checked)}
+            />
+            Relegation mitladen
+          </label>
+          <button type="button" onClick={onRefresh} disabled={loading}>Aktualisieren</button>
+        </section>
+
+        {message && <p className="bundesliga-lab-message">{message}</p>}
+
+        <div className="bundesliga-lab-layout">
+          <section className="bundesliga-table-panel">
+            <header>
+              <h3>Bundesliga Tabelle</h3>
+              <span>nach importierten Ergebnissen</span>
+            </header>
+            <div className="bundesliga-table-scroll">
+              <table className="bundesliga-standings-table">
+                <thead>
+                  <tr>
+                    <th>Pl.</th>
+                    <th aria-label="Trend"></th>
+                    <th>Team</th>
+                    <th>SP.</th>
+                    <th>S</th>
+                    <th>U</th>
+                    <th>N</th>
+                    <th>Tore</th>
+                    <th>Diff.</th>
+                    <th>Punkte</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tableRows.map((row, index) => {
+                    const position = index + 1;
+                    const diff = row.goalsFor - row.goalsAgainst;
+                    return (
+                      <tr key={row.teamId} className={[
+                        position <= 4 ? "zone-champions" : "",
+                        position >= 5 && position <= 6 ? "zone-europa" : "",
+                        position === 16 ? "zone-relegation" : "",
+                        position >= 17 ? "zone-down" : "",
+                      ].filter(Boolean).join(" ")}>
+                        <td>{position}</td>
+                        <td>{position <= 4 ? "—" : position >= 17 ? "↓" : "–"}</td>
+                        <td>
+                          <span className="bundesliga-club">
+                            {row.logoUrl && <img src={row.logoUrl} alt="" />}
+                            <strong>{row.team}</strong>
+                          </span>
+                        </td>
+                        <td>{row.played}</td>
+                        <td>{row.won}</td>
+                        <td>{row.drawn}</td>
+                        <td>{row.lost}</td>
+                        <td>{row.goalsFor}:{row.goalsAgainst}</td>
+                        <td>{diff}</td>
+                        <td>{row.points}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <footer className="bundesliga-table-legend">
+              <span><i className="champions" /> Champions League</span>
+              <span><i className="europa" /> Europa League</span>
+              <span><i className="relegation" /> Relegation</span>
+              <span><i className="down" /> Abstieg</span>
+            </footer>
+          </section>
+
+          <aside className="bundesliga-lab-side">
+            <section className="bundesliga-dark-panel">
+              <header>
+                <h3>Spieltag {activeMatchday} - Ergebnisse</h3>
+                <select value={activeMatchday} onChange={(event) => setSelectedMatchday(Number(event.target.value))}>
+                  {(matchdayOptions.length ? matchdayOptions : Array.from({ length: maxMatchday }, (_, index) => index + 1)).map((matchday) => (
+                    <option key={matchday} value={matchday}>Spieltag {matchday}</option>
+                  ))}
+                </select>
+              </header>
+              <div className="bundesliga-result-list">
+                {visibleMatches.map((match) => (
+                  <div key={match.id}>
+                    <small>{formatDateTime(match.kickoff_at)}</small>
+                    <strong>{match.team_a_name}</strong>
+                    <b>{match.result ? `${match.result.score_a}:${match.result.score_b}` : "-:-"}</b>
+                    <strong>{match.team_b_name}</strong>
+                    <span className={match.result ? "imported" : ""}>
+                      {match.result ? "Importiert" : "Offen"}
+                    </span>
+                  </div>
+                ))}
+                {visibleMatches.length === 0 && <p>Noch keine Spiele für diesen Spieltag importiert.</p>}
+              </div>
+            </section>
+
+            <section className="bundesliga-dark-panel">
+              <header>
+                <h3>Demo-Tipp Auswertung</h3>
+                <span>{selectedMatch ? `${selectedMatch.team_a_name} - ${selectedMatch.team_b_name}` : "Kein Spiel"}</span>
+              </header>
+              <div className="bundesliga-tip-evaluation">
+                {visibleTipRows.map((tip) => (
+                  <div key={tip.id}>
+                    <strong>{tip.participantName}</strong>
+                    <span>{tip.score_a}:{tip.score_b}</span>
+                    <span>{selectedMatch?.result ? `${selectedMatch.result.score_a}:${selectedMatch.result.score_b}` : "-:-"}</span>
+                    <b className={tip.points > 0 ? "positive" : ""}>{tip.hasResult ? tip.points : "offen"}</b>
+                  </div>
+                ))}
+                {visibleTipRows.length === 0 && <p>Noch keine Demo-Tipps für diesen Spieltag.</p>}
+              </div>
+            </section>
+
+            <section className="bundesliga-dark-panel">
+              <header>
+                <h3>Torschützen - Top 5</h3>
+              </header>
+              <div className="bundesliga-scorer-board">
+                {(data?.topScorers ?? []).slice(0, 5).map((row, index) => (
+                  <div key={row.name}>
+                    <span>{index + 1}</span>
+                    <strong>{row.name}</strong>
+                    <b>{row.goals} Tore</b>
+                  </div>
+                ))}
+                {(data?.topScorers ?? []).length === 0 && <p>Noch keine Torschützen importiert.</p>}
+              </div>
+            </section>
+
+            <section className="bundesliga-demo-create">
+              <label>
+                Demo-Tipper
+                <input
+                  value={demoName}
+                  onChange={(event) => setDemoName(event.target.value)}
+                  placeholder="Name des Test-Tippers"
+                />
+              </label>
+              <button type="button" onClick={createDemoParticipant} disabled={loading || demoName.trim().length < 2}>
+                Speichern
+              </button>
+            </section>
+          </aside>
+        </div>
       </div>
     </section>
   );

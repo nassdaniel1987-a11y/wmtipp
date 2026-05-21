@@ -5,6 +5,7 @@ import {
   buildDemoRanking,
   buildLeagueTable,
   buildTopScorers,
+  pointsFor,
 } from "./_shared/bundesliga.js";
 
 export default async (req) => {
@@ -39,11 +40,34 @@ export default async (req) => {
     const leagueMatches = (matches.data ?? []).filter((match) => match.phase === "league");
     const leagueTeamIds = new Set(leagueMatches.flatMap((match) => [match.team_a_id, match.team_b_id]).filter(Boolean));
     const leagueTeams = (teams.data ?? []).filter((team) => leagueTeamIds.has(team.id));
+    const resultsByMatch = new Map((results.data ?? []).map((result) => [result.match_id, result]));
+    const participantsById = new Map((demoParticipants.data ?? []).map((participant) => [participant.id, participant]));
+    const tipsByMatch = new Map();
+
+    (demoTips.data ?? []).forEach((tip) => {
+      const rows = tipsByMatch.get(tip.match_id) ?? [];
+      rows.push(tip);
+      tipsByMatch.set(tip.match_id, rows);
+    });
+
+    const enrichedMatches = (matches.data ?? []).map((match) => {
+      const result = resultsByMatch.get(match.id) ?? null;
+      return {
+        ...match,
+        result,
+        demoTips: (tipsByMatch.get(match.id) ?? []).map((tip) => ({
+          ...tip,
+          participantName: participantsById.get(tip.participant_id)?.display_name ?? "Demo-Tipper",
+          points: pointsFor(tip, result),
+          hasResult: result?.status === "final",
+        })),
+      };
+    });
 
     return json({
       competition: competition.data,
       teams: teams.data ?? [],
-      matches: matches.data ?? [],
+      matches: enrichedMatches,
       results: results.data ?? [],
       goals: goals.data ?? [],
       demoParticipants: demoParticipants.data ?? [],
