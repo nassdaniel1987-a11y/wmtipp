@@ -1810,6 +1810,98 @@ tbody tr:nth-child(1) td:first-child {
   font-size: 1.12rem;
 }
 
+.admin-competition-switch {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: center;
+  margin-top: 18px;
+  padding: 14px;
+  border: 1px solid #d7e4f1;
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
+.admin-competition-switch div:first-child {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.admin-competition-switch span,
+.bundesliga-status-card span,
+.bundesliga-setup-grid span {
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 850;
+}
+
+.admin-competition-switch strong,
+.bundesliga-status-card strong,
+.bundesliga-setup-grid strong,
+.bundesliga-next-steps strong {
+  color: var(--navy);
+  font-weight: 950;
+}
+
+.bundesliga-admin-setup {
+  display: grid;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.bundesliga-status-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+  padding: 18px;
+  border: 1px solid #cfe0f0;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #f8fbff 0%, #eef7ff 100%);
+}
+
+.bundesliga-status-card svg {
+  color: var(--gold);
+}
+
+.bundesliga-status-card div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.bundesliga-status-card p,
+.bundesliga-setup-grid p,
+.bundesliga-next-steps p {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 750;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.bundesliga-setup-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.bundesliga-setup-grid article,
+.bundesliga-next-steps {
+  display: grid;
+  gap: 7px;
+  padding: 16px;
+  border: 1px solid #dbe7f2;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.bundesliga-next-steps .ghost-button {
+  width: fit-content;
+  margin-top: 6px;
+}
+
 .result-list {
   display: grid;
   gap: 10px;
@@ -2716,10 +2808,26 @@ tbody tr:nth-child(1) td:first-child {
 
   .admin-actions,
   .admin-stats,
+  .admin-competition-switch,
   .participant-row,
   .participant-tip-row,
   .result-row {
     grid-template-columns: 1fr;
+  }
+
+  .admin-competition-switch {
+    display: grid;
+    align-items: stretch;
+  }
+
+  .bundesliga-status-card,
+  .bundesliga-setup-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .bundesliga-next-steps .ghost-button {
+    width: 100%;
+    justify-content: center;
   }
 
   .result-toolbar {

@@ -105,6 +105,20 @@ const TEST_TREND_ROWS = [
   { score_a: 0, score_b: 2 },
 ];
 const AUTO_SAVE_DELAY_MS = 650;
+const competitions = {
+  wm2026: {
+    id: "wm-2026",
+    name: "WM 2026",
+    adminLabel: "WM-Verwaltung",
+    publicEnabled: true,
+  },
+  bundesliga: {
+    id: "bundesliga",
+    name: "Bundesliga",
+    adminLabel: "Bundesliga-Version",
+    publicEnabled: false,
+  },
+};
 const tipSaveStatusLabels = {
   pending: "Wird gleich gespeichert...",
   saving: "Wird gespeichert...",
@@ -2695,7 +2709,9 @@ function AdminPanel({
   const [officialPreview, setOfficialPreview] = useState(null);
   const [officialLoading, setOfficialLoading] = useState(false);
   const [playerDraft, setPlayerDraft] = useState({ displayName: "", teamName: "", aliases: "", active: true });
+  const [adminCompetition, setAdminCompetition] = useState(competitions.wm2026.id);
   const activePlayers = players.filter((player) => player.active !== false);
+  const isBundesligaAdmin = adminCompetition === competitions.bundesliga.id;
 
   useEffect(() => {
     setBonusResultDraft(createInitialBonusResults(matches, bonusResults, players));
@@ -3060,11 +3076,46 @@ function AdminPanel({
       <header className="admin-hero">
         <ShieldCheck size={34} />
         <div>
-          <h2>Adminbereich</h2>
-          <p>QR-Codes erzeugen, Teilnehmer ansehen und Spielergebnisse eintragen.</p>
+          <h2>{isBundesligaAdmin ? "Bundesliga-Admin" : "Adminbereich"}</h2>
+          <p>
+            {isBundesligaAdmin
+              ? "Versteckte Bundesliga-Version vorbereiten, bevor sie öffentlich wird."
+              : "QR-Codes erzeugen, Teilnehmer ansehen und Spielergebnisse eintragen."}
+          </p>
         </div>
       </header>
 
+      <section className="admin-competition-switch" aria-label="Admin-Version auswählen">
+        <div>
+          <span>Aktive Admin-Ansicht</span>
+          <strong>{isBundesligaAdmin ? competitions.bundesliga.adminLabel : competitions.wm2026.adminLabel}</strong>
+        </div>
+        <div className="segmented-control">
+          <button
+            type="button"
+            className={!isBundesligaAdmin ? "active" : ""}
+            onClick={() => setAdminCompetition(competitions.wm2026.id)}
+          >
+            WM 2026
+          </button>
+          <button
+            type="button"
+            className={isBundesligaAdmin ? "active" : ""}
+            onClick={() => setAdminCompetition(competitions.bundesliga.id)}
+          >
+            Bundesliga
+          </button>
+        </div>
+      </section>
+
+      {isBundesligaAdmin && (
+        <BundesligaAdminSetup
+          onBackToWorldCup={() => setAdminCompetition(competitions.wm2026.id)}
+        />
+      )}
+
+      {!isBundesligaAdmin && (
+        <>
       <div className="admin-actions">
         <button type="button" className="ghost-button" onClick={onRefresh}>Daten aktualisieren</button>
         <button type="button" className="ghost-button" onClick={onLogout}>Admin abmelden</button>
@@ -3734,6 +3785,60 @@ function AdminPanel({
           </section>
         </div>
       )}
+        </>
+      )}
+    </section>
+  );
+}
+
+function BundesligaAdminSetup({ onBackToWorldCup }) {
+  return (
+    <section className="bundesliga-admin-setup">
+      <div className="bundesliga-status-card">
+        <Trophy size={30} />
+        <div>
+          <span>Nicht öffentlich</span>
+          <strong>Bundesliga-Grundversion vorbereitet</strong>
+          <p>
+            Dieser Bereich ist nur im Admin sichtbar. Nutzer bleiben weiter in der WM-Version,
+            bis die Bundesliga bewusst freigeschaltet wird.
+          </p>
+        </div>
+      </div>
+
+      <div className="bundesliga-setup-grid">
+        <article>
+          <span>Spielplanquelle</span>
+          <strong>API später</strong>
+          <p>Der Import wird vorbereitet, aber noch nicht an einen Anbieter gebunden.</p>
+        </article>
+        <article>
+          <span>Bundesliga-Spielplan</span>
+          <strong>Platzhalter</strong>
+          <p>Hier kann später der Spielplan geladen, geprüft und veröffentlicht werden.</p>
+        </article>
+        <article>
+          <span>Bundesliga-Tipps</span>
+          <strong>Noch geschlossen</strong>
+          <p>Es werden aktuell keine Bundesliga-Tipps gespeichert oder öffentlich angezeigt.</p>
+        </article>
+        <article>
+          <span>Bundesliga-Rangliste</span>
+          <strong>Noch leer</strong>
+          <p>Die Wertung bleibt getrennt von der WM und wird erst mit echten Daten aktiviert.</p>
+        </article>
+      </div>
+
+      <div className="bundesliga-next-steps">
+        <strong>Nächste Ausbaustufe</strong>
+        <p>
+          Als nächstes können wir Wettbewerbe in der Datenbank trennen, eine Spielplan-API auswählen
+          und eigene Bundesliga-Regeln für Tipps, Bonusfragen und Rangliste festlegen.
+        </p>
+        <button type="button" className="ghost-button" onClick={onBackToWorldCup}>
+          Zur WM-Verwaltung zurück
+        </button>
+      </div>
     </section>
   );
 }
