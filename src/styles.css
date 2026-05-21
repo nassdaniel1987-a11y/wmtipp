@@ -2718,6 +2718,139 @@ tbody tr:nth-child(1) td:first-child {
   overflow-wrap: anywhere;
 }
 
+.bundesliga-code-list.expanded div {
+  grid-template-columns: 140px 100px minmax(0, 1fr);
+  align-items: center;
+}
+
+.bundesliga-participant-admin-list,
+.bundesliga-participant-admin-list article,
+.bundesliga-participant-tip-editor,
+.bundesliga-participant-bonus-editor,
+.bundesliga-bonus-result-editor,
+.bundesliga-rule-grid,
+.bundesliga-rule-list {
+  display: grid;
+  gap: 12px;
+}
+
+.bundesliga-participant-admin-list article {
+  padding: 14px;
+  border: 1px solid #333c44;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.bundesliga-participant-admin-head,
+.bundesliga-participant-tip-editor div,
+.bundesliga-participant-bonus-editor {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) 110px 120px auto auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.bundesliga-participant-admin-head label,
+.bundesliga-bonus-result-editor label {
+  display: grid;
+  gap: 6px;
+  color: #b4bec6;
+  font-weight: 850;
+}
+
+.bundesliga-participant-admin-head input,
+.bundesliga-participant-tip-editor input,
+.bundesliga-participant-bonus-editor select,
+.bundesliga-bonus-result-editor select {
+  min-height: 38px;
+  min-width: 0;
+  border: 1px solid #3d454d;
+  border-radius: 4px;
+  padding: 0 10px;
+  color: #ffffff;
+  background: #11161a;
+  font-weight: 850;
+}
+
+.bundesliga-participant-tip-editor {
+  max-height: 360px;
+  overflow: auto;
+  padding-top: 4px;
+}
+
+.bundesliga-participant-tip-editor div {
+  grid-template-columns: 54px minmax(180px, 1fr) 70px 70px auto;
+  padding: 10px;
+  border-bottom: 1px solid #2c343b;
+}
+
+.bundesliga-participant-admin-head button,
+.bundesliga-participant-tip-editor button,
+.bundesliga-participant-bonus-editor button,
+.bundesliga-status-editor button {
+  min-height: 38px;
+  border: 1px solid #df2f28;
+  border-radius: 4px;
+  padding: 0 12px;
+  color: #ffffff;
+  background: #df2f28;
+  font-weight: 950;
+}
+
+.bundesliga-participant-admin-head .danger-button {
+  border-color: #70302c;
+  background: #321819;
+}
+
+.bundesliga-participant-bonus-editor {
+  grid-template-columns: repeat(2, minmax(160px, 1fr)) auto auto;
+}
+
+.bundesliga-mini-choice-row {
+  display: flex;
+  flex-wrap: wrap;
+  grid-column: 1 / -1;
+  gap: 7px;
+}
+
+.bundesliga-mini-choice-row button {
+  min-height: 32px;
+  border-color: #3d454d;
+  background: #11161a;
+}
+
+.bundesliga-mini-choice-row button.selected {
+  border-color: #df2f28;
+  background: rgba(223, 47, 40, 0.22);
+}
+
+.bundesliga-bonus-result-editor h4,
+.bundesliga-ranking-table-scroll + h4 {
+  margin: 12px 0 0;
+}
+
+.bundesliga-rule-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.bundesliga-rule-grid div,
+.bundesliga-rule-list div,
+.bundesliga-status-editor {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid #333c44;
+  border-radius: 6px;
+  background: #11161a;
+}
+
+.bundesliga-rule-grid b,
+.bundesliga-rule-list b {
+  color: #df2f28;
+}
+
 .bundesliga-public-shell {
   min-height: 100vh;
   color: #ffffff;

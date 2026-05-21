@@ -2,6 +2,7 @@ import { requireAdmin } from "./_shared/admin.js";
 import { json } from "./_shared/supabase.js";
 import {
   BUNDESLIGA_COMPETITION_ID,
+  buildCompetitionRanking,
   buildDemoRanking,
   buildLeagueTable,
   buildTopScorers,
@@ -40,6 +41,9 @@ export default async (req) => {
       bonusResults,
       topScorers,
       inviteCodes,
+      participants,
+      participantTips,
+      participantBonusTips,
     ] = await Promise.all([
       supabase.from("competitions").select("*").eq("id", BUNDESLIGA_COMPETITION_ID).maybeSingle(),
       supabase.from("competition_teams").select("*").eq("competition_id", BUNDESLIGA_COMPETITION_ID).order("name"),
@@ -51,9 +55,12 @@ export default async (req) => {
       supabase.from("competition_bonus_results").select("*").eq("competition_id", BUNDESLIGA_COMPETITION_ID).maybeSingle(),
       loadOptionalTopScorers(supabase),
       supabase.from("competition_invite_codes").select("*").eq("competition_id", BUNDESLIGA_COMPETITION_ID).order("created_at", { ascending: false }).limit(20),
+      supabase.from("competition_participants").select("*").eq("competition_id", BUNDESLIGA_COMPETITION_ID).order("created_at"),
+      supabase.from("competition_tips").select("*").eq("competition_id", BUNDESLIGA_COMPETITION_ID).order("saved_at"),
+      supabase.from("competition_participant_bonus_tips").select("*").eq("competition_id", BUNDESLIGA_COMPETITION_ID),
     ]);
 
-    for (const response of [competition, teams, matches, results, goals, demoParticipants, demoTips, bonusResults, inviteCodes]) {
+    for (const response of [competition, teams, matches, results, goals, demoParticipants, demoTips, bonusResults, inviteCodes, participants, participantTips, participantBonusTips]) {
       if (response.error) throw response.error;
     }
 
@@ -62,7 +69,9 @@ export default async (req) => {
     const leagueTeams = (teams.data ?? []).filter((team) => leagueTeamIds.has(team.id));
     const resultsByMatch = new Map((results.data ?? []).map((result) => [result.match_id, result]));
     const participantsById = new Map((demoParticipants.data ?? []).map((participant) => [participant.id, participant]));
+    const realParticipantsById = new Map((participants.data ?? []).map((participant) => [participant.id, participant]));
     const tipsByMatch = new Map();
+    const participantTipsByMatch = new Map();
     const goalAggregation = buildTopScorers(goals.data ?? []);
     const topScorerRows = topScorers.length
       ? topScorers.map((row) => ({
@@ -86,6 +95,12 @@ export default async (req) => {
       tipsByMatch.set(tip.match_id, rows);
     });
 
+    (participantTips.data ?? []).forEach((tip) => {
+      const rows = participantTipsByMatch.get(tip.match_id) ?? [];
+      rows.push(tip);
+      participantTipsByMatch.set(tip.match_id, rows);
+    });
+
     const enrichedMatches = (matches.data ?? []).map((match) => {
       const result = resultsByMatch.get(match.id) ?? null;
       return {
@@ -97,8 +112,23 @@ export default async (req) => {
           points: pointsFor(tip, result),
           hasResult: result?.status === "final",
         })),
+        participantTips: (participantTipsByMatch.get(match.id) ?? []).map((tip) => ({
+          ...tip,
+          participantName: realParticipantsById.get(tip.participant_id)?.display_name ?? "Teilnehmer",
+          points: pointsFor(tip, result),
+          hasResult: result?.status === "final",
+        })),
       };
     });
+
+    const participantRanking = buildCompetitionRanking(
+      participants.data ?? [],
+      participantTips.data ?? [],
+      results.data ?? [],
+      participantBonusTips.data ?? [],
+      bonusResults.data ?? null,
+      topScorers,
+    );
 
     return json({
       competition: competition.data,
@@ -111,6 +141,10 @@ export default async (req) => {
       bonusResults: bonusResults.data ?? null,
       table: buildLeagueTable(leagueMatches, results.data ?? [], leagueTeams),
       ranking: buildDemoRanking(demoParticipants.data ?? [], demoTips.data ?? [], results.data ?? []),
+      participants: participants.data ?? [],
+      participantTips: participantTips.data ?? [],
+      participantBonusTips: participantBonusTips.data ?? [],
+      participantRanking,
       topScorers: topScorerRows,
       inviteCodes: inviteCodes.data ?? [],
       dataQuality: {

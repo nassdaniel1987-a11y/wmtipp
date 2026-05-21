@@ -74,6 +74,9 @@ test("hidden Bundesliga test flow supports tips, bonus and ranking", async ({ pa
   await page.getByRole("button", { name: "Tippen" }).click();
   await expect(page).toHaveURL(/#bundesliga-tippen$/);
   await expect(page.getByRole("heading", { name: "Spieltag tippen" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Alle Tipps dieses Spieltags speichern" })).toBeVisible();
+  await expect(page.getByText("Exaktes Ergebnis")).toBeVisible();
+  await expect(page.locator(".bundesliga-rule-list").getByText("4 Punkte")).toBeVisible();
   const firstCard = page.locator(".bundesliga-user-match-card").first();
   await expect(firstCard.locator(".score-control strong").first()).toHaveText("-");
   await firstCard.locator(".score-control button").first().click();

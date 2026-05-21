@@ -200,6 +200,133 @@ export default async (req) => {
       return json({ topScorer: data });
     }
 
+    if (action === "rename-participant") {
+      const participantId = String(body.participantId || "").trim();
+      const displayName = String(body.displayName || "").trim();
+      if (!participantId || displayName.length < 2) return json({ error: "Teilnehmername ist zu kurz." }, 400);
+
+      const { data, error } = await supabase
+        .from("competition_participants")
+        .update({ display_name: displayName })
+        .eq("competition_id", BUNDESLIGA_COMPETITION_ID)
+        .eq("id", participantId)
+        .select("*")
+        .single();
+      if (error) throw error;
+      return json({ participant: data });
+    }
+
+    if (action === "delete-participant") {
+      const participantId = String(body.participantId || "").trim();
+      if (!participantId) return json({ error: "Teilnehmer fehlt." }, 400);
+
+      const { data: participant, error: readError } = await supabase
+        .from("competition_participants")
+        .select("id, invite_code_id")
+        .eq("competition_id", BUNDESLIGA_COMPETITION_ID)
+        .eq("id", participantId)
+        .maybeSingle();
+      if (readError) throw readError;
+      if (!participant) return json({ error: "Teilnehmer wurde nicht gefunden." }, 404);
+
+      const { error: deleteError } = await supabase
+        .from("competition_participants")
+        .delete()
+        .eq("competition_id", BUNDESLIGA_COMPETITION_ID)
+        .eq("id", participantId);
+      if (deleteError) throw deleteError;
+
+      if (participant.invite_code_id) {
+        const { error: codeError } = await supabase
+          .from("competition_invite_codes")
+          .update({ status: "free", participant_id: null, claimed_at: null })
+          .eq("competition_id", BUNDESLIGA_COMPETITION_ID)
+          .eq("id", participant.invite_code_id);
+        if (codeError) throw codeError;
+      }
+      return json({ deletedParticipantId: participantId });
+    }
+
+    if (action === "save-participant-tip") {
+      const participantId = String(body.participantId || "").trim();
+      const matchId = String(body.matchId || "").trim();
+      const scoreA = Number(body.scoreA);
+      const scoreB = Number(body.scoreB);
+      if (!participantId || !matchId || !Number.isInteger(scoreA) || !Number.isInteger(scoreB) || scoreA < 0 || scoreA > 12 || scoreB < 0 || scoreB > 12) {
+        return json({ error: "Teilnehmer-Tipp ist ungültig." }, 400);
+      }
+
+      const { data, error } = await supabase
+        .from("competition_tips")
+        .upsert({
+          competition_id: BUNDESLIGA_COMPETITION_ID,
+          participant_id: participantId,
+          match_id: matchId,
+          score_a: scoreA,
+          score_b: scoreB,
+          saved_at: new Date().toISOString(),
+        }, { onConflict: "competition_id,participant_id,match_id" })
+        .select("*")
+        .single();
+      if (error) throw error;
+      return json({ tip: data });
+    }
+
+    if (action === "save-participant-bonus") {
+      const participantId = String(body.participantId || "").trim();
+      if (!participantId) return json({ error: "Teilnehmer fehlt." }, 400);
+      const row = {
+        participant_id: participantId,
+        competition_id: BUNDESLIGA_COMPETITION_ID,
+        champion_team_id: body.championTeamId || null,
+        top_scorer_id: body.topScorerId || null,
+        top_scorer: String(body.topScorer || "").trim() || null,
+        relegated_team_ids: Array.isArray(body.relegatedTeamIds) ? body.relegatedTeamIds.slice(0, 3) : [],
+        saved_at: new Date().toISOString(),
+      };
+      const { data, error } = await supabase
+        .from("competition_participant_bonus_tips")
+        .upsert(row, { onConflict: "participant_id" })
+        .select("*")
+        .single();
+      if (error) throw error;
+      return json({ bonusTip: data });
+    }
+
+    if (action === "save-bonus-results") {
+      const topScorers = Array.isArray(body.topScorers)
+        ? body.topScorers.map((name) => String(name || "").trim()).filter(Boolean)
+        : [];
+      const relegatedTeamIds = Array.isArray(body.relegatedTeamIds) ? body.relegatedTeamIds.slice(0, 3) : [];
+      const { data, error } = await supabase
+        .from("competition_bonus_results")
+        .upsert({
+          competition_id: BUNDESLIGA_COMPETITION_ID,
+          champion_team_id: body.championTeamId || null,
+          top_scorers: topScorers,
+          relegated_team_ids: relegatedTeamIds,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "competition_id" })
+        .select("*")
+        .single();
+      if (error) throw error;
+      return json({ bonusResults: data });
+    }
+
+    if (action === "set-competition-status") {
+      const status = String(body.status || "admin_test");
+      const publicEnabled = Boolean(body.publicEnabled);
+      if (!["admin_test", "public", "archived"].includes(status)) return json({ error: "Ungültiger Status." }, 400);
+      const { data, error } = await supabase
+        .from("competitions")
+        .update({ status, public_enabled: publicEnabled, updated_at: new Date().toISOString() })
+        .eq("id", BUNDESLIGA_COMPETITION_ID)
+        .select("*")
+        .single();
+      if (error) throw error;
+      return json({ competition: data });
+    }
+
     return json({ error: "Unbekannte Bundesliga-Testaktion." }, 400);
   } catch (error) {
     return json({ error: error.message || "Bundesliga-Testaktion fehlgeschlagen." }, 400);
