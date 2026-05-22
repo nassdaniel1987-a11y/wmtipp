@@ -344,6 +344,17 @@ private fun TipsScreen(state: MainUiState, vm: MainViewModel) {
                     }
                 }
             }
+            item {
+                Button(
+                    onClick = { vm.saveCompleteTips(filtered.map(Match::id)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = Navy),
+                ) {
+                    Icon(Icons.Default.Save, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Vollständige sichtbare Tipps speichern")
+                }
+            }
             items(filtered, key = Match::id) { match ->
                 MatchEditorCard(
                     match = match,
@@ -528,13 +539,24 @@ private fun BonusEditor(state: MainUiState, vm: MainViewModel) {
                     val options = matches.flatMap { listOf(it.teamA, it.teamB) }.map(::displayTeamName).distinct().sorted()
                     SimpleDropdown("Gruppensieger Gruppe $group", options, state.bonusTip.groupWinners[group].orEmpty()) { vm.updateGroupWinner(group!!, it) }
                 }
-                Button(vm::saveBonusTip, Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = if (state.bonusTip.saved) Green else Navy)) {
-                    Icon(if (state.bonusTip.saved) Icons.Default.CheckCircle else Icons.Default.Save, null)
-                    Spacer(Modifier.width(8.dp))
-                    Text(if (state.bonusTip.saved) "Bonus-Tipps gespeichert" else "Bonus-Tipps speichern")
-                }
+                BonusSaveStatusRow(state.bonusSaveStatus, state.bonusSaveError, state.bonusTip)
             }
         }
+    }
+}
+
+@Composable
+private fun BonusSaveStatusRow(status: TipSaveStatus, error: String?, bonusTip: BonusTip) {
+    val (icon, text, color) = when {
+        error != null || status == TipSaveStatus.Error -> Triple(Icons.Default.ErrorOutline, error ?: "Speichern fehlgeschlagen.", Orange)
+        status == TipSaveStatus.Saving -> Triple(Icons.Default.Sync, "Bonus-Tipps werden gespeichert...", Blue)
+        status == TipSaveStatus.Pending && !bonusTip.saved -> Triple(Icons.Default.Schedule, "Bonus-Tipps werden automatisch gespeichert...", Muted)
+        status == TipSaveStatus.Saved || bonusTip.saved -> Triple(Icons.Default.CheckCircle, "Bonus-Tipps gespeichert", Green)
+        else -> Triple(Icons.Default.Edit, "Bonus-Tipps werden automatisch gespeichert.", Muted)
+    }
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+        Icon(icon, null, tint = color, modifier = Modifier.size(17.dp))
+        Text(text, color = color, style = MaterialTheme.typography.bodySmall)
     }
 }
 
@@ -626,6 +648,10 @@ private fun RankingScreen(state: MainUiState) {
             state.ranking.sortedWith(compareByDescending<RankingRow> { it.points }.thenBy { it.name })
         }
     }
+    val localSavedTipCount = state.drafts.values.count { it.saved }
+    val localScoredTipCount = state.drafts.values.count { draft ->
+        draft.saved && state.results[draft.matchId]?.status == "final"
+    }
     LazyColumn(contentPadding = PaddingValues(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item {
             HeroSection(
@@ -642,13 +668,15 @@ private fun RankingScreen(state: MainUiState) {
         }
         itemsIndexed(rows) { index, row ->
             val mine = row.name == state.storedParticipant?.displayName
+            val displayTipCount = if (mine) maxOf(row.tipCount, localSavedTipCount) else row.tipCount
+            val displayScoredTipCount = if (mine) maxOf(row.scoredTipCount, localScoredTipCount) else row.scoredTipCount
             Card(colors = CardDefaults.cardColors(containerColor = if (mine) Yellow.copy(alpha = .18f) else Color.White), border = BorderStroke(1.dp, if (mine) Yellow else Line)) {
                 Row(Modifier.fillMaxWidth().padding(14.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         RankBadge(index + 1)
                         Column {
                             Text(row.name, fontWeight = if (mine) FontWeight.Bold else FontWeight.SemiBold)
-                            Text("${row.tipCount} Tipps · ${row.scoredTipCount} gewertet", color = Muted, style = MaterialTheme.typography.bodySmall)
+                            Text("$displayTipCount gespeichert · $displayScoredTipCount gewertet", color = Muted, style = MaterialTheme.typography.bodySmall)
                         }
                     }
                     Column(horizontalAlignment = Alignment.End) {

@@ -40,9 +40,18 @@ class TippspielApi(
     }
 
     suspend fun saveTip(participantId: String, tip: Tip): List<Tip> = withContext(Dispatchers.IO) {
+        saveTips(participantId, listOf(tip))
+    }
+
+    suspend fun saveTips(participantId: String, tips: List<Tip>): List<Tip> = withContext(Dispatchers.IO) {
         val body = JSONObject()
             .put("participantId", participantId)
-            .put("tips", JSONArray().put(JSONObject().put("matchId", tip.matchId).put("scoreA", tip.scoreA).put("scoreB", tip.scoreB)))
+            .put(
+                "tips",
+                JSONArray(tips.map { tip ->
+                    JSONObject().put("matchId", tip.matchId).put("scoreA", tip.scoreA).put("scoreB", tip.scoreB)
+                }),
+            )
             .toString().toRequestBody(JSON)
         executeObject(Request.Builder().url("$baseUrl/api/save-tips").post(body).build())
             .getJSONArray("tips").mapObjects { it.toTip() }
@@ -55,11 +64,12 @@ class TippspielApi(
     }
 
     suspend fun saveBonusTip(participantId: String, bonusTip: BonusTip): BonusTip = withContext(Dispatchers.IO) {
+        val topScorerPlayerId = bonusTip.topScorerPlayerId.takeIf { it.isNotBlank() }
         val body = JSONObject()
             .put("participantId", participantId)
             .put("champion", bonusTip.champion)
             .put("topScorer", bonusTip.topScorer)
-            .put("topScorerPlayerId", bonusTip.topScorerPlayerId)
+            .put("topScorerPlayerId", topScorerPlayerId)
             .put("groupWinners", JSONObject(bonusTip.groupWinners))
             .toString().toRequestBody(JSON)
         executeObject(Request.Builder().url("$baseUrl/api/save-bonus-tips").post(body).build())
@@ -126,9 +136,9 @@ class TippspielApi(
     )
     private fun JSONObject.toTip() = Tip(getString("match_id"), getInt("score_a"), getInt("score_b"))
     private fun JSONObject.toBonusTip(saved: Boolean) = BonusTip(
-        champion = optString("champion"), topScorer = optString("top_scorer"), topScorerPlayerId = optString("top_scorer_player_id"), groupWinners = optJSONObject("group_winners").toStringMap(), saved = saved,
+        champion = cleanString("champion"), topScorer = cleanString("top_scorer"), topScorerPlayerId = cleanString("top_scorer_player_id"), groupWinners = optJSONObject("group_winners").toStringMap(), saved = saved,
     )
-    private fun JSONObject.toBonusResult() = BonusResult(optString("champion"), optString("top_scorer"), optJSONObject("group_winners").toStringMap())
+    private fun JSONObject.toBonusResult() = BonusResult(cleanString("champion"), cleanString("top_scorer"), optJSONObject("group_winners").toStringMap())
     private fun JSONObject.toRankingRow() = RankingRow(
         name = getString("name"), points = getInt("points"), matchPoints = getInt("matchPoints"), bonusPoints = getInt("bonusPoints"),
         tipCount = getInt("tipCount"), scoredTipCount = getInt("scoredTipCount"), averagePoints = getDouble("averagePoints"),
@@ -142,6 +152,7 @@ class TippspielApi(
         apkUrl = getString("apkUrl"),
         notes = optString("notes"),
     )
+    private fun JSONObject.cleanString(name: String): String = if (isNull(name)) "" else optString(name).takeUnless { it == "null" }.orEmpty()
     private fun JSONObject?.toStringMap(): Map<String, String> = this?.keys()?.asSequence()?.associateWith { optString(it) } ?: emptyMap()
     private inline fun <T> JSONArray.mapObjects(transform: (JSONObject) -> T): List<T> = List(length()) { transform(getJSONObject(it)) }
     private companion object { val JSON = "application/json; charset=utf-8".toMediaType() }

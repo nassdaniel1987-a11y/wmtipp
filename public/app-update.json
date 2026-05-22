@@ -1,6 +1,6 @@
 {
-  "versionCode": 12,
-  "versionName": "0.1.11",
+  "versionCode": 13,
+  "versionName": "0.1.12",
   "apkUrl": "https://wmtipp.netlify.app/downloads/wmtippspiel-latest.apk",
-  "notes": "Gruppenfilter zeigen Tipp-Fortschritt, Torschützenkönig jetzt per Spielerliste auswählbar."
+  "notes": "Bonus-Tipps speichern automatisch, UUID-Auswahl korrigiert, vollständige Spieltipps können gesammelt nachgespeichert werden."
 }

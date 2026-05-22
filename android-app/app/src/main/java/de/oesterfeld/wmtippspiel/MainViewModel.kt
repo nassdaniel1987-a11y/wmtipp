@@ -25,6 +25,8 @@ data class MainUiState(
     val tipSaveStatuses: Map<String, TipSaveStatus> = emptyMap(),
     val tipSaveErrors: Map<String, String> = emptyMap(),
     val bonusTip: BonusTip = BonusTip(),
+    val bonusSaveStatus: TipSaveStatus = TipSaveStatus.Idle,
+    val bonusSaveError: String? = null,
     val bonusResults: BonusResult? = null,
     val players: List<Player> = emptyList(),
     val ranking: List<RankingRow> = emptyList(),
@@ -49,6 +51,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val participantStore = ParticipantStore(application)
     private val updateInstaller = UpdateInstaller(application)
     private val autosaveJobs = mutableMapOf<String, Job>()
+    private var bonusAutosaveJob: Job? = null
     private val _uiState = MutableStateFlow(
         MainUiState(
             storedParticipant = participantStore.load(),
@@ -187,20 +190,88 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun updateChampion(value: String) = _uiState.update { it.copy(bonusTip = it.bonusTip.copy(champion = value, saved = false)) }
-    fun updateTopScorer(playerId: String) = _uiState.update {
-        val player = it.players.find { item -> item.id == playerId }
-        it.copy(bonusTip = it.bonusTip.copy(topScorer = player?.displayName.orEmpty(), topScorerPlayerId = playerId, saved = false))
+    fun saveCompleteTips(matchIds: List<String>) {
+        val participant = _uiState.value.storedParticipant ?: return
+        val state = _uiState.value
+        val tips = matchIds.mapNotNull { matchId ->
+            val draft = state.drafts[matchId] ?: return@mapNotNull null
+            val match = state.matches.find { it.id == matchId } ?: return@mapNotNull null
+            if (!draft.isValid || draft.saved || isMatchLocked(match)) return@mapNotNull null
+            Tip(matchId, draft.scoreA.toInt(), draft.scoreB.toInt())
+        }
+        if (tips.isEmpty()) {
+            _uiState.update { it.copy(message = "Keine vollständigen ungespeicherten Tipps gefunden.") }
+            return
+        }
+        viewModelScope.launch {
+            val savingStatuses = tips.associate { it.matchId to TipSaveStatus.Saving }
+            _uiState.update { it.copy(tipSaveStatuses = it.tipSaveStatuses + savingStatuses, message = null) }
+            runCatching { api.saveTips(participant.id, tips) }
+                .onSuccess { saved ->
+                    val updated = saved.associate { tip -> tip.matchId to TipDraft(tip.matchId, tip.scoreA.toString(), tip.scoreB.toString(), saved = true) }
+                    val savedStatuses = saved.associate { it.matchId to TipSaveStatus.Saved }
+                    _uiState.update {
+                        it.copy(
+                            drafts = it.drafts + updated,
+                            tipSaveStatuses = it.tipSaveStatuses + savedStatuses,
+                            tipSaveErrors = it.tipSaveErrors - savedStatuses.keys,
+                            message = "${saved.size} Tipp${if (saved.size == 1) "" else "s"} gespeichert.",
+                        )
+                    }
+                    refreshSupportingData()
+                }
+                .onFailure { error ->
+                    val errorStatuses = tips.associate { it.matchId to TipSaveStatus.Error }
+                    val errors = tips.associate { it.matchId to (error.message ?: "Speichern fehlgeschlagen.") }
+                    _uiState.update { it.copy(tipSaveStatuses = it.tipSaveStatuses + errorStatuses, tipSaveErrors = it.tipSaveErrors + errors) }
+                }
+        }
+    }
+
+    fun updateChampion(value: String) {
+        _uiState.update { it.copy(bonusTip = it.bonusTip.copy(champion = value, saved = false), bonusSaveStatus = TipSaveStatus.Pending, bonusSaveError = null) }
+        scheduleBonusAutosave()
+    }
+    fun updateTopScorer(playerId: String) {
+        _uiState.update {
+            val player = it.players.find { item -> item.id == playerId }
+            it.copy(bonusTip = it.bonusTip.copy(topScorer = player?.displayName.orEmpty(), topScorerPlayerId = playerId, saved = false), bonusSaveStatus = TipSaveStatus.Pending, bonusSaveError = null)
+        }
+        scheduleBonusAutosave()
     }
     fun updateGroupWinner(group: String, value: String) = _uiState.update {
-        it.copy(bonusTip = it.bonusTip.copy(groupWinners = it.bonusTip.groupWinners + (group to value), saved = false))
+        it.copy(bonusTip = it.bonusTip.copy(groupWinners = it.bonusTip.groupWinners + (group to value), saved = false), bonusSaveStatus = TipSaveStatus.Pending, bonusSaveError = null)
+    }.also {
+        scheduleBonusAutosave()
     }
     fun saveBonusTip() {
         val participant = _uiState.value.storedParticipant ?: return
-        launchBusy {
-            val saved = api.saveBonusTip(participant.id, _uiState.value.bonusTip)
-            _uiState.update { it.copy(bonusTip = saved, message = "Bonus-Tipps gespeichert.") }
-            refreshSupportingData()
+        val submitted = _uiState.value.bonusTip
+        viewModelScope.launch {
+            _uiState.update { it.copy(bonusSaveStatus = TipSaveStatus.Saving, bonusSaveError = null) }
+            runCatching { api.saveBonusTip(participant.id, submitted) }
+                .onSuccess { saved ->
+                    _uiState.update { current ->
+                        if (current.bonusTip == submitted) {
+                            current.copy(bonusTip = saved, bonusSaveStatus = TipSaveStatus.Saved, bonusSaveError = null, message = "Bonus-Tipps gespeichert.")
+                        } else {
+                            current.copy(bonusSaveStatus = TipSaveStatus.Pending)
+                        }
+                    }
+                    if (_uiState.value.bonusSaveStatus == TipSaveStatus.Pending) scheduleBonusAutosave()
+                    refreshSupportingData()
+                }
+                .onFailure { error ->
+                    _uiState.update { it.copy(bonusSaveStatus = TipSaveStatus.Error, bonusSaveError = error.message ?: "Bonus-Tipps konnten nicht gespeichert werden.") }
+                }
+        }
+    }
+
+    private fun scheduleBonusAutosave() {
+        bonusAutosaveJob?.cancel()
+        bonusAutosaveJob = viewModelScope.launch {
+            delay(650)
+            saveBonusTip()
         }
     }
 
