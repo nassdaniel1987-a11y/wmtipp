@@ -556,6 +556,12 @@ function getTeamOptions(matches) {
     .sort((first, second) => first.name.localeCompare(second.name, "de"));
 }
 
+function getGroupFilterLabel(filter) {
+  if (filter === "alle") return "Alle";
+  if (filter === "deutschland") return "Deutschland";
+  return `Gr. ${filter}`;
+}
+
 function normalizePlayerName(value) {
   return normalizeText(value).replace(/\s+/g, " ");
 }
@@ -2200,6 +2206,35 @@ function TipScreen({
   locked,
 }) {
   const [tipView, setTipView] = useState("spiele");
+  const filterStats = useMemo(() => {
+    const matchesForFilter = (filter) => matches.filter((match) => {
+      if (filter === "alle") return true;
+      if (filter === "deutschland") return [match.teamA, match.teamB].includes("Deutschland");
+      return match.groupKey === filter;
+    });
+
+    return Object.fromEntries(groupFilters.map((filter) => {
+      const filterMatches = matchesForFilter(filter);
+      const saved = filterMatches.filter((match) => tips[match.id]?.saved).length;
+      const pending = filterMatches.filter((match) => {
+        const tip = tips[match.id];
+        const status = tipSaveStatuses[match.id];
+        return isCompleteTip(tip) && (!tip?.saved || status === "pending" || status === "saving");
+      }).length;
+      const total = filterMatches.length;
+
+      return [
+        filter,
+        {
+          total,
+          saved,
+          pending,
+          open: Math.max(0, total - saved),
+          complete: total > 0 && saved === total,
+        },
+      ];
+    }));
+  }, [matches, tips, tipSaveStatuses]);
 
   return (
     <div className="tip-screen">
@@ -2241,20 +2276,36 @@ function TipScreen({
             </label>
 
             <div className="filter-row" aria-label="Gruppenfilter">
-              {groupFilters.map((filter) => (
-                <button
-                  type="button"
-                  key={filter}
-                  className={groupFilter === filter ? "active" : ""}
-                  onClick={() => setGroupFilter(filter)}
-                >
-                  {filter === "alle"
-                    ? "Alle"
-                    : filter === "deutschland"
-                      ? "Deutschland"
-                      : `Gr. ${filter}`}
-                </button>
-              ))}
+              {groupFilters.map((filter) => {
+                const stat = filterStats[filter] ?? { total: 0, saved: 0, pending: 0, open: 0, complete: false };
+                const isActive = groupFilter === filter;
+                const statusClass = stat.complete ? "complete" : stat.pending > 0 ? "pending" : "open";
+                const label = getGroupFilterLabel(filter);
+                const statusLabel = stat.complete
+                  ? "vollständig"
+                  : stat.pending > 0
+                    ? `${stat.pending} Tipp${stat.pending === 1 ? "" : "s"} warten auf Speicherung`
+                    : `${stat.open} offen`;
+
+                return (
+                  <button
+                    type="button"
+                    key={filter}
+                    className={[
+                      isActive ? "active" : "",
+                      `status-${statusClass}`,
+                    ].filter(Boolean).join(" ")}
+                    onClick={() => setGroupFilter(filter)}
+                    aria-label={`${label}: ${stat.saved} von ${stat.total} Tipps gespeichert, ${statusLabel}`}
+                    title={`${label}: ${stat.saved}/${stat.total} gespeichert · ${statusLabel}`}
+                  >
+                    <span className="filter-button-label">{label}</span>
+                    <span className="filter-button-count">{stat.saved}/{stat.total}</span>
+                    {stat.complete && <Check className="filter-button-icon" size={15} strokeWidth={3} aria-hidden="true" />}
+                    {!stat.complete && stat.pending > 0 && <span className="filter-button-dot" aria-hidden="true" />}
+                  </button>
+                );
+              })}
             </div>
 
             <button
