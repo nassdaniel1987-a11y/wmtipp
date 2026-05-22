@@ -2,10 +2,11 @@ import { getServiceClient, json } from "./_shared/supabase.js";
 import {
   BUNDESLIGA_COMPETITION_ID,
   buildBonusStatus,
+  buildBundesligaRulesSummary,
   buildLeagueTable,
   buildMatchdayStatus,
+  loadCompetitionRuleSettings,
   normalizeTeamLogoUrl,
-  bundesligaRulesSummary,
 } from "./_shared/bundesliga.js";
 
 export default async (req) => {
@@ -13,13 +14,14 @@ export default async (req) => {
 
   try {
     const supabase = getServiceClient();
-    const [competition, teams, matches, results, topScorers, bonusResults] = await Promise.all([
+    const [competition, teams, matches, results, topScorers, bonusResults, ruleSettings] = await Promise.all([
       supabase.from("competitions").select("*").eq("id", BUNDESLIGA_COMPETITION_ID).maybeSingle(),
       supabase.from("competition_teams").select("*").eq("competition_id", BUNDESLIGA_COMPETITION_ID).order("name"),
       supabase.from("competition_matches").select("*").eq("competition_id", BUNDESLIGA_COMPETITION_ID).eq("phase", "league").order("match_number"),
       supabase.from("competition_results").select("*").eq("competition_id", BUNDESLIGA_COMPETITION_ID),
       supabase.from("competition_top_scorers").select("*").eq("competition_id", BUNDESLIGA_COMPETITION_ID).order("goals", { ascending: false }).order("display_name"),
       supabase.from("competition_bonus_results").select("*").eq("competition_id", BUNDESLIGA_COMPETITION_ID).maybeSingle(),
+      loadCompetitionRuleSettings(supabase),
     ]);
 
     for (const response of [competition, teams, matches, results, topScorers, bonusResults]) {
@@ -38,10 +40,11 @@ export default async (req) => {
       results: results.data ?? [],
       topScorers: topScorers.data ?? [],
       bonusResults: bonusResults.data ?? null,
+      ruleSettings,
       table: buildLeagueTable(matches.data ?? [], results.data ?? [], normalizedTeams),
       matchdayStatus: buildMatchdayStatus(matches.data ?? [], [], results.data ?? []),
       bonusStatus: buildBonusStatus(null),
-      rulesSummary: bundesligaRulesSummary,
+      rulesSummary: buildBundesligaRulesSummary(ruleSettings, competition.data),
     });
   } catch (error) {
     return json({ error: error.message || "Bundesliga-Daten konnten nicht geladen werden." }, 500);

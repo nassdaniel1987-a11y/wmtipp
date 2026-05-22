@@ -144,6 +144,48 @@ cd android-app
 - Teilnehmernamen können direkt in der Teilnehmerliste bearbeitet werden.
 - Personalisierte Offline-Tippbögen enthalten einen scannbaren QR-Code je Teilnehmer.
 
+## Bundesliga Stand
+
+- Versteckte Bundesliga-Version läuft getrennt von der WM unter den Hash-Routen `#bundesliga-start`, `#bundesliga-tippen`, `#bundesliga-bonus` und `#bundesliga-rangliste`.
+- Admin-Testlabor ist über den Adminbereich erreichbar und bleibt nicht öffentlich.
+- Datenbasis nutzt `competition_*` Tabellen mit `competition_id = 'bundesliga-2025'`.
+- OpenLigaDB ist als Hauptquelle vorbereitet: Teams, Logos, Spielplan, Ergebnisse und Torschützen.
+- Torschützen werden über `getgoalgetters/bl1/2025` importiert und im Admin korrigierbar gemacht.
+- Bundesliga-Teilnehmer, Codes, Tipps und Bonus-Tipps sind von WM-Teilnehmern getrennt.
+- Bundesliga-UX nutzt das dunkle Testlabor-Design mit Österfeld-Bundesliga-Logo aus `public/bundesliga-logo.png`.
+- Spieltag-Zentrale, Live-Spieltag-Auswertung, Bonus-Erinnerung, mobile Rangliste und Admin-Qualitätscheck sind eingebaut.
+
+## Zuletzt ausgeführte / benötigte SQL-Dateien
+
+- WM-Grundlage:
+  - `supabase/schema.sql`
+  - `supabase/seed_matches.sql`
+  - `supabase/bonus_tips.sql`
+  - `supabase/bonus_results.sql`
+  - `supabase/players.sql`
+- Bundesliga-Grundlage:
+  - `supabase/bundesliga_test_environment.sql`
+- Bundesliga Release-Konfiguration:
+  - `supabase/bundesliga_release_settings.sql`
+  - bleibt idempotent und lässt `bundesliga-2025` weiterhin versteckt: `status = 'admin_test'`, `public_enabled = false`.
+
+## Nächste Schritte Bundesliga
+
+- `supabase/bundesliga_release_settings.sql` in Supabase ausführen und mit den beiden Kontrollqueries prüfen:
+  - `select * from competitions where id = 'bundesliga-2025';`
+  - `select * from competition_rule_settings where competition_id = 'bundesliga-2025';`
+- Danach im Admin-Testlabor OpenLigaDB-Daten importieren, Torschützen prüfen und Testcodes erzeugen.
+- Einen echten Testteilnehmer anlegen, Spieltag 1 tippen, Bonus tippen und Rangliste prüfen.
+- Vor öffentlicher Freigabe später Saison/Deadline auf die echte Bundesliga-Saison umstellen und bewusst `public_enabled` aktivieren.
+
+## CODEX.md Pflege-Regel
+
+- Nach größeren Arbeitsblöcken kurz aktualisieren:
+  - Was ist fertig?
+  - Welche SQL-Datei ist neu oder muss ausgeführt werden?
+  - Was ist der nächste sinnvolle Schritt?
+  - Welche Dinge bleiben bewusst versteckt oder noch nicht live?
+
 ## Hinweise für spätere Erweiterungen
 
 - `TeamMark` ist absichtlich allgemein gehalten, damit bei einem späteren Wechsel von WM auf Bundesliga statt Flaggen Vereinslogos verwendet werden können.

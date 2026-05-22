@@ -4526,10 +4526,14 @@ function BundesligaParticipantApp({ isTestMode }) {
   }
 
   function renderBonusReminder() {
+    const bonusDeadlineText = rulesSummary?.bonusDeadlineAt
+      ? `Bonusfrist: ${formatDateTime(rulesSummary.bonusDeadlineAt)}`
+      : "Bonusfrist: bis zum Saisonstart";
     return (
       <section className={`bundesliga-public-card bundesliga-bonus-reminder ${bonusStatus.complete ? "complete" : ""}`}>
         <h2>Bonusfragen</h2>
-        <p>{bonusStatus.doneCount} / {bonusStatus.totalCount} Bonus-Tipps erledigt · Meister, Torschützenkönig und Absteiger bis zum Saisonstart.</p>
+        <p>{bonusStatus.doneCount} / {bonusStatus.totalCount} Bonus-Tipps erledigt · Meister, Torschützenkönig und Absteiger.</p>
+        <small>{bonusDeadlineText}</small>
         <div>
           <span className={bonusTip.championTeamId ? "done" : ""}>Meister</span>
           <span className={bonusTip.topScorerId || bonusTip.topScorer ? "done" : ""}>Torschützenkönig</span>
@@ -4552,6 +4556,7 @@ function BundesligaParticipantApp({ isTestMode }) {
           ))}
         </div>
         <p>Fremde Tipps sind pro Spiel ab Anpfiff sichtbar. Bei Punktgleichstand zählen zuerst Spieltagssiege.</p>
+        {rulesSummary?.bonusDeadlineAt && <p>Bonusfrist: {formatDateTime(rulesSummary.bonusDeadlineAt)}</p>}
       </section>
     );
   }
@@ -5034,6 +5039,8 @@ function BundesligaAdminSetup({
   const participantBonusTips = data?.participantBonusTips ?? [];
   const participantRankingRows = data?.participantRanking ?? [];
   const bonusResults = data?.bonusResults ?? null;
+  const ruleSettings = data?.ruleSettings ?? null;
+  const rulesSummary = data?.rulesSummary ?? null;
   const dataQuality = data?.dataQuality ?? {};
   const teamRows = data?.teams ?? [];
   const logoIssueCount = dataQuality.logoIssueCount ?? 0;
@@ -5285,6 +5292,43 @@ function BundesligaAdminSetup({
               <small>{item.detail}</small>
             </article>
           ))}
+        </div>
+      </section>
+    );
+  }
+
+  function renderReleaseSettings() {
+    return (
+      <section className="bundesliga-dark-panel bundesliga-release-settings">
+        <header>
+          <h3>Release-Konfiguration</h3>
+          <span>{data?.competition?.status ?? "admin_test"}</span>
+        </header>
+        <div className="bundesliga-release-settings-grid">
+          <article>
+            <span>Öffentlich</span>
+            <strong>{data?.competition?.public_enabled ? "ja" : "nein"}</strong>
+          </article>
+          <article>
+            <span>Slug</span>
+            <strong>{data?.competition?.public_slug ?? "bundesliga-2025"}</strong>
+          </article>
+          <article>
+            <span>Tipp-Sperre</span>
+            <strong>{rulesSummary?.tipLockMode ?? data?.competition?.tip_lock_mode ?? "kickoff"}</strong>
+          </article>
+          <article>
+            <span>Bonusfrist</span>
+            <strong>{rulesSummary?.bonusDeadlineAt ? formatDateTime(rulesSummary.bonusDeadlineAt) : "Saisonstart"}</strong>
+          </article>
+        </div>
+        <div className="bundesliga-rule-list compact">
+          <div><span>Exakt</span><b>{ruleSettings?.exact_score_points ?? 4} Punkte</b></div>
+          <div><span>Differenz</span><b>{ruleSettings?.goal_diff_points ?? 3} Punkte</b></div>
+          <div><span>Tendenz</span><b>{ruleSettings?.tendency_points ?? 2} Punkte</b></div>
+          <div><span>Meister</span><b>{ruleSettings?.champion_bonus_points ?? 6} Punkte</b></div>
+          <div><span>Torschützenkönig</span><b>{ruleSettings?.top_scorer_bonus_points ?? 6} Punkte</b></div>
+          <div><span>Absteiger</span><b>{ruleSettings?.relegated_team_bonus_points ?? 4} je Verein</b></div>
         </div>
       </section>
     );
@@ -5715,6 +5759,7 @@ function BundesligaAdminSetup({
           </div>
         </section>
         {renderReleaseChecklist()}
+        {renderReleaseSettings()}
         {renderTeamLogoQuality()}
       </div>
     );
@@ -5998,6 +6043,7 @@ function BundesligaAdminSetup({
 
             <aside className="bundesliga-lab-side">
               {renderQualityCheck()}
+              {renderReleaseSettings()}
               {renderReleaseChecklist()}
               {renderResultsPanel({ compact: true })}
               {renderTipEvaluation({ compact: true })}

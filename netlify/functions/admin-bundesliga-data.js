@@ -2,6 +2,7 @@ import { requireAdmin } from "./_shared/admin.js";
 import { json } from "./_shared/supabase.js";
 import {
   BUNDESLIGA_COMPETITION_ID,
+  buildBundesligaRulesSummary,
   buildMatchdayLive,
   buildMatchdayStatus,
   buildCompetitionRanking,
@@ -9,6 +10,7 @@ import {
   buildLeagueTable,
   buildTopScorers,
   hasLikelyBrokenTeamLogoUrl,
+  loadCompetitionRuleSettings,
   normalizeTeamLogoUrl,
   pointsFor,
 } from "./_shared/bundesliga.js";
@@ -48,6 +50,7 @@ export default async (req) => {
       participants,
       participantTips,
       participantBonusTips,
+      ruleSettings,
     ] = await Promise.all([
       supabase.from("competitions").select("*").eq("id", BUNDESLIGA_COMPETITION_ID).maybeSingle(),
       supabase.from("competition_teams").select("*").eq("competition_id", BUNDESLIGA_COMPETITION_ID).order("name"),
@@ -62,6 +65,7 @@ export default async (req) => {
       supabase.from("competition_participants").select("*").eq("competition_id", BUNDESLIGA_COMPETITION_ID).order("created_at"),
       supabase.from("competition_tips").select("*").eq("competition_id", BUNDESLIGA_COMPETITION_ID).order("saved_at"),
       supabase.from("competition_participant_bonus_tips").select("*").eq("competition_id", BUNDESLIGA_COMPETITION_ID),
+      loadCompetitionRuleSettings(supabase),
     ]);
 
     for (const response of [competition, teams, matches, results, goals, demoParticipants, demoTips, bonusResults, inviteCodes, participants, participantTips, participantBonusTips]) {
@@ -130,13 +134,13 @@ export default async (req) => {
         demoTips: (tipsByMatch.get(match.id) ?? []).map((tip) => ({
           ...tip,
           participantName: participantsById.get(tip.participant_id)?.display_name ?? "Demo-Tipper",
-          points: pointsFor(tip, result),
+          points: pointsFor(tip, result, ruleSettings),
           hasResult: result?.status === "final",
         })),
         participantTips: (participantTipsByMatch.get(match.id) ?? []).map((tip) => ({
           ...tip,
           participantName: realParticipantsById.get(tip.participant_id)?.display_name ?? "Teilnehmer",
-          points: pointsFor(tip, result),
+          points: pointsFor(tip, result, ruleSettings),
           hasResult: result?.status === "final",
         })),
       };
@@ -150,6 +154,7 @@ export default async (req) => {
       bonusResults.data ?? null,
       topScorers,
       leagueMatches,
+      ruleSettings,
     );
     const participantMatchdayStatus = buildMatchdayStatus(leagueMatches, participantTips.data ?? [], results.data ?? []);
     const demoMatchdayStatus = buildMatchdayStatus(leagueMatches, demoTips.data ?? [], results.data ?? []);
@@ -160,6 +165,8 @@ export default async (req) => {
       results.data ?? [],
       "",
       Number(new URL(req.url).searchParams.get("matchday")) || 1,
+      new Date(),
+      ruleSettings,
     );
 
     return json({
@@ -171,8 +178,10 @@ export default async (req) => {
       demoParticipants: demoParticipants.data ?? [],
       demoTips: demoTips.data ?? [],
       bonusResults: bonusResults.data ?? null,
+      ruleSettings,
+      rulesSummary: buildBundesligaRulesSummary(ruleSettings, competition.data),
       table: buildLeagueTable(leagueMatches, results.data ?? [], leagueTeams),
-      ranking: buildDemoRanking(demoParticipants.data ?? [], demoTips.data ?? [], results.data ?? []),
+      ranking: buildDemoRanking(demoParticipants.data ?? [], demoTips.data ?? [], results.data ?? [], ruleSettings),
       participants: participants.data ?? [],
       participantTips: participantTips.data ?? [],
       participantBonusTips: participantBonusTips.data ?? [],

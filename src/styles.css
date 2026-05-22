@@ -5660,6 +5660,11 @@ tbody tr:nth-child(1) td:first-child {
   line-height: 1.4;
 }
 
+.bundesliga-bonus-reminder > small {
+  color: #ffcf92;
+  font-weight: 900;
+}
+
 .bundesliga-bonus-reminder > div {
   display: flex;
   gap: 8px;
@@ -5912,6 +5917,37 @@ tbody tr:nth-child(1) td:first-child {
   line-height: 1.35;
 }
 
+.bundesliga-release-settings {
+  display: grid;
+  gap: 14px;
+}
+
+.bundesliga-release-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.bundesliga-release-settings-grid article {
+  display: grid;
+  gap: 5px;
+  min-height: 74px;
+  padding: 12px;
+  border: 1px solid #2a3138;
+  border-radius: 6px;
+  background: #11161a;
+}
+
+.bundesliga-release-settings-grid span {
+  color: #b7c0c9;
+  font-weight: 850;
+}
+
+.bundesliga-release-settings-grid strong {
+  color: #ffffff;
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 1100px) {
   .bundesliga-home-grid,
   .bundesliga-stage-grid {
@@ -5923,7 +5959,8 @@ tbody tr:nth-child(1) td:first-child {
   }
 
   .bundesliga-dashboard-metrics,
-  .bundesliga-quality-grid {
+  .bundesliga-quality-grid,
+  .bundesliga-release-settings-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -6030,6 +6067,7 @@ tbody tr:nth-child(1) td:first-child {
   .bundesliga-ranking-podium,
   .bundesliga-current-rank,
   .bundesliga-quality-grid,
+  .bundesliga-release-settings-grid,
   .bundesliga-side-stack,
   .bundesliga-matchday-center {
     grid-template-columns: 1fr;
