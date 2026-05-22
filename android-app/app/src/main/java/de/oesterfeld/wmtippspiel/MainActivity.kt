@@ -499,6 +499,15 @@ private fun TipSaveStatusRow(status: TipSaveStatus, error: String?, draft: TipDr
 private fun BonusEditor(state: MainUiState, vm: MainViewModel) {
     val teams = state.matches.flatMap { listOf(it.teamA, it.teamB) }.map(::displayTeamName).distinct().sorted()
     val groups = state.matches.groupBy { it.groupKey }.filterKeys { it != null }.toSortedMap(compareBy { it })
+    val playerOptions = state.players
+        .filter { it.active }
+        .sortedBy { it.displayName }
+        .map { player ->
+            val suffix = player.teamName.takeIf { it.isNotBlank() }?.let { " ($it)" }.orEmpty()
+            player.id to "${player.displayName}$suffix"
+        }
+    val selectedPlayerLabel = playerOptions.find { it.first == state.bonusTip.topScorerPlayerId }?.second
+        ?: state.bonusTip.topScorer
     ElevatedCard(shape = RoundedCornerShape(22.dp), colors = CardDefaults.elevatedCardColors(containerColor = Color.White)) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(
@@ -513,12 +522,12 @@ private fun BonusEditor(state: MainUiState, vm: MainViewModel) {
                 }
             }
             Column(Modifier.padding(horizontal = 16.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            SimpleDropdown("Weltmeister", teams, state.bonusTip.champion, vm::updateChampion)
-            OutlinedTextField(state.bonusTip.topScorer, vm::updateTopScorer, Modifier.fillMaxWidth(), label = { Text("Torschützenkönig") }, singleLine = true)
-            groups.forEach { (group, matches) ->
-                val options = matches.flatMap { listOf(it.teamA, it.teamB) }.map(::displayTeamName).distinct().sorted()
-                SimpleDropdown("Gruppensieger Gruppe $group", options, state.bonusTip.groupWinners[group].orEmpty()) { vm.updateGroupWinner(group!!, it) }
-            }
+                SimpleDropdown("Weltmeister", teams, state.bonusTip.champion, vm::updateChampion)
+                IdDropdown("Torschützenkönig", playerOptions, selectedPlayerLabel, vm::updateTopScorer)
+                groups.forEach { (group, matches) ->
+                    val options = matches.flatMap { listOf(it.teamA, it.teamB) }.map(::displayTeamName).distinct().sorted()
+                    SimpleDropdown("Gruppensieger Gruppe $group", options, state.bonusTip.groupWinners[group].orEmpty()) { vm.updateGroupWinner(group!!, it) }
+                }
                 Button(vm::saveBonusTip, Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = if (state.bonusTip.saved) Green else Navy)) {
                     Icon(if (state.bonusTip.saved) Icons.Default.CheckCircle else Icons.Default.Save, null)
                     Spacer(Modifier.width(8.dp))
@@ -573,6 +582,20 @@ private fun GroupTablesOverview(groupTables: List<GroupTable>) {
                         if (index < table.rows.lastIndex) HorizontalDivider(color = Line)
                     }
                 }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun IdDropdown(label: String, options: List<Pair<String, String>>, value: String, onChange: (String) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
+        OutlinedTextField(value, {}, Modifier.menuAnchor().fillMaxWidth(), readOnly = true, label = { Text(label) }, trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) })
+        ExposedDropdownMenu(expanded, onDismissRequest = { expanded = false }) {
+            options.forEach { (id, text) ->
+                DropdownMenuItem(text = { Text(text) }, onClick = { onChange(id); expanded = false })
             }
         }
     }

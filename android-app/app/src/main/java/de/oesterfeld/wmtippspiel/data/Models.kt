@@ -35,6 +35,7 @@ enum class TipSaveStatus {
 data class BonusTip(
     val champion: String = "",
     val topScorer: String = "",
+    val topScorerPlayerId: String = "",
     val groupWinners: Map<String, String> = emptyMap(),
     val saved: Boolean = false,
 )
@@ -60,6 +61,13 @@ data class TipTrend(
     val homeWinPercent: Int = 0,
     val drawPercent: Int = 0,
     val awayWinPercent: Int = 0,
+)
+
+data class Player(
+    val id: String,
+    val displayName: String,
+    val teamName: String = "",
+    val active: Boolean = true,
 )
 
 data class MatchResult(

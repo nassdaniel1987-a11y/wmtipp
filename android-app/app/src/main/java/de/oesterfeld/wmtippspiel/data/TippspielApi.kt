@@ -59,10 +59,16 @@ class TippspielApi(
             .put("participantId", participantId)
             .put("champion", bonusTip.champion)
             .put("topScorer", bonusTip.topScorer)
+            .put("topScorerPlayerId", bonusTip.topScorerPlayerId)
             .put("groupWinners", JSONObject(bonusTip.groupWinners))
             .toString().toRequestBody(JSON)
         executeObject(Request.Builder().url("$baseUrl/api/save-bonus-tips").post(body).build())
             .getJSONObject("bonusTip").toBonusTip(saved = true)
+    }
+
+    suspend fun loadPlayers(): List<Player> = withContext(Dispatchers.IO) {
+        executeObject(Request.Builder().url("$baseUrl/api/players").get().build())
+            .getJSONArray("players").mapObjects { it.toPlayer() }
     }
 
     suspend fun loadBonusResults(): BonusResult? = withContext(Dispatchers.IO) {
@@ -120,7 +126,7 @@ class TippspielApi(
     )
     private fun JSONObject.toTip() = Tip(getString("match_id"), getInt("score_a"), getInt("score_b"))
     private fun JSONObject.toBonusTip(saved: Boolean) = BonusTip(
-        champion = optString("champion"), topScorer = optString("top_scorer"), groupWinners = optJSONObject("group_winners").toStringMap(), saved = saved,
+        champion = optString("champion"), topScorer = optString("top_scorer"), topScorerPlayerId = optString("top_scorer_player_id"), groupWinners = optJSONObject("group_winners").toStringMap(), saved = saved,
     )
     private fun JSONObject.toBonusResult() = BonusResult(optString("champion"), optString("top_scorer"), optJSONObject("group_winners").toStringMap())
     private fun JSONObject.toRankingRow() = RankingRow(
@@ -129,6 +135,7 @@ class TippspielApi(
     )
     private fun JSONObject.toTrend() = TipTrend(getInt("total"), getInt("homeWinPercent"), getInt("drawPercent"), getInt("awayWinPercent"))
     private fun JSONObject.toResult() = MatchResult(getString("match_id"), getInt("score_a"), getInt("score_b"), optString("status", "final"))
+    private fun JSONObject.toPlayer() = Player(getString("id"), getString("display_name"), optString("team_name"), optBoolean("active", true))
     private fun JSONObject.toAppUpdate() = AppUpdate(
         versionCode = getInt("versionCode"),
         versionName = getString("versionName"),

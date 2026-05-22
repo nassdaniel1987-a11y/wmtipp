@@ -26,6 +26,7 @@ data class MainUiState(
     val tipSaveErrors: Map<String, String> = emptyMap(),
     val bonusTip: BonusTip = BonusTip(),
     val bonusResults: BonusResult? = null,
+    val players: List<Player> = emptyList(),
     val ranking: List<RankingRow> = emptyList(),
     val trends: Map<String, TipTrend> = emptyMap(),
     val results: Map<String, MatchResult> = emptyMap(),
@@ -187,7 +188,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun updateChampion(value: String) = _uiState.update { it.copy(bonusTip = it.bonusTip.copy(champion = value, saved = false)) }
-    fun updateTopScorer(value: String) = _uiState.update { it.copy(bonusTip = it.bonusTip.copy(topScorer = value, saved = false)) }
+    fun updateTopScorer(playerId: String) = _uiState.update {
+        val player = it.players.find { item -> item.id == playerId }
+        it.copy(bonusTip = it.bonusTip.copy(topScorer = player?.displayName.orEmpty(), topScorerPlayerId = playerId, saved = false))
+    }
     fun updateGroupWinner(group: String, value: String) = _uiState.update {
         it.copy(bonusTip = it.bonusTip.copy(groupWinners = it.bonusTip.groupWinners + (group to value), saved = false))
     }
@@ -231,16 +235,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             match.id to TipDraft(match.id, tip?.scoreA?.toString().orEmpty(), tip?.scoreB?.toString().orEmpty(), saved = tip != null)
         }
         val loadedBonus = api.loadBonusTip(participant.id)
+        val players = runCatching { api.loadPlayers() }.getOrDefault(emptyList())
+        val matchedTopScorer = loadedBonus?.topScorer?.let { topScorer ->
+            players.find { player -> player.displayName.equals(topScorer, ignoreCase = true) }
+        }
         val defaultGroupWinners = groups.associateWith { "" }
         val saveStatuses = drafts.mapValues { (_, draft) -> if (draft.saved) TipSaveStatus.Saved else TipSaveStatus.Idle }
         _uiState.update {
             it.copy(
                 storedParticipant = participant,
                 matches = matches,
+                players = players,
                 drafts = drafts,
                 tipSaveStatuses = saveStatuses,
                 tipSaveErrors = emptyMap(),
-                bonusTip = loadedBonus?.copy(groupWinners = defaultGroupWinners + loadedBonus.groupWinners)
+                bonusTip = loadedBonus?.copy(
+                    topScorerPlayerId = loadedBonus.topScorerPlayerId.ifBlank { matchedTopScorer?.id.orEmpty() },
+                    groupWinners = defaultGroupWinners + loadedBonus.groupWinners,
+                )
                     ?: BonusTip(groupWinners = defaultGroupWinners),
             )
         }
