@@ -69,6 +69,15 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+private data class TipFilterStatus(
+    val total: Int,
+    val saved: Int,
+    val pending: Int,
+) {
+    val open: Int get() = (total - saved).coerceAtLeast(0)
+    val complete: Boolean get() = total > 0 && saved == total
+}
+
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 private fun TippspielApp(state: MainUiState, vm: MainViewModel) {
@@ -250,6 +259,24 @@ private fun TipsScreen(state: MainUiState, vm: MainViewModel) {
     var bonusMode by remember { mutableStateOf(false) }
     val groups = state.matches.mapNotNull { it.groupKey }.distinct().sorted()
     val filters = listOf("alle", "deutschland") + groups
+    val filterStats = remember(state.matches, state.drafts, state.tipSaveStatuses, filters) {
+        filters.associateWith { filter ->
+            val filterMatches = state.matches.filter { match ->
+                when (filter) {
+                    "alle" -> true
+                    "deutschland" -> displayTeamName(match.teamA) == "Deutschland" || displayTeamName(match.teamB) == "Deutschland"
+                    else -> match.groupKey == filter
+                }
+            }
+            val saved = filterMatches.count { match -> state.drafts[match.id]?.saved == true }
+            val pending = filterMatches.count { match ->
+                val draft = state.drafts[match.id] ?: TipDraft(match.id)
+                val status = state.tipSaveStatuses[match.id] ?: TipSaveStatus.Idle
+                draft.isValid && (!draft.saved || status == TipSaveStatus.Pending || status == TipSaveStatus.Saving)
+            }
+            TipFilterStatus(total = filterMatches.size, saved = saved, pending = pending)
+        }
+    }
     val filtered = state.matches.filter { match ->
         val filterOk = when (state.groupFilter) {
             "alle" -> true
@@ -270,7 +297,51 @@ private fun TipsScreen(state: MainUiState, vm: MainViewModel) {
             item { OutlinedTextField(state.searchTerm, vm::setSearchTerm, Modifier.fillMaxWidth(), label = { Text("Team, Gruppe oder Stadt suchen") }, leadingIcon = { Icon(Icons.Default.Search, null) }, singleLine = true) }
             item {
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    filters.forEach { filter -> FilterChip(selected = state.groupFilter == filter, onClick = { vm.setGroupFilter(filter) }, label = { Text(if (filter == "alle") "Alle" else if (filter == "deutschland") "Deutschland" else "Gr. $filter") }) }
+                    filters.forEach { filter ->
+                        val status = filterStats[filter] ?: TipFilterStatus(0, 0, 0)
+                        val selected = state.groupFilter == filter
+                        val baseLabel = when (filter) {
+                            "alle" -> "Alle"
+                            "deutschland" -> "Deutschland"
+                            else -> "Gr. $filter"
+                        }
+                        val containerColor = when {
+                            selected -> Green
+                            status.complete -> Color(0xFFEFFAF3)
+                            status.pending > 0 -> Color(0xFFFFF4D1)
+                            else -> Color(0xFFFFF9E6)
+                        }
+                        val labelColor = when {
+                            selected -> Color.White
+                            status.complete -> GreenDark
+                            else -> Navy
+                        }
+                        FilterChip(
+                            selected = selected,
+                            onClick = { vm.setGroupFilter(filter) },
+                            label = { Text("$baseLabel ${status.saved}/${status.total}", fontWeight = FontWeight.Bold) },
+                            leadingIcon = {
+                                when {
+                                    status.complete -> Icon(Icons.Default.CheckCircle, null, Modifier.size(18.dp))
+                                    status.pending > 0 -> Icon(Icons.Default.Schedule, null, Modifier.size(18.dp))
+                                }
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                containerColor = containerColor,
+                                labelColor = labelColor,
+                                iconColor = labelColor,
+                                selectedContainerColor = Green,
+                                selectedLabelColor = Color.White,
+                                selectedLeadingIconColor = Color.White,
+                            ),
+                            border = FilterChipDefaults.filterChipBorder(
+                                enabled = true,
+                                selected = selected,
+                                borderColor = if (status.complete) Green.copy(alpha = .35f) else Color(0xFFE2CB86),
+                                selectedBorderColor = Green,
+                            ),
+                        )
+                    }
                 }
             }
             items(filtered, key = Match::id) { match ->
