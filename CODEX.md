@@ -154,6 +154,7 @@ cd android-app
 - Bundesliga-Teilnehmer, Codes, Tipps und Bonus-Tipps sind von WM-Teilnehmern getrennt.
 - Bundesliga-UX nutzt das dunkle Testlabor-Design mit Österfeld-Bundesliga-Logo aus `public/bundesliga-logo.png`.
 - Spieltag-Zentrale, Live-Spieltag-Auswertung, Bonus-Erinnerung, mobile Rangliste und Admin-Qualitätscheck sind eingebaut.
+- Das Startdashboard zeigt „Nächste Spiele“ als kompakte Logo-Paarungen ohne Ergebnisanzeige.
 
 ## Zuletzt ausgeführte / benötigte SQL-Dateien
 

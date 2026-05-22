@@ -4748,8 +4748,11 @@ function BundesligaParticipantApp({ isTestMode }) {
                   {dashboardMatches.map((match) => (
                     <div key={match.id}>
                       <span>{formatDateTime(match.kickoffAt)}</span>
-                      <strong>{match.teamA}</strong>
-                      <small>{match.teamB}</small>
+                      <section>
+                        {teamBadge(match.teamAId, match.teamA)}
+                        <small>vs</small>
+                        {teamBadge(match.teamBId, match.teamB)}
+                      </section>
                     </div>
                   ))}
                 </div>

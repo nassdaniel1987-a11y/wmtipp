@@ -5347,21 +5347,55 @@ tbody tr:nth-child(1) td:first-child {
 
 .bundesliga-fixture-list div {
   display: grid;
-  grid-template-columns: 118px minmax(0, 1fr);
-  gap: 6px 12px;
-  padding: 12px 0;
+  grid-template-columns: 112px minmax(0, 1fr);
+  gap: 10px 14px;
+  align-items: start;
+  padding: 14px 0;
 }
 
-.bundesliga-fixture-list span,
-.bundesliga-fixture-list small,
+.bundesliga-fixture-list > div > span,
 .bundesliga-scorer-mini-list span,
 .bundesliga-bonus-summary span {
   color: var(--bl-muted);
   font-weight: 800;
 }
 
-.bundesliga-fixture-list small {
-  grid-column: 2;
+.bundesliga-fixture-list section {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.bundesliga-fixture-list section > small {
+  width: fit-content;
+  margin-left: 42px;
+  color: rgba(183, 192, 201, 0.78);
+  font-size: 0.72rem;
+  font-weight: 950;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.bundesliga-fixture-list .bundesliga-team-badge {
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 9px;
+}
+
+.bundesliga-fixture-list .bundesliga-team-logo {
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+}
+
+.bundesliga-fixture-list .bundesliga-team-logo img {
+  max-width: 27px;
+  max-height: 27px;
+}
+
+.bundesliga-fixture-list .bundesliga-team-badge strong {
+  color: #ffffff;
+  font-size: 0.95rem;
+  line-height: 1.15;
 }
 
 .bundesliga-scorer-mini-list div {
