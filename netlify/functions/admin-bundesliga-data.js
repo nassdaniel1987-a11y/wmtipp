@@ -200,6 +200,8 @@ export default async (req) => {
       inviteCodes: inviteCodes.data ?? [],
       dataQuality: {
         source: "OpenLigaDB",
+        autoImportEnabled: process.env.BUNDESLIGA_AUTO_IMPORT_ENABLED === "true",
+        pushRemindersEnabled: process.env.BUNDESLIGA_PUSH_REMINDERS_ENABLED === "true",
         topScorerSource: topScorers.length ? "goalgetters" : "match_goals_fallback",
         topScorerCount: topScorerRows.length,
         incompleteTopScorers,
@@ -207,6 +209,14 @@ export default async (req) => {
         logoIssues,
         normalizedLogoCount,
         likelyBrokenLogoCount,
+        lastMatchImportAt: (matches.data ?? []).reduce((latest, row) => {
+          if (!row.updated_at) return latest;
+          return !latest || row.updated_at > latest ? row.updated_at : latest;
+        }, null),
+        lastResultImportAt: (results.data ?? []).reduce((latest, row) => {
+          if (!row.updated_at) return latest;
+          return !latest || row.updated_at > latest ? row.updated_at : latest;
+        }, null),
         lastTopScorerImportAt: topScorers.reduce((latest, row) => {
           if (!row.updated_at) return latest;
           return !latest || row.updated_at > latest ? row.updated_at : latest;

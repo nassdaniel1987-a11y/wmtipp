@@ -68,6 +68,108 @@ export function pointsFor(tip, result, ruleSettings = defaultBundesligaRuleSetti
   return tipGoalDiff === resultGoalDiff ? ruleSettings.goal_diff_points : ruleSettings.tendency_points;
 }
 
+export function explainPointsFor(tip, result, ruleSettings = defaultBundesligaRuleSettings) {
+  if (!tip) return { points: 0, reason: "kein Tipp abgegeben" };
+  if (!result || result.status !== "final") return { points: 0, reason: "noch nicht ausgewertet" };
+  const points = pointsFor(tip, result, ruleSettings);
+  if (tip.score_a === result.score_a && tip.score_b === result.score_b) {
+    return { points, reason: `exakt getroffen: ${points} Punkte` };
+  }
+
+  const tipGoalDiff = tip.score_a - tip.score_b;
+  const resultGoalDiff = result.score_a - result.score_b;
+  const tipTrend = Math.sign(tipGoalDiff);
+  const resultTrend = Math.sign(resultGoalDiff);
+  if (tipTrend !== resultTrend) return { points: 0, reason: "falsch: 0 Punkte" };
+  if (tipTrend === 0) return { points, reason: `Tendenz richtig: ${points} Punkte` };
+  return tipGoalDiff === resultGoalDiff
+    ? { points, reason: `Tordifferenz richtig: ${points} Punkte` }
+    : { points, reason: `Tendenz richtig: ${points} Punkte` };
+}
+
+export function buildTipTrends(tips = [], matches = [], now = new Date()) {
+  const matchesById = new Map((matches ?? []).map((match) => [match.id, match]));
+  const trendMap = new Map();
+  (tips ?? []).forEach((tip) => {
+    const match = matchesById.get(tip.match_id);
+    if (!match || !canViewMatchTips(match, now)) return;
+    const row = trendMap.get(tip.match_id) ?? {
+      matchId: tip.match_id,
+      total: 0,
+      home: 0,
+      draw: 0,
+      away: 0,
+    };
+    row.total += 1;
+    const trend = Math.sign(tip.score_a - tip.score_b);
+    if (trend > 0) row.home += 1;
+    else if (trend < 0) row.away += 1;
+    else row.draw += 1;
+    trendMap.set(tip.match_id, row);
+  });
+
+  return Array.from(trendMap.values()).map((row) => ({
+    ...row,
+    homePercent: row.total ? Math.round((row.home / row.total) * 100) : 0,
+    drawPercent: row.total ? Math.round((row.draw / row.total) * 100) : 0,
+    awayPercent: row.total ? Math.round((row.away / row.total) * 100) : 0,
+  }));
+}
+
+export function buildParticipantComfortStats(participantId, tips = [], matches = [], results = [], ruleSettings = defaultBundesligaRuleSettings) {
+  const participantTips = (tips ?? []).filter((tip) => tip.participant_id === participantId);
+  const matchesById = new Map((matches ?? []).map((match) => [match.id, match]));
+  const resultsByMatch = new Map((results ?? []).map((result) => [result.match_id, result]));
+  const matchdayPoints = new Map();
+  const stats = {
+    participantId,
+    savedTipCount: participantTips.length,
+    scoredTipCount: 0,
+    exactHits: 0,
+    goalDiffHits: 0,
+    tendencyHits: 0,
+    wrongTips: 0,
+    bestMatchdays: [],
+  };
+
+  participantTips.forEach((tip) => {
+    const match = matchesById.get(tip.match_id);
+    const result = resultsByMatch.get(tip.match_id);
+    if (!match || result?.status !== "final") return;
+    const explanation = explainPointsFor(tip, result, ruleSettings);
+    stats.scoredTipCount += 1;
+    if (explanation.points === ruleSettings.exact_score_points && explanation.reason.startsWith("exakt")) stats.exactHits += 1;
+    else if (explanation.points === ruleSettings.goal_diff_points && explanation.reason.startsWith("Tordifferenz")) stats.goalDiffHits += 1;
+    else if (explanation.points === ruleSettings.tendency_points) stats.tendencyHits += 1;
+    else stats.wrongTips += 1;
+    const matchday = Number(match.matchday) || 0;
+    if (matchday) matchdayPoints.set(matchday, (matchdayPoints.get(matchday) ?? 0) + explanation.points);
+  });
+
+  stats.bestMatchdays = Array.from(matchdayPoints.entries())
+    .map(([matchday, points]) => ({ matchday, points }))
+    .sort((first, second) => second.points - first.points || first.matchday - second.matchday)
+    .slice(0, 3);
+  return stats;
+}
+
+export function buildOpenTaskSummary(matches = [], tips = [], bonusTip = null) {
+  const tipsByMatch = new Set((tips ?? []).map((tip) => tip.match_id));
+  const openByMatchday = new Map();
+  (matches ?? []).forEach((match) => {
+    const matchday = Number(match.matchday) || 0;
+    if (!matchday || tipsByMatch.has(match.id)) return;
+    openByMatchday.set(matchday, (openByMatchday.get(matchday) ?? 0) + 1);
+  });
+  const bonusStatus = buildBonusStatus(bonusTip);
+  return {
+    openTipCount: Array.from(openByMatchday.values()).reduce((sum, value) => sum + value, 0),
+    openByMatchday: Array.from(openByMatchday.entries()).map(([matchday, count]) => ({ matchday, count })),
+    bonusStatus,
+    nextOpenMatchday: Array.from(openByMatchday.keys()).sort((a, b) => a - b)[0] ?? null,
+  };
+}
+
 export const bundesligaBonusPointValues = {
   champion: 6,
   topScorer: 6,
@@ -446,6 +548,7 @@ export function buildMatchdayLive(matches = [], participants = [], tips = [], re
         .filter((tip) => tip.match_id === match.id)
         .map((tip) => {
           const isOwnTip = tip.participant_id === participantId;
+          const explanation = explainPointsFor(tip, result, ruleSettings);
           return {
             participantId: tip.participant_id,
             participantName: participantsById.get(tip.participant_id)?.display_name ?? "Teilnehmer",
@@ -453,7 +556,8 @@ export function buildMatchdayLive(matches = [], participants = [], tips = [], re
             visible: visible || isOwnTip,
             scoreA: visible || isOwnTip ? tip.score_a : null,
             scoreB: visible || isOwnTip ? tip.score_b : null,
-            points: result?.status === "final" && (visible || isOwnTip) ? pointsFor(tip, result, ruleSettings) : null,
+            points: result?.status === "final" && (visible || isOwnTip) ? explanation.points : null,
+            reason: result?.status === "final" && (visible || isOwnTip) ? explanation.reason : null,
           };
         });
       return {

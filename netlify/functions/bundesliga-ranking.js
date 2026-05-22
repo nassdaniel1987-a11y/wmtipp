@@ -2,6 +2,8 @@ import { getServiceClient, json } from "./_shared/supabase.js";
 import {
   BUNDESLIGA_COMPETITION_ID,
   buildCompetitionRanking,
+  buildMatchdayPointRows,
+  buildParticipantComfortStats,
   loadCompetitionRuleSettings,
 } from "./_shared/bundesliga.js";
 
@@ -10,6 +12,7 @@ export default async (req) => {
 
   try {
     const supabase = getServiceClient();
+    const participantId = String(new URL(req.url).searchParams.get("participantId") || "").trim();
     const [participants, tips, results, bonusTips, bonusResults, topScorers, matches, ruleSettings] = await Promise.all([
       supabase.from("competition_participants").select("id, display_name").eq("competition_id", BUNDESLIGA_COMPETITION_ID),
       supabase.from("competition_tips").select("participant_id, match_id, score_a, score_b").eq("competition_id", BUNDESLIGA_COMPETITION_ID),
@@ -25,17 +28,43 @@ export default async (req) => {
       if (response.error) throw response.error;
     }
 
+    const participantRows = participants.data ?? [];
+    const tipRows = tips.data ?? [];
+    const matchRows = matches.data ?? [];
+    const resultRows = results.data ?? [];
+    const ranking = buildCompetitionRanking(
+      participantRows,
+      tipRows,
+      resultRows,
+      bonusTips.data ?? [],
+      bonusResults.data ?? null,
+      topScorers.data ?? [],
+      matchRows,
+      ruleSettings,
+    );
+    const matchdayRows = buildMatchdayPointRows(participantRows, tipRows, matchRows, resultRows, ruleSettings);
+    const matchdayWinners = Object.values(
+      matchdayRows.reduce((groups, row) => {
+        const current = groups[row.matchday] ?? { matchday: row.matchday, winners: [], bestPoints: -1 };
+        if (row.scoredTipCount > 0 && row.points > current.bestPoints) {
+          current.bestPoints = row.points;
+          current.winners = [row];
+        } else if (row.scoredTipCount > 0 && row.points === current.bestPoints) {
+          current.winners.push(row);
+        }
+        groups[row.matchday] = current;
+        return groups;
+      }, {}),
+    )
+      .filter((row) => row.bestPoints >= 0)
+      .sort((first, second) => first.matchday - second.matchday);
+
     return json({
-      ranking: buildCompetitionRanking(
-        participants.data ?? [],
-        tips.data ?? [],
-        results.data ?? [],
-        bonusTips.data ?? [],
-        bonusResults.data ?? null,
-        topScorers.data ?? [],
-        matches.data ?? [],
-        ruleSettings,
-      ),
+      ranking,
+      matchdayWinners,
+      personalStats: participantId
+        ? buildParticipantComfortStats(participantId, tipRows, matchRows, resultRows, ruleSettings)
+        : null,
     });
   } catch (error) {
     return json({ error: error.message || "Bundesliga-Rangliste konnte nicht geladen werden." }, 500);

@@ -2,6 +2,7 @@ import { getServiceClient, json } from "./_shared/supabase.js";
 import {
   BUNDESLIGA_COMPETITION_ID,
   buildMatchdayLive,
+  buildTipTrends,
   loadCompetitionRuleSettings,
 } from "./_shared/bundesliga.js";
 
@@ -25,17 +26,21 @@ export default async (req) => {
       if (response.error) throw response.error;
     }
 
+    const matchRows = matches.data ?? [];
+    const tipRows = tips.data ?? [];
+    const now = new Date();
     return json({
       live: buildMatchdayLive(
-        matches.data ?? [],
+        matchRows,
         participants.data ?? [],
-        tips.data ?? [],
+        tipRows,
         results.data ?? [],
         participantId,
         matchday,
-        new Date(),
+        now,
         ruleSettings,
       ),
+      trends: buildTipTrends(tipRows, matchRows, now),
     });
   } catch (error) {
     return json({ error: error.message || "Bundesliga-Spieltag konnte nicht geladen werden." }, 500);

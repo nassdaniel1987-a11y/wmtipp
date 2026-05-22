@@ -158,6 +158,15 @@ cd android-app
 - Das Startdashboard zeigt „Nächste Spiele“ als kompakte Logo-Paarungen ohne Ergebnisanzeige.
 - Das Admin-Testlabor enthält jetzt einen sichtbaren Release-Probelauf mit Ampelstatus für Daten, Codes, Teilnehmer, Tipps, Bonus, Ergebnisse und Rangliste.
 - Der Release-Probelauf kann im Admin-Testlabor per Button vorbereitet werden; er schreibt nur `Release Test 1-3`, Spieltag-1-Tipps, Bonus-Tipps, Spieltag-1-Ergebnisse und hält `public_enabled = false`.
+- Nutzer-Komfort ist erweitert:
+  - Karten „Was fehlt noch?“ und „Meine Statistik“ in Start/Tippen/Rangliste.
+  - Live-Auswertung erklärt pro Tipp den Punktegrund.
+  - Tipp-Trends und Teilnehmervergleich erscheinen nur für sichtbare Spiele ab Anpfiff.
+  - Spieltagssieger und Share-Karte werden in der Community-Karte angezeigt.
+- Automatik ist vorbereitet, aber geschützt:
+  - `netlify/functions/bundesliga-auto-import.js` importiert Ergebnisse/Torschützen nur mit `BUNDESLIGA_AUTO_IMPORT_ENABLED=true`.
+  - Bundesliga-Push-Erinnerungen in `send-tip-reminders.js` laufen nur mit `BUNDESLIGA_PUSH_REMINDERS_ENABLED=true`.
+  - Admin-Testlabor zeigt Datenstatus, letzte Imports und ob Automatik/Push aktiv sind.
 
 ## Zuletzt ausgeführte / benötigte SQL-Dateien
 
@@ -175,8 +184,11 @@ cd android-app
 
 ## Nächste Schritte Bundesliga
 
-- Im Admin-Testlabor den Release-Probelauf einmal vollständig abarbeiten.
-- Dabei offene Punkte als Release-Lücken hier ergänzen, nicht nebenbei im Kopf behalten.
+- Komfort-/Community-Runde im Browser visuell prüfen, sobald lokaler Browserzugriff nicht blockiert ist:
+  - Start: „Was fehlt noch?“, „Meine Statistik“, Community, Datenstatus.
+  - Tippen: Live-Auswertung mit Punktegrund und Trends.
+  - Rangliste: Spieltagssieger, Teilnehmervergleich, Share-Karte.
+- Push/Auto-Import erst aktivieren, wenn Firebase/Env und echter Bundesliga-Betrieb bewusst freigegeben sind.
 - Vor öffentlicher Freigabe später Saison/Deadline auf die echte Bundesliga-Saison umstellen und bewusst `public_enabled` aktivieren.
 
 ## Bundesliga Release-Probelauf

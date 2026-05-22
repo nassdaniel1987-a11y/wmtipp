@@ -418,11 +418,38 @@ function buildBundesligaLiveFromData(data, participant, selectedMatchday) {
               points: result?.status === "final" && (tipsVisible || isOwnTip)
                 ? pointsFor({ scoreA: tip.score_a, scoreB: tip.score_b }, result)
                 : null,
+              reason: result?.status === "final" && (tipsVisible || isOwnTip)
+                ? explainBundesligaPoints({ scoreA: tip.score_a, scoreB: tip.score_b }, result).reason
+                : null,
             };
           }),
       };
     }),
   };
+}
+
+function buildBundesligaTipTrendsFromData(data, selectedMatchday) {
+  const rawMatches = (data?.matches ?? []).map(mapBundesligaMatch).filter((match) => Number(match.matchday) === Number(selectedMatchday));
+  const matchIds = new Set(rawMatches.map((match) => match.id));
+  const trends = new Map();
+  (data?.participantTips ?? []).forEach((tip) => {
+    if (!matchIds.has(tip.match_id)) return;
+    const match = rawMatches.find((row) => row.id === tip.match_id);
+    if (!match || !canViewBundesligaTips(match)) return;
+    const row = trends.get(tip.match_id) ?? { matchId: tip.match_id, total: 0, home: 0, draw: 0, away: 0 };
+    row.total += 1;
+    const trend = Math.sign(tip.score_a - tip.score_b);
+    if (trend > 0) row.home += 1;
+    else if (trend < 0) row.away += 1;
+    else row.draw += 1;
+    trends.set(tip.match_id, row);
+  });
+  return Array.from(trends.values()).map((row) => ({
+    ...row,
+    homePercent: row.total ? Math.round((row.home / row.total) * 100) : 0,
+    drawPercent: row.total ? Math.round((row.draw / row.total) * 100) : 0,
+    awayPercent: row.total ? Math.round((row.away / row.total) * 100) : 0,
+  }));
 }
 
 function QrCodeImage({ value }) {
@@ -857,6 +884,22 @@ function pointsFor(tip, result) {
   if (tipTrend !== resultTrend) return 0;
   if (tipTrend === 0) return 2;
   return tipGoalDiff === resultGoalDiff ? 3 : 2;
+}
+
+function explainBundesligaPoints(tip, result) {
+  if (!isCompleteTip(tip)) return { points: 0, reason: "kein Tipp abgegeben" };
+  if (!result || result.status !== "final") return { points: 0, reason: "noch nicht ausgewertet" };
+  const points = pointsFor(tip, result);
+  if (tip.scoreA === result.score_a && tip.scoreB === result.score_b) return { points, reason: `exakt getroffen: ${points} Punkte` };
+  const tipGoalDiff = tip.scoreA - tip.scoreB;
+  const resultGoalDiff = result.score_a - result.score_b;
+  const tipTrend = Math.sign(tipGoalDiff);
+  const resultTrend = Math.sign(resultGoalDiff);
+  if (tipTrend !== resultTrend) return { points: 0, reason: "falsch: 0 Punkte" };
+  if (tipTrend === 0) return { points, reason: `Tendenz richtig: ${points} Punkte` };
+  return tipGoalDiff === resultGoalDiff
+    ? { points, reason: `Tordifferenz richtig: ${points} Punkte` }
+    : { points, reason: `Tendenz richtig: ${points} Punkte` };
 }
 
 function normalizeText(value) {
@@ -4270,6 +4313,10 @@ function BundesligaParticipantApp({ isTestMode }) {
   const [message, setMessage] = useState(isTestMode ? "Bundesliga-Testmodus aktiv" : "Bundesliga wird geladen...");
   const [tipStatuses, setTipStatuses] = useState({});
   const [liveData, setLiveData] = useState(null);
+  const [liveTrends, setLiveTrends] = useState([]);
+  const [personalStats, setPersonalStats] = useState(null);
+  const [matchdayWinners, setMatchdayWinners] = useState([]);
+  const [compareParticipantId, setCompareParticipantId] = useState("");
   const [liveRefreshKey, setLiveRefreshKey] = useState(0);
   const tipsRef = useRef(tips);
   const bonusRef = useRef(bonusTip);
@@ -4370,6 +4417,7 @@ function BundesligaParticipantApp({ isTestMode }) {
         ]);
         setTips(createInitialTips(matches, tipPayload.tips ?? []));
         setBonusTip(createBundesligaBonusTip(bonusPayload.bonusTip));
+        await refreshRanking();
       } catch (error) {
         setMessage(error.message);
       }
@@ -4386,13 +4434,20 @@ function BundesligaParticipantApp({ isTestMode }) {
     async function loadLiveData() {
       if (isTestMode) {
         setLiveData(buildBundesligaLiveFromData(data, participant, selectedMatchday));
+        setLiveTrends(buildBundesligaTipTrendsFromData(data, selectedMatchday));
         return;
       }
       try {
         const payload = await apiGet(`/api/bundesliga-matchday-live?matchday=${encodeURIComponent(selectedMatchday)}&participantId=${encodeURIComponent(participant.id)}`);
-        if (!cancelled) setLiveData(payload.live ?? null);
+        if (!cancelled) {
+          setLiveData(payload.live ?? null);
+          setLiveTrends(payload.trends ?? []);
+        }
       } catch {
-        if (!cancelled) setLiveData(null);
+        if (!cancelled) {
+          setLiveData(null);
+          setLiveTrends([]);
+        }
       }
     }
     loadLiveData();
@@ -4429,11 +4484,19 @@ function BundesligaParticipantApp({ isTestMode }) {
 
   async function refreshRanking() {
     if (isTestMode) {
-      setRanking(createTestBundesligaData().ranking);
+      const testData = createTestBundesligaData();
+      setRanking(testData.ranking);
+      setMatchdayWinners([{ matchday: 1, bestPoints: 4, winners: [{ participantId: "bl-test", name: "Daniel BL", points: 4 }] }]);
+      setPersonalStats({ savedTipCount: 1, scoredTipCount: 1, exactHits: 1, goalDiffHits: 0, tendencyHits: 0, wrongTips: 0, bestMatchdays: [{ matchday: 1, points: 4 }] });
       return;
     }
-    const payload = await apiGet("/api/bundesliga-ranking").catch(() => ({ ranking: [] }));
+    const rankingUrl = participant?.id
+      ? `/api/bundesliga-ranking?participantId=${encodeURIComponent(participant.id)}`
+      : "/api/bundesliga-ranking";
+    const payload = await apiGet(rankingUrl).catch(() => ({ ranking: [] }));
     setRanking(payload.ranking ?? []);
+    setMatchdayWinners(payload.matchdayWinners ?? []);
+    setPersonalStats(payload.personalStats ?? null);
   }
 
   async function claimCode(event) {
@@ -4638,6 +4701,7 @@ function BundesligaParticipantApp({ isTestMode }) {
 
   function renderLivePanel() {
     const live = liveData;
+    const trendsByMatch = new Map(liveTrends.map((trend) => [trend.matchId, trend]));
     return (
       <section className="bundesliga-public-card bundesliga-live-panel">
         <h2>Live-Spieltag</h2>
@@ -4660,12 +4724,20 @@ function BundesligaParticipantApp({ isTestMode }) {
                 <b>{match.result ? `${match.result.score_a}:${match.result.score_b}` : "-:-"}</b>
                 <strong>{match.teamB}</strong>
               </header>
+              {trendsByMatch.has(match.id) && (
+                <div className="bundesliga-trend-row">
+                  <span>Heim {trendsByMatch.get(match.id).homePercent}%</span>
+                  <span>Remis {trendsByMatch.get(match.id).drawPercent}%</span>
+                  <span>Auswärts {trendsByMatch.get(match.id).awayPercent}%</span>
+                </div>
+              )}
               <div>
                 {(match.tips ?? []).map((tip) => (
                   <span key={`${match.id}:${tip.participantId}`} className={tip.isOwnTip ? "own" : ""}>
                     <strong>{tip.participantName}</strong>
                     <em>{tip.visible ? `${tip.scoreA}:${tip.scoreB}` : "versteckt bis Anpfiff"}</em>
                     <b>{Number.isInteger(tip.points) ? `${tip.points} P` : ""}</b>
+                    {tip.reason && <small>{tip.reason}</small>}
                   </span>
                 ))}
                 {(match.tips ?? []).length === 0 && <p>{match.tipsVisible ? "Noch keine Tipps für dieses Spiel." : "Tipps werden ab Anpfiff sichtbar."}</p>}
@@ -4673,6 +4745,129 @@ function BundesligaParticipantApp({ isTestMode }) {
             </article>
           ))}
         </div>
+      </section>
+    );
+  }
+
+  function renderOpenTasksCard() {
+    const firstOpenStatus = matchdayStatusRows.find((row) => row.openTipCount > 0);
+    return (
+      <section className="bundesliga-public-card bundesliga-open-tasks">
+        <h2>Was fehlt noch?</h2>
+        <div>
+          <article className={openTipCount === 0 ? "done" : ""}>
+            <strong>{openTipCount}</strong>
+            <span>offene Tipps</span>
+            <small>{firstOpenStatus ? `nächster offener Spieltag: ${firstOpenStatus.matchday}` : "alle Spieltipps gespeichert"}</small>
+          </article>
+          <article className={bonusStatus.complete ? "done" : ""}>
+            <strong>{bonusStatus.doneCount}/{bonusStatus.totalCount}</strong>
+            <span>Bonus erledigt</span>
+            <small>{bonusStatus.complete ? "Bonus vollständig" : "Meister, Torschütze oder Absteiger fehlen noch"}</small>
+          </article>
+        </div>
+        <button type="button" onClick={jumpToFirstOpenTip}>
+          nächsten offenen Tipp anzeigen
+        </button>
+      </section>
+    );
+  }
+
+  function renderPersonalStatsCard() {
+    const stats = personalStats ?? {
+      savedTipCount,
+      scoredTipCount: currentParticipantRank?.scoredTipCount ?? 0,
+      exactHits: 0,
+      goalDiffHits: 0,
+      tendencyHits: 0,
+      wrongTips: 0,
+      bestMatchdays: [],
+    };
+    return (
+      <section className="bundesliga-public-card bundesliga-personal-stats">
+        <h2>Meine Statistik</h2>
+        <div>
+          <article><span>Gespeichert</span><strong>{stats.savedTipCount ?? savedTipCount}</strong></article>
+          <article><span>Gewertet</span><strong>{stats.scoredTipCount ?? 0}</strong></article>
+          <article><span>Exakt</span><strong>{stats.exactHits ?? 0}</strong></article>
+          <article><span>Differenz</span><strong>{stats.goalDiffHits ?? 0}</strong></article>
+          <article><span>Tendenz</span><strong>{stats.tendencyHits ?? 0}</strong></article>
+          <article><span>Falsch</span><strong>{stats.wrongTips ?? 0}</strong></article>
+        </div>
+        <footer>
+          {(stats.bestMatchdays ?? []).length > 0
+            ? stats.bestMatchdays.map((row) => <span key={row.matchday}>ST {row.matchday}: {row.points} P</span>)
+            : <span>Beste Spieltage erscheinen nach den ersten Ergebnissen.</span>}
+        </footer>
+      </section>
+    );
+  }
+
+  function renderCommunityCard() {
+    const latestWinner = [...matchdayWinners].reverse().find((row) => row.winners?.length);
+    const compareRows = ranking.filter((row) => row.id && row.id !== participant?.id).slice(0, 12);
+    const selectedCompare = ranking.find((row) => row.id === compareParticipantId) ?? null;
+    const ownLiveTips = (liveData?.matches ?? []).flatMap((match) => (match.tips ?? [])
+      .filter((tip) => tip.isOwnTip)
+      .map((tip) => ({ ...tip, match })));
+    const rivalLiveTips = selectedCompare
+      ? (liveData?.matches ?? []).flatMap((match) => (match.tips ?? [])
+        .filter((tip) => tip.participantId === selectedCompare.id && tip.visible)
+        .map((tip) => ({ ...tip, match })))
+      : [];
+    return (
+      <section className="bundesliga-public-card bundesliga-community-card">
+        <h2>Community</h2>
+        {latestWinner ? (
+          <p>Letzter Spieltagssieger: <strong>{latestWinner.winners.map((row) => row.name).join(", ")}</strong> mit {latestWinner.bestPoints} Punkten an ST {latestWinner.matchday}.</p>
+        ) : (
+          <p>Spieltagssieger erscheinen, sobald Ergebnisse und Tipps gewertet sind.</p>
+        )}
+        <label>
+          Vergleich nach Anpfiff
+          <select value={compareParticipantId} onChange={(event) => setCompareParticipantId(event.target.value)}>
+            <option value="">Teilnehmer wählen</option>
+            {compareRows.map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}
+          </select>
+        </label>
+        {selectedCompare && (
+          <div className="bundesliga-compare-list">
+            {ownLiveTips.slice(0, 5).map((ownTip) => {
+              const rivalTip = rivalLiveTips.find((tip) => tip.match.id === ownTip.match.id);
+              return (
+                <div key={ownTip.match.id}>
+                  <strong>{ownTip.match.teamA} - {ownTip.match.teamB}</strong>
+                  <span>Du: {ownTip.scoreA}:{ownTip.scoreB} · {Number.isInteger(ownTip.points) ? `${ownTip.points} P` : "offen"}</span>
+                  <span>{selectedCompare.name}: {rivalTip ? `${rivalTip.scoreA}:${rivalTip.scoreB}` : "versteckt/offen"} · {Number.isInteger(rivalTip?.points) ? `${rivalTip.points} P` : "offen"}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        {currentParticipantRank && (
+          <div className="bundesliga-share-card">
+            <span>Share-Karte</span>
+            <strong>{currentParticipantRank.name}</strong>
+            <b>{currentParticipantRank.points} Punkte · Platz {ranking.findIndex((row) => row.id === currentParticipantRank.id || row.name === currentParticipantRank.name) + 1}</b>
+          </div>
+        )}
+      </section>
+    );
+  }
+
+  function renderImportStatusCard() {
+    const importStatus = data?.importStatus ?? {};
+    return (
+      <section className="bundesliga-public-card bundesliga-import-status">
+        <h2>Datenstatus</h2>
+        <div>
+          <span>Quelle</span><strong>{importStatus.source ?? "OpenLigaDB"}</strong>
+          <span>Teams</span><strong>{importStatus.teams ?? teams.length}</strong>
+          <span>Spiele</span><strong>{importStatus.matches ?? matches.length}</strong>
+          <span>Ergebnisse</span><strong>{importStatus.results ?? data?.results?.length ?? 0}</strong>
+          <span>Torschützen</span><strong>{importStatus.topScorers ?? topScorers.length}</strong>
+        </div>
+        <small>Letzter Ergebnisimport: {importStatus.lastResultImportAt ? formatDateTime(importStatus.lastResultImportAt) : "noch nicht bekannt"}</small>
       </section>
     );
   }
@@ -4773,6 +4968,8 @@ function BundesligaParticipantApp({ isTestMode }) {
             </section>
 
             <aside className="bundesliga-side-stack">
+              {renderOpenTasksCard()}
+              {renderPersonalStatsCard()}
               {renderBonusReminder()}
               <section className="bundesliga-public-card bundesliga-top-three">
                 <h2>Top 3</h2>
@@ -4800,6 +4997,7 @@ function BundesligaParticipantApp({ isTestMode }) {
                   ))}
                 </div>
               </section>
+              {renderCommunityCard()}
               <section className="bundesliga-public-card">
                 <h2>Nächste Spiele</h2>
                 <div className="bundesliga-fixture-list">
@@ -4815,6 +5013,7 @@ function BundesligaParticipantApp({ isTestMode }) {
                   ))}
                 </div>
               </section>
+              {renderImportStatusCard()}
             </aside>
           </section>
         )}
@@ -4886,7 +5085,9 @@ function BundesligaParticipantApp({ isTestMode }) {
             </section>
 
             <aside className="bundesliga-side-stack">
+              {renderOpenTasksCard()}
               {renderBonusReminder()}
+              {renderPersonalStatsCard()}
               {renderLivePanel()}
               <section className="bundesliga-public-card">
                 <h2>Live-Tabelle</h2>
@@ -5023,6 +5224,8 @@ function BundesligaParticipantApp({ isTestMode }) {
             </section>
             <aside className="bundesliga-side-stack">
               {renderLivePanel()}
+              {renderCommunityCard()}
+              {renderPersonalStatsCard()}
               {renderRulesCard()}
               <section className="bundesliga-public-card">
                 <h2>Live-Tabelle</h2>
@@ -5222,6 +5425,16 @@ function BundesligaAdminSetup({
       label: "Admin-Qualitätscheck aktiv",
       done: true,
       detail: "offene Tipps, Bonus und Ergebnislücken werden sichtbar",
+    },
+    {
+      label: "Komfortkarten aktiv",
+      done: true,
+      detail: "Was fehlt noch, Meine Statistik, Community und Datenstatus",
+    },
+    {
+      label: "Automatik geschützt",
+      done: dataQuality.autoImportEnabled === false,
+      detail: dataQuality.autoImportEnabled ? "Auto-Import per Env aktiv" : "Auto-Import bleibt ohne Env-Flag inaktiv",
     },
   ];
   const importedThrough = leagueMatches.reduce((max, match) => {
@@ -5499,6 +5712,22 @@ function BundesligaAdminSetup({
           <article>
             <span>Bonusfrist</span>
             <strong>{rulesSummary?.bonusDeadlineAt ? formatDateTime(rulesSummary.bonusDeadlineAt) : "Saisonstart"}</strong>
+          </article>
+          <article>
+            <span>Auto-Import</span>
+            <strong>{dataQuality.autoImportEnabled ? "aktiv" : "inaktiv"}</strong>
+          </article>
+          <article>
+            <span>Push-Erinnerungen</span>
+            <strong>{dataQuality.pushRemindersEnabled ? "aktiv" : "inaktiv"}</strong>
+          </article>
+          <article>
+            <span>Letzter Ergebnisimport</span>
+            <strong>{dataQuality.lastResultImportAt ? formatDateTime(dataQuality.lastResultImportAt) : "noch offen"}</strong>
+          </article>
+          <article>
+            <span>Letzter Spielplanimport</span>
+            <strong>{dataQuality.lastMatchImportAt ? formatDateTime(dataQuality.lastMatchImportAt) : "noch offen"}</strong>
           </article>
         </div>
         <div className="bundesliga-rule-list compact">
@@ -6165,6 +6394,14 @@ function BundesligaAdminSetup({
           <button type="button" onClick={onResetResults} disabled={loading || resultCount === 0}>
             <ShieldCheck size={23} />
             <span><strong>Ergebnisse zurücksetzen</strong><small>Nur Bundesliga-Testdaten</small></span>
+          </button>
+          <button type="button" onClick={() => onImportResults(maxMatchday)} disabled={loading || leagueMatches.length === 0}>
+            <ListFilter size={23} />
+            <span><strong>Ergebnisse aktualisieren</strong><small>alle Spieltage prüfen</small></span>
+          </button>
+          <button type="button" onClick={onImportTopScorers} disabled={loading}>
+            <Goal size={23} />
+            <span><strong>Torschützen aktualisieren</strong><small>OpenLigaDB Goalgetters</small></span>
           </button>
           <button type="button" onClick={() => { window.location.hash = "bundesliga-start"; }}>
             <ChevronRight size={23} />

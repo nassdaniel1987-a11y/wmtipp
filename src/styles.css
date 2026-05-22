@@ -5929,12 +5929,36 @@ tbody tr:nth-child(1) td:first-child {
   font-weight: 850;
 }
 
+.bundesliga-live-match-list article > div span small {
+  grid-column: 1 / -1;
+  color: rgba(183, 192, 201, 0.76);
+  font-weight: 800;
+}
+
 .bundesliga-live-match-list article > div span.own {
   color: #ffffff;
 }
 
 .bundesliga-live-match-list em {
   font-style: normal;
+}
+
+.bundesliga-trend-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin: 2px 0 4px;
+}
+
+.bundesliga-trend-row span {
+  padding: 6px 8px;
+  border: 1px solid var(--bl-line-soft);
+  border-radius: 999px;
+  color: #ffffff;
+  background: rgba(223, 47, 40, 0.12);
+  font-size: 0.76rem;
+  font-weight: 950;
+  text-align: center;
 }
 
 .bundesliga-team-badge {
@@ -5984,6 +6008,162 @@ tbody tr:nth-child(1) td:first-child {
   border: 1px solid var(--bl-line-soft);
   border-radius: 8px;
   background: #11161a;
+}
+
+.bundesliga-open-tasks,
+.bundesliga-personal-stats,
+.bundesliga-community-card,
+.bundesliga-import-status {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+.bundesliga-open-tasks > div,
+.bundesliga-personal-stats > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.bundesliga-open-tasks article,
+.bundesliga-personal-stats article {
+  display: grid;
+  gap: 5px;
+  min-height: 86px;
+  padding: 12px;
+  border: 1px solid var(--bl-line-soft);
+  border-radius: 8px;
+  background: #11161a;
+}
+
+.bundesliga-open-tasks article.done,
+.bundesliga-personal-stats article:first-child {
+  border-color: rgba(98, 236, 119, 0.42);
+}
+
+.bundesliga-open-tasks strong,
+.bundesliga-personal-stats strong {
+  color: #ffffff;
+  font-size: 1.55rem;
+}
+
+.bundesliga-open-tasks span,
+.bundesliga-open-tasks small,
+.bundesliga-personal-stats span,
+.bundesliga-personal-stats footer,
+.bundesliga-community-card p,
+.bundesliga-import-status small {
+  color: var(--bl-muted);
+  font-weight: 850;
+  line-height: 1.35;
+}
+
+.bundesliga-open-tasks button {
+  min-height: 38px;
+  border: 1px solid #b93730;
+  border-radius: 7px;
+  color: #ffffff;
+  background: linear-gradient(180deg, #d3473b, #a3322b);
+  font-weight: 950;
+}
+
+.bundesliga-personal-stats > div {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.bundesliga-personal-stats article {
+  min-height: 70px;
+}
+
+.bundesliga-personal-stats footer {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.bundesliga-personal-stats footer span {
+  padding: 6px 8px;
+  border: 1px solid var(--bl-line-soft);
+  border-radius: 999px;
+  background: #11161a;
+}
+
+.bundesliga-community-card label {
+  display: grid;
+  gap: 6px;
+  color: var(--bl-muted);
+  font-weight: 900;
+}
+
+.bundesliga-community-card select {
+  min-height: 38px;
+  border: 1px solid var(--bl-line);
+  border-radius: 7px;
+  color: #ffffff;
+  background: #10151a;
+}
+
+.bundesliga-compare-list {
+  display: grid;
+  gap: 8px;
+}
+
+.bundesliga-compare-list div {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid var(--bl-line-soft);
+  border-radius: 8px;
+  background: #11161a;
+}
+
+.bundesliga-compare-list span {
+  color: var(--bl-muted);
+  font-size: 0.84rem;
+  font-weight: 850;
+}
+
+.bundesliga-share-card {
+  display: grid;
+  gap: 5px;
+  padding: 14px;
+  border: 1px solid rgba(223, 47, 40, 0.55);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(223, 47, 40, 0.24), transparent 58%),
+    #11161a;
+}
+
+.bundesliga-share-card span {
+  color: #ffd0cd;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.bundesliga-share-card strong {
+  color: #ffffff;
+  font-size: 1.25rem;
+}
+
+.bundesliga-share-card b {
+  color: var(--bl-red);
+}
+
+.bundesliga-import-status > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 12px;
+}
+
+.bundesliga-import-status span {
+  color: var(--bl-muted);
+  font-weight: 850;
+}
+
+.bundesliga-import-status strong {
+  color: #ffffff;
+  text-align: right;
 }
 
 .bundesliga-public-ranking {
@@ -6261,6 +6441,8 @@ tbody tr:nth-child(1) td:first-child {
   .bundesliga-current-rank,
   .bundesliga-quality-grid,
   .bundesliga-release-settings-grid,
+  .bundesliga-open-tasks > div,
+  .bundesliga-personal-stats > div,
   .bundesliga-side-stack,
   .bundesliga-matchday-center {
     grid-template-columns: 1fr;
@@ -6369,5 +6551,9 @@ tbody tr:nth-child(1) td:first-child {
   .bundesliga-live-match-list article > div span {
     grid-template-columns: 1fr;
     gap: 3px;
+  }
+
+  .bundesliga-trend-row {
+    grid-template-columns: 1fr;
   }
 }

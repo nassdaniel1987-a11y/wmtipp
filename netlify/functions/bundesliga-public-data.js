@@ -45,6 +45,25 @@ export default async (req) => {
       matchdayStatus: buildMatchdayStatus(matches.data ?? [], [], results.data ?? []),
       bonusStatus: buildBonusStatus(null),
       rulesSummary: buildBundesligaRulesSummary(ruleSettings, competition.data),
+      importStatus: {
+        source: "OpenLigaDB",
+        teams: normalizedTeams.length,
+        matches: matches.data?.length ?? 0,
+        results: results.data?.length ?? 0,
+        topScorers: topScorers.data?.length ?? 0,
+        lastMatchImportAt: (matches.data ?? []).reduce((latest, row) => {
+          if (!row.updated_at) return latest;
+          return !latest || row.updated_at > latest ? row.updated_at : latest;
+        }, null),
+        lastResultImportAt: (results.data ?? []).reduce((latest, row) => {
+          if (!row.updated_at) return latest;
+          return !latest || row.updated_at > latest ? row.updated_at : latest;
+        }, null),
+        lastTopScorerImportAt: (topScorers.data ?? []).reduce((latest, row) => {
+          if (!row.updated_at) return latest;
+          return !latest || row.updated_at > latest ? row.updated_at : latest;
+        }, null),
+      },
     });
   } catch (error) {
     return json({ error: error.message || "Bundesliga-Daten konnten nicht geladen werden." }, 500);
