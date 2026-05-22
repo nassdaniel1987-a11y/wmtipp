@@ -929,7 +929,7 @@ export default function App() {
   const [appStatus, setAppStatus] = useState(isTestMode ? "Testmodus aktiv" : "Spielplan wird geladen...");
   const [codeStatus, setCodeStatus] = useState(isTestMode ? "claimed" : scannedCode ? "checking" : "missing");
   const [adminSession, setAdminSession] = useState(null);
-  const [adminData, setAdminData] = useState({ codes: [], participants: [], tips: [], bonusTips: [], bonusResults: null, results: [], players: [] });
+  const [adminData, setAdminData] = useState({ codes: [], participants: [], tips: [], tipCount: 0, bonusTips: [], bonusTipCount: 0, bonusResults: null, results: [], players: [] });
   const tipsRef = useRef(tips);
   const bonusTipsRef = useRef(bonusTips);
   const canViewRanking = Boolean(participant);
@@ -1482,7 +1482,7 @@ export default function App() {
   async function handleAdminLogout() {
     await signOutAdmin();
     setAdminSession(null);
-    setAdminData({ codes: [], participants: [], tips: [], bonusTips: [], bonusResults: null, results: [], players: [] });
+    setAdminData({ codes: [], participants: [], tips: [], tipCount: 0, bonusTips: [], bonusTipCount: 0, bonusResults: null, results: [], players: [] });
   }
 
   async function handleCreateCodes(count) {
@@ -3563,7 +3563,7 @@ function AdminPanel({
       <div className="admin-stats">
         <strong>{adminData.codes.length}<span>QR-Codes</span></strong>
         <strong>{adminData.participants.length}<span>Teilnehmer</span></strong>
-        <strong>{adminData.tips.length}<span>Tipps</span></strong>
+        <strong>{adminData.tipCount ?? adminData.tips.length}<span>Tipps</span></strong>
       </div>
 
       <section className="admin-bonus-editor player-admin-panel">

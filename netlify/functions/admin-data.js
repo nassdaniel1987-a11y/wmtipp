@@ -1,4 +1,5 @@
 import { requireAdmin } from "./_shared/admin.js";
+import { fetchAllPages, fetchExactCount } from "./_shared/pagination.js";
 import { json } from "./_shared/supabase.js";
 
 export default async (req) => {
@@ -6,7 +7,7 @@ export default async (req) => {
 
   try {
     const { supabase } = await requireAdmin(req);
-    const [codes, participants, tips, bonusTips, bonusResults, results, players] = await Promise.all([
+    const [codes, participants, tips, tipCount, bonusTips, bonusTipCount, bonusResults, results, players] = await Promise.all([
       supabase
         .from("invite_codes")
         .select("id, code, status, claimed_at, participant:participants!invite_codes_participant_id_fkey(id, display_name)")
@@ -15,14 +16,20 @@ export default async (req) => {
         .from("participants")
         .select("id, display_name, created_at, invite_code_id")
         .order("created_at", { ascending: false }),
-      supabase
+      fetchAllPages(() => supabase
         .from("tips")
         .select("id, participant_id, match_id, score_a, score_b, saved_at")
-        .order("saved_at", { ascending: false }),
-      supabase
+        .order("saved_at", { ascending: false })),
+      fetchExactCount(supabase
+        .from("tips")
+        .select("id", { count: "exact", head: true })),
+      fetchAllPages(() => supabase
         .from("bonus_tips")
         .select("participant_id, champion, top_scorer, top_scorer_player_id, group_winners, saved_at")
-        .order("saved_at", { ascending: false }),
+        .order("saved_at", { ascending: false })),
+      fetchExactCount(supabase
+        .from("bonus_tips")
+        .select("participant_id", { count: "exact", head: true })),
       supabase
         .from("bonus_results")
         .select("id, champion, top_scorer, top_scorer_player_ids, group_winners, updated_at")
@@ -37,15 +44,17 @@ export default async (req) => {
         .order("display_name"),
     ]);
 
-    for (const response of [codes, participants, tips, bonusTips, bonusResults, results, players]) {
+    for (const response of [codes, participants, bonusResults, results, players]) {
       if (response.error) throw response.error;
     }
 
     return json({
       codes: codes.data ?? [],
       participants: participants.data ?? [],
-      tips: tips.data ?? [],
-      bonusTips: bonusTips.data ?? [],
+      tips,
+      tipCount,
+      bonusTips,
+      bonusTipCount,
       bonusResults: bonusResults.data ?? null,
       results: results.data ?? [],
       players: players.data ?? [],

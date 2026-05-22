@@ -1,4 +1,5 @@
 import { requireAdmin } from "./_shared/admin.js";
+import { fetchAllPages, fetchExactCount } from "./_shared/pagination.js";
 import { json } from "./_shared/supabase.js";
 import {
   BUNDESLIGA_COMPETITION_ID,
@@ -49,7 +50,9 @@ export default async (req) => {
       inviteCodes,
       participants,
       participantTips,
+      participantTipCount,
       participantBonusTips,
+      participantBonusTipCount,
       ruleSettings,
     ] = await Promise.all([
       supabase.from("competitions").select("*").eq("id", BUNDESLIGA_COMPETITION_ID).maybeSingle(),
@@ -58,17 +61,19 @@ export default async (req) => {
       supabase.from("competition_results").select("*").eq("competition_id", BUNDESLIGA_COMPETITION_ID),
       supabase.from("competition_goals").select("*").eq("competition_id", BUNDESLIGA_COMPETITION_ID),
       supabase.from("competition_demo_participants").select("*").eq("competition_id", BUNDESLIGA_COMPETITION_ID).order("created_at"),
-      supabase.from("competition_demo_tips").select("*").eq("competition_id", BUNDESLIGA_COMPETITION_ID).order("saved_at"),
+      fetchAllPages(() => supabase.from("competition_demo_tips").select("*").eq("competition_id", BUNDESLIGA_COMPETITION_ID).order("saved_at")),
       supabase.from("competition_bonus_results").select("*").eq("competition_id", BUNDESLIGA_COMPETITION_ID).maybeSingle(),
       loadOptionalTopScorers(supabase),
       supabase.from("competition_invite_codes").select("*").eq("competition_id", BUNDESLIGA_COMPETITION_ID).order("created_at", { ascending: false }).limit(20),
       supabase.from("competition_participants").select("*").eq("competition_id", BUNDESLIGA_COMPETITION_ID).order("created_at"),
-      supabase.from("competition_tips").select("*").eq("competition_id", BUNDESLIGA_COMPETITION_ID).order("saved_at"),
-      supabase.from("competition_participant_bonus_tips").select("*").eq("competition_id", BUNDESLIGA_COMPETITION_ID),
+      fetchAllPages(() => supabase.from("competition_tips").select("*").eq("competition_id", BUNDESLIGA_COMPETITION_ID).order("saved_at")),
+      fetchExactCount(supabase.from("competition_tips").select("id", { count: "exact", head: true }).eq("competition_id", BUNDESLIGA_COMPETITION_ID)),
+      fetchAllPages(() => supabase.from("competition_participant_bonus_tips").select("*").eq("competition_id", BUNDESLIGA_COMPETITION_ID)),
+      fetchExactCount(supabase.from("competition_participant_bonus_tips").select("participant_id", { count: "exact", head: true }).eq("competition_id", BUNDESLIGA_COMPETITION_ID)),
       loadCompetitionRuleSettings(supabase),
     ]);
 
-    for (const response of [competition, teams, matches, results, goals, demoParticipants, demoTips, bonusResults, inviteCodes, participants, participantTips, participantBonusTips]) {
+    for (const response of [competition, teams, matches, results, goals, demoParticipants, bonusResults, inviteCodes, participants]) {
       if (response.error) throw response.error;
     }
 
@@ -114,13 +119,13 @@ export default async (req) => {
       !row.source_name || /^[A-ZÄÖÜ]\.\s/u.test(row.display_name || row.source_name || ""),
     ).length;
 
-    (demoTips.data ?? []).forEach((tip) => {
+    demoTips.forEach((tip) => {
       const rows = tipsByMatch.get(tip.match_id) ?? [];
       rows.push(tip);
       tipsByMatch.set(tip.match_id, rows);
     });
 
-    (participantTips.data ?? []).forEach((tip) => {
+    participantTips.forEach((tip) => {
       const rows = participantTipsByMatch.get(tip.match_id) ?? [];
       rows.push(tip);
       participantTipsByMatch.set(tip.match_id, rows);
@@ -148,20 +153,20 @@ export default async (req) => {
 
     const participantRanking = buildCompetitionRanking(
       participants.data ?? [],
-      participantTips.data ?? [],
+      participantTips,
       results.data ?? [],
-      participantBonusTips.data ?? [],
+      participantBonusTips,
       bonusResults.data ?? null,
       topScorers,
       leagueMatches,
       ruleSettings,
     );
-    const participantMatchdayStatus = buildMatchdayStatus(leagueMatches, participantTips.data ?? [], results.data ?? []);
-    const demoMatchdayStatus = buildMatchdayStatus(leagueMatches, demoTips.data ?? [], results.data ?? []);
+    const participantMatchdayStatus = buildMatchdayStatus(leagueMatches, participantTips, results.data ?? []);
+    const demoMatchdayStatus = buildMatchdayStatus(leagueMatches, demoTips, results.data ?? []);
     const activeLive = buildMatchdayLive(
       leagueMatches,
       participants.data ?? [],
-      participantTips.data ?? [],
+      participantTips,
       results.data ?? [],
       "",
       Number(new URL(req.url).searchParams.get("matchday")) || 1,
@@ -176,15 +181,17 @@ export default async (req) => {
       results: results.data ?? [],
       goals: goals.data ?? [],
       demoParticipants: demoParticipants.data ?? [],
-      demoTips: demoTips.data ?? [],
+      demoTips,
       bonusResults: bonusResults.data ?? null,
       ruleSettings,
       rulesSummary: buildBundesligaRulesSummary(ruleSettings, competition.data),
       table: buildLeagueTable(leagueMatches, results.data ?? [], leagueTeams),
-      ranking: buildDemoRanking(demoParticipants.data ?? [], demoTips.data ?? [], results.data ?? [], ruleSettings),
+      ranking: buildDemoRanking(demoParticipants.data ?? [], demoTips, results.data ?? [], ruleSettings),
       participants: participants.data ?? [],
-      participantTips: participantTips.data ?? [],
-      participantBonusTips: participantBonusTips.data ?? [],
+      participantTips,
+      participantTipCount,
+      participantBonusTips,
+      participantBonusTipCount,
       participantRanking,
       participantMatchdayStatus,
       demoMatchdayStatus,

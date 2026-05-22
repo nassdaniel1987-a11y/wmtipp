@@ -143,6 +143,7 @@ cd android-app
 - QR-Code-Bereich ist einklappbar, damit viele Codes den Adminbereich nicht dauerhaft überladen.
 - Teilnehmernamen können direkt in der Teilnehmerliste bearbeitet werden.
 - Personalisierte Offline-Tippbögen enthalten einen scannbaren QR-Code je Teilnehmer.
+- Admin-Daten laden Spieltipps und Bonus-Tipps paginiert, damit Counter und Nachträge auch über dem Supabase-Standardlimit von 1000 Zeilen stimmen.
 
 ## Bundesliga Stand
 
