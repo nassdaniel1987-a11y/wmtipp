@@ -3524,6 +3524,13 @@ function AdminPanel({
             const payload = await runBundesligaAction("generate-demo-tips");
             if (payload) setBundesligaMessage(`${payload.tips?.length ?? 0} Demo-Tipps gespeichert.`);
           }}
+          onRunReleaseProbe={async () => {
+            const payload = await runBundesligaAction("run-release-probe");
+            if (payload?.releaseProbe) {
+              setBundesligaMessage(`Release-Probelauf vorbereitet: ${payload.releaseProbe.participants.length} Teilnehmer, ${payload.releaseProbe.savedTips} Tipps, ${payload.releaseProbe.importedResults} Ergebnisse.`);
+            }
+            return payload;
+          }}
           onImportResults={async (throughMatchday) => {
             const payload = await runBundesligaAction("import-results", { throughMatchday });
             if (payload) setBundesligaMessage(`Ergebnisse bis Spieltag ${payload.throughMatchday} importiert.`);
@@ -5047,6 +5054,7 @@ function BundesligaAdminSetup({
   onCreateDemoParticipant,
   onCreateInviteCodes,
   onGenerateDemoTips,
+  onRunReleaseProbe,
   onImportResults,
   onResetResults,
   onImportTopScorers,
@@ -5068,6 +5076,7 @@ function BundesligaAdminSetup({
   const [participantNameDrafts, setParticipantNameDrafts] = useState({});
   const [participantTipDrafts, setParticipantTipDrafts] = useState({});
   const [participantBonusDrafts, setParticipantBonusDrafts] = useState({});
+  const [releaseProbeReport, setReleaseProbeReport] = useState(null);
   const [bonusResultDraft, setBonusResultDraft] = useState({
     championTeamId: "",
     topScorers: [],
@@ -5374,6 +5383,11 @@ function BundesligaAdminSetup({
     await onSaveBonusResults(bonusResultDraft);
   }
 
+  async function runReleaseProbe() {
+    const payload = await onRunReleaseProbe();
+    if (payload?.releaseProbe) setReleaseProbeReport(payload.releaseProbe);
+  }
+
   const labNavItems = [
     { id: "overview", label: "Übersicht", Icon: House },
     { id: "schedule", label: "Spielplan", Icon: CalendarDays },
@@ -5419,6 +5433,29 @@ function BundesligaAdminSetup({
           Ein kompletter Test wie später im Betrieb: Code erzeugen, Teilnehmer aktivieren,
           Spieltag tippen, Bonus speichern, Ergebnisse importieren und Rangliste prüfen.
         </p>
+        <div className="bundesliga-probe-actions">
+          <button type="button" onClick={runReleaseProbe} disabled={loading}>
+            Release-Probelauf vorbereiten
+          </button>
+          <small>Schreibt nur `Release Test 1-3`, Spieltag 1, Bonus und versteckte Bundesliga-Testdaten.</small>
+        </div>
+        {releaseProbeReport && (
+          <div className="bundesliga-probe-report">
+            <strong>Letzter Lauf</strong>
+            <span>{releaseProbeReport.participants?.length ?? 0} Testteilnehmer</span>
+            <span>{releaseProbeReport.savedTips ?? 0} Spieltag-1-Tipps</span>
+            <span>{releaseProbeReport.bonusTips ?? 0} Bonus-Tipps</span>
+            <span>{releaseProbeReport.importedResults ?? 0} Ergebnisse</span>
+            <span>{releaseProbeReport.rankingRows ?? 0} Ranking-Zeilen</span>
+            <span>{releaseProbeReport.competition?.publicEnabled ? "öffentlich aktiv" : "weiter versteckt"}</span>
+          </div>
+        )}
+        {releaseProbeReport?.warnings?.length > 0 && (
+          <div className="bundesliga-probe-warnings">
+            <strong>Warnungen</strong>
+            {releaseProbeReport.warnings.map((warning) => <span key={warning}>{warning}</span>)}
+          </div>
+        )}
         <div className="bundesliga-probe-grid">
           {releaseProbeChecks.map((item) => (
             <article key={item.label} className={item.done ? "done" : ""}>

@@ -16,6 +16,122 @@ function demoScoreFor(match, participantIndex) {
   };
 }
 
+function releaseProbeScoreFor(match, participantIndex, matchIndex) {
+  const finalScore = getFinalScore(match.source_json ?? {});
+  const scoreA = Number.isInteger(finalScore?.pointsTeam1) ? finalScore.pointsTeam1 : (matchIndex + participantIndex) % 4;
+  const scoreB = Number.isInteger(finalScore?.pointsTeam2) ? finalScore.pointsTeam2 : (matchIndex + 1 + participantIndex) % 3;
+
+  if (participantIndex === 0) return { score_a: scoreA, score_b: scoreB };
+  if (participantIndex === 1) return { score_a: Math.min(12, scoreA + 1), score_b: Math.min(12, scoreB + 1) };
+  return { score_a: scoreB, score_b: scoreA };
+}
+
+async function loadTopScorers(supabase) {
+  const { data, error } = await supabase
+    .from("competition_top_scorers")
+    .select("*")
+    .eq("competition_id", BUNDESLIGA_COMPETITION_ID)
+    .order("goals", { ascending: false })
+    .order("display_name", { ascending: true });
+  if (error) throw error;
+  return data ?? [];
+}
+
+async function ensureTopScorers(supabase, warnings) {
+  const existing = await loadTopScorers(supabase);
+  if (existing.length) return existing;
+
+  try {
+    const goalgetters = await fetchOpenLigaGoalgetters();
+    const rows = goalgetters
+      .map((row) => normalizeGoalgetter(row, null))
+      .filter((row) => row.external_id);
+    if (!rows.length) {
+      warnings.push("OpenLigaDB lieferte keine Torschützen.");
+      return [];
+    }
+    const { data, error } = await supabase
+      .from("competition_top_scorers")
+      .upsert(rows, { onConflict: "competition_id,external_id" })
+      .select("*");
+    if (error) throw error;
+    return data ?? [];
+  } catch (error) {
+    warnings.push(error.message || "Torschützen konnten nicht automatisch importiert werden.");
+    return [];
+  }
+}
+
+async function ensureReleaseParticipants(supabase, names) {
+  const participants = [];
+
+  for (const displayName of names) {
+    const { data: participant, error: participantError } = await supabase
+      .from("competition_participants")
+      .upsert({
+        competition_id: BUNDESLIGA_COMPETITION_ID,
+        display_name: displayName,
+      }, { onConflict: "competition_id,display_name" })
+      .select("*")
+      .single();
+    if (participantError) throw participantError;
+
+    const { data: existingCode, error: existingCodeError } = await supabase
+      .from("competition_invite_codes")
+      .select("*")
+      .eq("competition_id", BUNDESLIGA_COMPETITION_ID)
+      .eq("participant_id", participant.id)
+      .maybeSingle();
+    if (existingCodeError) throw existingCodeError;
+
+    let inviteCode = existingCode;
+    if (!inviteCode) {
+      const { data: insertedCode, error: codeError } = await supabase
+        .from("competition_invite_codes")
+        .insert({
+          competition_id: BUNDESLIGA_COMPETITION_ID,
+          code: makeInviteCode("BL"),
+          status: "claimed",
+          participant_id: participant.id,
+          claimed_at: new Date().toISOString(),
+        })
+        .select("*")
+        .single();
+      if (codeError) throw codeError;
+      inviteCode = insertedCode;
+    } else if (inviteCode.status !== "claimed") {
+      const { data: updatedCode, error: codeError } = await supabase
+        .from("competition_invite_codes")
+        .update({
+          status: "claimed",
+          participant_id: participant.id,
+          claimed_at: inviteCode.claimed_at ?? new Date().toISOString(),
+        })
+        .eq("id", inviteCode.id)
+        .select("*")
+        .single();
+      if (codeError) throw codeError;
+      inviteCode = updatedCode;
+    }
+
+    if (participant.invite_code_id !== inviteCode.id) {
+      const { data: updatedParticipant, error: updateError } = await supabase
+        .from("competition_participants")
+        .update({ invite_code_id: inviteCode.id })
+        .eq("competition_id", BUNDESLIGA_COMPETITION_ID)
+        .eq("id", participant.id)
+        .select("*")
+        .single();
+      if (updateError) throw updateError;
+      participants.push(updatedParticipant);
+    } else {
+      participants.push(participant);
+    }
+  }
+
+  return participants;
+}
+
 async function fetchOpenLigaGoalgetters() {
   const response = await fetch(`https://api.openligadb.de/getgoalgetters/${BUNDESLIGA_SOURCE_LEAGUE}/${BUNDESLIGA_SOURCE_SEASON}`);
   if (!response.ok) {
@@ -108,6 +224,173 @@ export default async (req) => {
         .select("*");
       if (error) throw error;
       return json({ tips: data ?? [], participants: demoParticipants });
+    }
+
+    if (action === "run-release-probe") {
+      const warnings = [];
+      const releaseNames = ["Release Test 1", "Release Test 2", "Release Test 3"];
+
+      const { data: competition, error: competitionError } = await supabase
+        .from("competitions")
+        .update({ status: "admin_test", public_enabled: false, updated_at: new Date().toISOString() })
+        .eq("id", BUNDESLIGA_COMPETITION_ID)
+        .select("*")
+        .single();
+      if (competitionError) throw competitionError;
+
+      const [
+        { data: teams, error: teamError },
+        { data: matches, error: matchError },
+      ] = await Promise.all([
+        supabase
+          .from("competition_teams")
+          .select("*")
+          .eq("competition_id", BUNDESLIGA_COMPETITION_ID)
+          .order("name"),
+        supabase
+          .from("competition_matches")
+          .select("id, competition_id, match_number, matchday, phase, team_a_id, team_b_id, source_json")
+          .eq("competition_id", BUNDESLIGA_COMPETITION_ID)
+          .eq("phase", "league")
+          .order("match_number"),
+      ]);
+      if (teamError) throw teamError;
+      if (matchError) throw matchError;
+
+      const teamRows = teams ?? [];
+      const leagueMatches = matches ?? [];
+      const matchdayOneMatches = leagueMatches.filter((match) => Number(match.matchday) === 1);
+      if (teamRows.length < 18) warnings.push(`Nur ${teamRows.length} Teams vorhanden. Bitte OpenLigaDB-Spielplan/Teams prüfen.`);
+      if (leagueMatches.length < 306) warnings.push(`Nur ${leagueMatches.length} Liga-Spiele vorhanden. Bitte Spielplanimport prüfen.`);
+      if (matchdayOneMatches.length === 0) warnings.push("Spieltag 1 enthält keine Spiele; Tipps und Ergebnisse konnten nicht vollständig vorbereitet werden.");
+
+      const topScorers = await ensureTopScorers(supabase, warnings);
+      const participants = await ensureReleaseParticipants(supabase, releaseNames);
+
+      const tipRows = participants.flatMap((participant, participantIndex) =>
+        matchdayOneMatches
+          .map((match, matchIndex) => {
+            if (participantIndex === 2 && matchIndex === 0) return null;
+            return {
+              competition_id: BUNDESLIGA_COMPETITION_ID,
+              participant_id: participant.id,
+              match_id: match.id,
+              ...releaseProbeScoreFor(match, participantIndex, matchIndex),
+              saved_at: new Date().toISOString(),
+            };
+          })
+          .filter(Boolean),
+      );
+      const { data: tips, error: tipError } = tipRows.length
+        ? await supabase
+          .from("competition_tips")
+          .upsert(tipRows, { onConflict: "competition_id,participant_id,match_id" })
+          .select("*")
+        : { data: [], error: null };
+      if (tipError) throw tipError;
+
+      const championTeam = teamRows[0] ?? null;
+      const relegatedTeams = teamRows.slice(-3);
+      const topScorer = topScorers[0] ?? null;
+      if (!championTeam) warnings.push("Kein Team für Meister-Bonus gefunden.");
+      if (relegatedTeams.length < 3) warnings.push("Nicht genug Teams für 3 Absteiger gefunden.");
+      if (!topScorer) warnings.push("Kein Torschützenkönig für Bonus gefunden.");
+
+      const bonusRows = participants.map((participant) => ({
+        participant_id: participant.id,
+        competition_id: BUNDESLIGA_COMPETITION_ID,
+        champion_team_id: championTeam?.id ?? null,
+        top_scorer_id: topScorer?.id ?? null,
+        top_scorer: topScorer?.display_name ?? topScorer?.source_name ?? null,
+        relegated_team_ids: relegatedTeams.map((team) => team.id),
+        saved_at: new Date().toISOString(),
+      }));
+      const { data: bonusTips, error: bonusTipError } = await supabase
+        .from("competition_participant_bonus_tips")
+        .upsert(bonusRows, { onConflict: "participant_id" })
+        .select("*");
+      if (bonusTipError) throw bonusTipError;
+
+      const resultRows = matchdayOneMatches
+        .map((match) => {
+          const finalScore = getFinalScore(match.source_json ?? {});
+          if (!finalScore || !Number.isInteger(finalScore.pointsTeam1) || !Number.isInteger(finalScore.pointsTeam2)) return null;
+          return {
+            match_id: match.id,
+            competition_id: BUNDESLIGA_COMPETITION_ID,
+            score_a: finalScore.pointsTeam1,
+            score_b: finalScore.pointsTeam2,
+            status: "final",
+            updated_at: new Date().toISOString(),
+          };
+        })
+        .filter(Boolean);
+      if (resultRows.length < matchdayOneMatches.length) {
+        warnings.push(`Für Spieltag 1 fehlen ${matchdayOneMatches.length - resultRows.length} Ergebniswerte in OpenLigaDB.`);
+      }
+      const { data: results, error: resultError } = resultRows.length
+        ? await supabase
+          .from("competition_results")
+          .upsert(resultRows, { onConflict: "match_id" })
+          .select("*")
+        : { data: [], error: null };
+      if (resultError) throw resultError;
+
+      const { data: existingBonusResults, error: existingBonusResultsError } = await supabase
+        .from("competition_bonus_results")
+        .select("*")
+        .eq("competition_id", BUNDESLIGA_COMPETITION_ID)
+        .maybeSingle();
+      if (existingBonusResultsError) throw existingBonusResultsError;
+
+      let officialBonusResults = existingBonusResults;
+      if (
+        !existingBonusResults?.champion_team_id &&
+        (!existingBonusResults?.top_scorers || existingBonusResults.top_scorers.length === 0) &&
+        (!existingBonusResults?.relegated_team_ids || existingBonusResults.relegated_team_ids.length === 0)
+      ) {
+        const { data, error } = await supabase
+          .from("competition_bonus_results")
+          .upsert({
+            competition_id: BUNDESLIGA_COMPETITION_ID,
+            champion_team_id: championTeam?.id ?? null,
+            top_scorers: topScorer ? [topScorer.display_name] : [],
+            relegated_team_ids: relegatedTeams.map((team) => team.id),
+            updated_at: new Date().toISOString(),
+          }, { onConflict: "competition_id" })
+          .select("*")
+          .single();
+        if (error) throw error;
+        officialBonusResults = data;
+      }
+
+      const { data: rankingParticipants, error: rankingParticipantError } = await supabase
+        .from("competition_participants")
+        .select("id, display_name")
+        .eq("competition_id", BUNDESLIGA_COMPETITION_ID);
+      if (rankingParticipantError) throw rankingParticipantError;
+
+      return json({
+        releaseProbe: {
+          competition: {
+            status: competition.status,
+            publicEnabled: competition.public_enabled,
+          },
+          participants: participants.map((participant) => ({
+            id: participant.id,
+            name: participant.display_name,
+          })),
+          matchday: 1,
+          matchdayMatches: matchdayOneMatches.length,
+          savedTips: tips?.length ?? 0,
+          openTipsKept: matchdayOneMatches.length > 0 ? 1 : 0,
+          bonusTips: bonusTips?.length ?? 0,
+          importedResults: results?.length ?? 0,
+          officialBonusPrepared: Boolean(officialBonusResults),
+          rankingRows: rankingParticipants?.length ?? 0,
+          warnings,
+        },
+      });
     }
 
     if (action === "import-results") {

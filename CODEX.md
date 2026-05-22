@@ -157,6 +157,7 @@ cd android-app
 - Spieltag-Zentrale, Live-Spieltag-Auswertung, Bonus-Erinnerung, mobile Rangliste und Admin-Qualitätscheck sind eingebaut.
 - Das Startdashboard zeigt „Nächste Spiele“ als kompakte Logo-Paarungen ohne Ergebnisanzeige.
 - Das Admin-Testlabor enthält jetzt einen sichtbaren Release-Probelauf mit Ampelstatus für Daten, Codes, Teilnehmer, Tipps, Bonus, Ergebnisse und Rangliste.
+- Der Release-Probelauf kann im Admin-Testlabor per Button vorbereitet werden; er schreibt nur `Release Test 1-3`, Spieltag-1-Tipps, Bonus-Tipps, Spieltag-1-Ergebnisse und hält `public_enabled = false`.
 
 ## Zuletzt ausgeführte / benötigte SQL-Dateien
 
@@ -182,22 +183,25 @@ cd android-app
 
 1. Admin öffnen und ins Bundesliga-Testlabor wechseln.
 2. OpenLigaDB-Daten prüfen oder importieren: Teams, Logos, Spielplan und Torschützen.
-3. Release-Checkliste und Teams/Logos prüfen. Fehlende Logos oder kaputte URLs als Release-Lücke notieren.
-4. Im Bereich „Codes“ einen Bundesliga-Testcode erzeugen und Code oder Teilnehmerlink kopieren.
-5. Versteckte Teilnehmeransicht `#bundesliga-start` öffnen, Code eingeben und Testteilnehmer aktivieren, z. B. `Release Test`.
-6. Tab `Tippen` öffnen, Spieltag 1 auswählen und mehrere Tipps setzen. Mindestens ein `-:-` bewusst offen lassen.
-7. „Alle Tipps dieses Spieltags speichern“ nutzen und prüfen, dass nur vollständige Tipps zählen.
-8. Tab `Bonus` öffnen, Meister, Torschützenkönig und genau 3 Absteiger auswählen und speichern.
-9. Zurück ins Testlabor: Teilnehmer, gespeicherte Tipps und Bonus-Tipp prüfen.
-10. Admin-Nachtrag testen: einen Spieltipp oder Bonuswert des Testteilnehmers korrigieren und danach Teilnehmeransicht neu laden.
-11. Ergebnisse bis Spieltag 1 importieren und Ergebnisliste prüfen.
-12. Live-Spieltag-Auswertung und Rangliste prüfen:
+3. In der Karte „Release-Probelauf“ den Button „Release-Probelauf vorbereiten“ klicken.
+4. Der Button stellt sicher:
+   - `Release Test 1`, `Release Test 2`, `Release Test 3` existieren als Bundesliga-Testteilnehmer.
+   - Spieltag 1 hat Beispieltipps, aber ein Tipp bleibt bewusst offen.
+   - Bonus-Tipps sind gesetzt.
+   - Ergebnisse für Spieltag 1 werden aus vorhandenen OpenLigaDB-Daten importiert.
+   - Offizielle Bonus-Ergebnisse werden gesetzt, falls sie noch leer sind.
+   - `status = 'admin_test'` und `public_enabled = false` bleiben erhalten.
+5. Probelauf-Bericht und Ampelstatus prüfen. Warnungen als Release-Lücke notieren.
+6. Tab `Teilnehmer` öffnen und prüfen, ob die drei Release-Testteilnehmer sichtbar sind.
+7. Tab `Tipp-Auswertung` und `Rangliste` prüfen.
+8. Optional Admin-Nachtrag testen: einen Spieltipp oder Bonuswert eines Release-Testteilnehmers korrigieren und danach Teilnehmeransicht neu laden.
+9. Versteckte Teilnehmeransicht `#bundesliga-start`, `#bundesliga-tippen`, `#bundesliga-bonus` und `#bundesliga-rangliste` prüfen.
+10. Live-Spieltag-Auswertung und Rangliste prüfen:
     - exaktes Ergebnis: 4 Punkte
     - richtige Differenz: 3 Punkte
     - richtige Tendenz: 2 Punkte
     - falsch oder offen: 0 Punkte
-13. Offizielle Bonus-Ergebnisse setzen und prüfen, dass Bonuspunkte in der Rangliste addiert werden.
-14. Freigabe nur simulieren: `status`, `public_enabled`, Bonusfrist und Regeln prüfen, aber Bundesliga nicht öffentlich aktivieren.
+11. Freigabe nur simulieren: `status`, `public_enabled`, Bonusfrist und Regeln prüfen, aber Bundesliga nicht öffentlich aktivieren.
 
 Release-Lücken:
 
