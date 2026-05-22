@@ -155,6 +155,7 @@ cd android-app
 - Bundesliga-UX nutzt das dunkle Testlabor-Design mit Österfeld-Bundesliga-Logo aus `public/bundesliga-logo.png`.
 - Spieltag-Zentrale, Live-Spieltag-Auswertung, Bonus-Erinnerung, mobile Rangliste und Admin-Qualitätscheck sind eingebaut.
 - Das Startdashboard zeigt „Nächste Spiele“ als kompakte Logo-Paarungen ohne Ergebnisanzeige.
+- Das Admin-Testlabor enthält jetzt einen sichtbaren Release-Probelauf mit Ampelstatus für Daten, Codes, Teilnehmer, Tipps, Bonus, Ergebnisse und Rangliste.
 
 ## Zuletzt ausgeführte / benötigte SQL-Dateien
 
@@ -172,12 +173,34 @@ cd android-app
 
 ## Nächste Schritte Bundesliga
 
-- `supabase/bundesliga_release_settings.sql` in Supabase ausführen und mit den beiden Kontrollqueries prüfen:
-  - `select * from competitions where id = 'bundesliga-2025';`
-  - `select * from competition_rule_settings where competition_id = 'bundesliga-2025';`
-- Danach im Admin-Testlabor OpenLigaDB-Daten importieren, Torschützen prüfen und Testcodes erzeugen.
-- Einen echten Testteilnehmer anlegen, Spieltag 1 tippen, Bonus tippen und Rangliste prüfen.
+- Im Admin-Testlabor den Release-Probelauf einmal vollständig abarbeiten.
+- Dabei offene Punkte als Release-Lücken hier ergänzen, nicht nebenbei im Kopf behalten.
 - Vor öffentlicher Freigabe später Saison/Deadline auf die echte Bundesliga-Saison umstellen und bewusst `public_enabled` aktivieren.
+
+## Bundesliga Release-Probelauf
+
+1. Admin öffnen und ins Bundesliga-Testlabor wechseln.
+2. OpenLigaDB-Daten prüfen oder importieren: Teams, Logos, Spielplan und Torschützen.
+3. Release-Checkliste und Teams/Logos prüfen. Fehlende Logos oder kaputte URLs als Release-Lücke notieren.
+4. Im Bereich „Codes“ einen Bundesliga-Testcode erzeugen und Code oder Teilnehmerlink kopieren.
+5. Versteckte Teilnehmeransicht `#bundesliga-start` öffnen, Code eingeben und Testteilnehmer aktivieren, z. B. `Release Test`.
+6. Tab `Tippen` öffnen, Spieltag 1 auswählen und mehrere Tipps setzen. Mindestens ein `-:-` bewusst offen lassen.
+7. „Alle Tipps dieses Spieltags speichern“ nutzen und prüfen, dass nur vollständige Tipps zählen.
+8. Tab `Bonus` öffnen, Meister, Torschützenkönig und genau 3 Absteiger auswählen und speichern.
+9. Zurück ins Testlabor: Teilnehmer, gespeicherte Tipps und Bonus-Tipp prüfen.
+10. Admin-Nachtrag testen: einen Spieltipp oder Bonuswert des Testteilnehmers korrigieren und danach Teilnehmeransicht neu laden.
+11. Ergebnisse bis Spieltag 1 importieren und Ergebnisliste prüfen.
+12. Live-Spieltag-Auswertung und Rangliste prüfen:
+    - exaktes Ergebnis: 4 Punkte
+    - richtige Differenz: 3 Punkte
+    - richtige Tendenz: 2 Punkte
+    - falsch oder offen: 0 Punkte
+13. Offizielle Bonus-Ergebnisse setzen und prüfen, dass Bonuspunkte in der Rangliste addiert werden.
+14. Freigabe nur simulieren: `status`, `public_enabled`, Bonusfrist und Regeln prüfen, aber Bundesliga nicht öffentlich aktivieren.
+
+Release-Lücken:
+
+- Noch keine offenen Lücken aus dem Probelauf notiert.
 
 ## CODEX.md Pflege-Regel
 

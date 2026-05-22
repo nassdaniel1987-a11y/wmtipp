@@ -5077,6 +5077,16 @@ function BundesligaAdminSetup({
     (bonusResults?.top_scorers ?? []).length > 0 ||
     (bonusResults?.relegated_team_ids ?? []).length > 0,
   );
+  const probeMatchday = matchdayOptions[0] ?? 1;
+  const probeMatchdayMatches = leagueMatches.filter((match) => Number(match.matchday) === Number(probeMatchday));
+  const probeMatchIds = new Set(probeMatchdayMatches.map((match) => match.id));
+  const probeTipCount = participantTips.filter((tip) => probeMatchIds.has(tip.match_id)).length;
+  const probeResultCount = probeMatchdayMatches.filter((match) => match.result).length;
+  const completeBonusTipCount = participantBonusTips.filter((tip) =>
+    tip.champion_team_id &&
+    (tip.top_scorer_id || tip.top_scorer) &&
+    (tip.relegated_team_ids ?? []).length >= 3
+  ).length;
   const releaseChecks = [
     {
       label: "Spielplan importiert",
@@ -5158,6 +5168,53 @@ function BundesligaAdminSetup({
     if (!match.result) return max;
     return Math.max(max, Number(match.matchday) || 0);
   }, 0);
+  const releaseProbeChecks = [
+    {
+      label: "Spielplan importiert",
+      done: leagueMatches.length >= 306,
+      detail: `${leagueMatches.length} / 306 Liga-Spiele`,
+    },
+    {
+      label: "Teams/Logos vorhanden",
+      done: teamRows.length >= 18 && logoIssueCount === 0,
+      detail: `${teamRows.length} Teams · ${logoIssueCount} Logo-Hinweise`,
+    },
+    {
+      label: "Torschützen importiert",
+      done: topScorerRows.length > 0 && dataQuality.topScorerSource !== "match_goals_fallback",
+      detail: `${dataQuality.topScorerCount ?? topScorerRows.length} Einträge`,
+    },
+    {
+      label: "Testcode vorhanden",
+      done: inviteCodes.length > 0,
+      detail: `${inviteCodes.length} Bundesliga-Codes`,
+    },
+    {
+      label: "Testteilnehmer aktiviert",
+      done: participants.length > 0,
+      detail: `${participants.length} Teilnehmer`,
+    },
+    {
+      label: `Spieltag ${probeMatchday}-Tipps gespeichert`,
+      done: probeTipCount > 0,
+      detail: `${probeTipCount} Tipps für ${probeMatchdayMatches.length} Spiele`,
+    },
+    {
+      label: "Bonus gespeichert",
+      done: completeBonusTipCount > 0,
+      detail: `${completeBonusTipCount} vollständige Bonus-Tipps`,
+    },
+    {
+      label: `Ergebnisse Spieltag ${probeMatchday} importiert`,
+      done: probeMatchdayMatches.length > 0 && probeResultCount === probeMatchdayMatches.length,
+      detail: `${probeResultCount} / ${probeMatchdayMatches.length} Ergebnisse`,
+    },
+    {
+      label: "Rangliste berechnet",
+      done: participantRankingRows.length > 0,
+      detail: `${participantRankingRows.length} Ranking-Zeilen`,
+    },
+  ];
 
   useEffect(() => {
     setBonusResultDraft({
@@ -5296,6 +5353,37 @@ function BundesligaAdminSetup({
             </article>
           ))}
         </div>
+      </section>
+    );
+  }
+
+  function renderReleaseProbe() {
+    return (
+      <section className="bundesliga-dark-panel bundesliga-release-probe">
+        <header>
+          <h3>Release-Probelauf</h3>
+          <span>{releaseProbeChecks.filter((item) => item.done).length} / {releaseProbeChecks.length}</span>
+        </header>
+        <p>
+          Ein kompletter Test wie später im Betrieb: Code erzeugen, Teilnehmer aktivieren,
+          Spieltag tippen, Bonus speichern, Ergebnisse importieren und Rangliste prüfen.
+        </p>
+        <div className="bundesliga-probe-grid">
+          {releaseProbeChecks.map((item) => (
+            <article key={item.label} className={item.done ? "done" : ""}>
+              <span>{item.done ? "OK" : "offen"}</span>
+              <strong>{item.label}</strong>
+              <small>{item.detail}</small>
+            </article>
+          ))}
+        </div>
+        <ol className="bundesliga-probe-steps">
+          <li>OpenLigaDB-Daten, Logos und Torschützen im Testlabor prüfen.</li>
+          <li>Code erzeugen und in der versteckten Teilnehmeransicht aktivieren.</li>
+          <li>Spieltag {probeMatchday} tippen, ein offenes -:- stehen lassen und speichern.</li>
+          <li>Bonus vollständig tippen und im Admin gegenprüfen.</li>
+          <li>Ergebnisse bis Spieltag {probeMatchday} importieren und Rangliste/Live-Auswertung prüfen.</li>
+        </ol>
       </section>
     );
   }
@@ -5761,6 +5849,7 @@ function BundesligaAdminSetup({
             <button type="button" onClick={() => onSetCompetitionStatus("admin_test", false)}>Versteckt lassen</button>
           </div>
         </section>
+        {renderReleaseProbe()}
         {renderReleaseChecklist()}
         {renderReleaseSettings()}
         {renderTeamLogoQuality()}
@@ -6045,6 +6134,7 @@ function BundesligaAdminSetup({
             {renderStandingsTable()}
 
             <aside className="bundesliga-lab-side">
+              {renderReleaseProbe()}
               {renderQualityCheck()}
               {renderReleaseSettings()}
               {renderReleaseChecklist()}
