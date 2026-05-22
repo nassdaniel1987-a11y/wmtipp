@@ -2045,29 +2045,34 @@ tbody tr:nth-child(1) td:first-child {
 
 .bundesliga-mark {
   display: grid;
+  grid-template-rows: auto auto;
   place-items: center;
-  width: 66px;
-  height: 54px;
+  width: 92px;
+  min-height: 78px;
   margin: 0 0 18px 4px;
-  border-radius: 3px;
+  border: 1px solid rgba(223, 47, 40, 0.34);
+  border-radius: 8px;
   color: #ffffff;
-  background: #df2f28;
+  background: #101417;
   line-height: 1.02;
   text-align: center;
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.22);
 }
 
-.bundesliga-mark span,
+.bundesliga-mark .bundesliga-brand-logo {
+  width: 78px;
+  max-width: 78px;
+  margin-top: 8px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
 .bundesliga-mark strong {
   display: block;
   font-weight: 950;
-}
-
-.bundesliga-mark span {
-  font-size: 0.84rem;
-}
-
-.bundesliga-mark strong {
   font-size: 0.72rem;
+  padding-bottom: 8px;
 }
 
 .bundesliga-lab-rail > button {
@@ -5074,16 +5079,61 @@ tbody tr:nth-child(1) td:first-child {
   position: sticky;
   top: 0;
   z-index: 30;
-  grid-template-columns: minmax(220px, auto) minmax(0, 1fr) auto;
+  grid-template-columns: minmax(300px, auto) minmax(0, 1fr) auto;
   border-bottom: 1px solid var(--bl-line);
   background: rgba(15, 19, 23, 0.97);
   backdrop-filter: blur(16px);
 }
 
-.bundesliga-public-header > button:first-child span {
+.bundesliga-header-brand {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 14px;
+}
+
+.bundesliga-public-header > button.bundesliga-header-brand {
+  grid-template-columns: auto minmax(0, 1fr);
+  min-width: 0;
+}
+
+.bundesliga-public-header > button.bundesliga-header-brand .bundesliga-brand-logo {
+  grid-row: auto;
+  display: inline-flex;
+  width: 170px;
+  height: auto;
+  background: #101417;
+}
+
+.bundesliga-public-header > button.bundesliga-header-brand > span:last-child {
+  display: grid;
+  gap: 2px;
+  place-items: start;
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  background: transparent;
+  min-width: 0;
+  text-align: left;
+}
+
+.bundesliga-brand-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  width: 170px;
+  max-width: 36vw;
+  aspect-ratio: 4 / 1;
+  border: 1px solid rgba(223, 47, 40, 0.34);
   border-radius: 8px;
-  background: linear-gradient(135deg, var(--bl-red), #b72822);
-  box-shadow: 0 10px 24px rgba(223, 47, 40, 0.22);
+  background: #101417;
+  box-shadow: 0 10px 24px rgba(223, 47, 40, 0.16);
+}
+
+.bundesliga-brand-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 .bundesliga-public-header nav button,
@@ -5165,7 +5215,20 @@ tbody tr:nth-child(1) td:first-child {
     linear-gradient(180deg, #1a2026, #12171c);
 }
 
-.bundesliga-welcome-card > div span {
+.bundesliga-dashboard-hero {
+  display: grid;
+  grid-template-columns: minmax(180px, 260px) minmax(0, 1fr);
+  gap: clamp(18px, 4vw, 34px);
+  align-items: center;
+}
+
+.bundesliga-dashboard-hero .bundesliga-brand-logo {
+  width: 100%;
+  max-width: none;
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.bundesliga-welcome-card > div span:not(.bundesliga-brand-logo) {
   display: inline-flex;
   width: fit-content;
   padding: 6px 10px;
@@ -5196,6 +5259,64 @@ tbody tr:nth-child(1) td:first-child {
   grid-column: 1 / -1;
   color: var(--bl-muted);
   font-weight: 800;
+}
+
+.bundesliga-dashboard-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 28px;
+}
+
+.bundesliga-dashboard-metrics article,
+.bundesliga-ranking-podium article,
+.bundesliga-current-rank,
+.bundesliga-top-three article {
+  border: 1px solid var(--bl-line-soft);
+  border-radius: 8px;
+  background: rgba(17, 22, 26, 0.86);
+}
+
+.bundesliga-dashboard-metrics article {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+}
+
+.bundesliga-dashboard-metrics span,
+.bundesliga-dashboard-metrics small,
+.bundesliga-current-rank span,
+.bundesliga-ranking-podium small,
+.bundesliga-top-three p {
+  color: var(--bl-muted);
+  font-weight: 850;
+}
+
+.bundesliga-dashboard-metrics strong {
+  color: #ffffff;
+  font-size: 1.45rem;
+}
+
+.bundesliga-dashboard-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+}
+
+.bundesliga-dashboard-actions button {
+  min-height: 42px;
+  border: 1px solid var(--bl-line);
+  border-radius: 7px;
+  padding: 0 14px;
+  color: #ffffff;
+  background: #11161a;
+  font-weight: 950;
+}
+
+.bundesliga-dashboard-actions button:first-child {
+  border-color: #b93730;
+  background: linear-gradient(180deg, #d3473b, #a3322b);
 }
 
 .bundesliga-side-stack {
@@ -5249,6 +5370,31 @@ tbody tr:nth-child(1) td:first-child {
   gap: 10px;
   align-items: center;
   min-height: 42px;
+}
+
+.bundesliga-top-three {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+.bundesliga-top-three > div {
+  display: grid;
+  gap: 8px;
+}
+
+.bundesliga-top-three article {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 10px;
+}
+
+.bundesliga-top-three article span {
+  color: var(--bl-red);
+  font-weight: 950;
 }
 
 .bundesliga-scorer-mini-list b,
@@ -5364,8 +5510,8 @@ tbody tr:nth-child(1) td:first-child {
 }
 
 .bundesliga-user-match-card header {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   gap: 12px;
   align-items: center;
   min-height: 48px;
@@ -5386,6 +5532,43 @@ tbody tr:nth-child(1) td:first-child {
   text-align: center;
   color: #ffffff;
   background: linear-gradient(180deg, #ba453b, #7f211e);
+}
+
+.bundesliga-match-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--bl-line);
+  border-radius: 999px;
+  color: var(--bl-muted);
+  background: #10151a;
+  font-size: 0.78rem;
+  font-style: normal;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.bundesliga-match-status.status-saved,
+.bundesliga-user-match-card.is-saved {
+  border-color: rgba(98, 236, 119, 0.38);
+}
+
+.bundesliga-match-status.status-saved {
+  color: #102015;
+  background: #62ec77;
+}
+
+.bundesliga-match-status.status-locked {
+  color: #ffcf92;
+  border-color: rgba(255, 180, 91, 0.6);
+}
+
+.bundesliga-match-status.status-finished {
+  color: #ffffff;
+  border-color: rgba(98, 236, 119, 0.5);
+  background: rgba(98, 236, 119, 0.16);
 }
 
 .bundesliga-user-match-body {
@@ -5624,6 +5807,49 @@ tbody tr:nth-child(1) td:first-child {
   min-width: 760px;
 }
 
+.bundesliga-ranking-podium {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 14px 0;
+}
+
+.bundesliga-ranking-podium article {
+  display: grid;
+  gap: 4px;
+  min-height: 100px;
+  padding: 14px;
+}
+
+.bundesliga-ranking-podium article:first-child {
+  border-color: rgba(223, 47, 40, 0.72);
+  background: linear-gradient(135deg, rgba(223, 47, 40, 0.28), rgba(17, 22, 26, 0.94));
+}
+
+.bundesliga-ranking-podium article.current,
+.bundesliga-current-rank {
+  border-color: rgba(98, 236, 119, 0.48);
+}
+
+.bundesliga-ranking-podium span {
+  color: var(--bl-red);
+  font-weight: 950;
+}
+
+.bundesliga-ranking-podium b,
+.bundesliga-current-rank b {
+  color: var(--bl-red);
+}
+
+.bundesliga-current-rank {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  margin: 0 0 12px;
+  padding: 12px 14px;
+}
+
 .bundesliga-public-ranking div {
   grid-template-columns: 54px minmax(180px, 1fr) 80px 80px 90px 90px 90px;
   min-height: 52px;
@@ -5643,6 +5869,49 @@ tbody tr:nth-child(1) td:first-child {
   background: rgba(223, 47, 40, 0.11);
 }
 
+.bundesliga-quality-check {
+  display: grid;
+  gap: 12px;
+}
+
+.bundesliga-quality-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.bundesliga-quality-grid article {
+  display: grid;
+  gap: 6px;
+  min-height: 118px;
+  padding: 14px;
+  border: 1px solid #2a3138;
+  border-radius: 6px;
+  background: #11161a;
+}
+
+.bundesliga-quality-grid article.ok {
+  border-color: rgba(98, 236, 119, 0.36);
+}
+
+.bundesliga-quality-grid article.warning {
+  border-color: rgba(255, 180, 91, 0.54);
+}
+
+.bundesliga-quality-grid strong {
+  color: #ffffff;
+  font-size: 1.8rem;
+}
+
+.bundesliga-quality-grid span {
+  font-weight: 950;
+}
+
+.bundesliga-quality-grid small {
+  color: #b7c0c9;
+  line-height: 1.35;
+}
+
 @media (max-width: 1100px) {
   .bundesliga-home-grid,
   .bundesliga-stage-grid {
@@ -5652,12 +5921,101 @@ tbody tr:nth-child(1) td:first-child {
   .bundesliga-side-stack {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .bundesliga-dashboard-metrics,
+  .bundesliga-quality-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .bundesliga-public-card:has(.bundesliga-public-ranking) {
+    overflow-x: visible;
+  }
+
+  .bundesliga-public-ranking {
+    display: grid;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  .bundesliga-public-ranking .head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    min-height: auto;
+    padding: 10px 0;
+    border-bottom: 2px solid var(--bl-red);
+    background: transparent;
+  }
+
+  .bundesliga-public-ranking .head > * {
+    min-width: auto;
+    color: var(--bl-muted);
+    font-size: 0.75rem;
+  }
+
+  .bundesliga-public-ranking div:not(.head) {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px 14px;
+    min-height: auto;
+    padding: 14px;
+    border: 1px solid var(--bl-line-soft);
+    border-radius: 8px;
+    background: #11161a;
+  }
+
+  .bundesliga-public-ranking div:not(.head) > * {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .bundesliga-public-ranking div:not(.head) > *::before {
+    content: attr(data-label);
+    color: var(--bl-muted);
+    font-size: 0.78rem;
+    font-weight: 900;
+    text-transform: uppercase;
+  }
+
+  .bundesliga-public-ranking div:not(.head) strong {
+    grid-column: 1 / -1;
+    font-size: 1.08rem;
+  }
+
+  .bundesliga-public-ranking div:not(.head) b {
+    color: var(--bl-red);
+  }
 }
 
 @media (max-width: 760px) {
   .bundesliga-public-header {
     position: static;
     grid-template-columns: 1fr;
+  }
+
+  .bundesliga-public-header > button.bundesliga-header-brand {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: start;
+  }
+
+  .bundesliga-public-header > button.bundesliga-header-brand .bundesliga-brand-logo {
+    width: min(260px, 78vw);
+    max-width: none;
+  }
+
+  .bundesliga-public-header nav {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    overflow-x: visible;
+  }
+
+  .bundesliga-public-header nav button,
+  .bundesliga-public-header > button:last-child {
+    width: 100%;
   }
 
   .bundesliga-public-main {
@@ -5667,9 +6025,18 @@ tbody tr:nth-child(1) td:first-child {
 
   .bundesliga-public-status,
   .bundesliga-welcome-card form,
+  .bundesliga-dashboard-hero,
+  .bundesliga-dashboard-metrics,
+  .bundesliga-ranking-podium,
+  .bundesliga-current-rank,
+  .bundesliga-quality-grid,
   .bundesliga-side-stack,
   .bundesliga-matchday-center {
     grid-template-columns: 1fr;
+  }
+
+  .bundesliga-dashboard-hero .bundesliga-brand-logo {
+    width: min(100%, 360px);
   }
 
   .bundesliga-matchday-center button {
@@ -5750,6 +6117,16 @@ tbody tr:nth-child(1) td:first-child {
     flex-direction: column;
   }
 
+  .bundesliga-user-match-card header {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .bundesliga-user-match-card header .bundesliga-match-status {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+    width: fit-content;
+  }
+
   .bundesliga-live-match-list header {
     grid-template-columns: minmax(0, 1fr) 48px minmax(0, 1fr);
   }
@@ -5761,9 +6138,5 @@ tbody tr:nth-child(1) td:first-child {
   .bundesliga-live-match-list article > div span {
     grid-template-columns: 1fr;
     gap: 3px;
-  }
-
-  .bundesliga-public-card:has(.bundesliga-public-ranking) {
-    overflow-x: auto;
   }
 }

@@ -38,6 +38,7 @@ import { displayTeamName } from "./teamNames.js";
 
 const STORAGE_KEY = "wm-tippspiel-participant";
 const BUNDESLIGA_STORAGE_KEY = "bundesliga-tippspiel-participant";
+const BUNDESLIGA_LOGO_URL = "/bundesliga-logo.png";
 const ANDROID_APK_URL = "/downloads/wmtippspiel-latest.apk";
 const tabs = [
   { id: "start", label: "Start", icon: House },
@@ -205,6 +206,17 @@ function BundesligaLogo({ src, name, className = "bundesliga-team-logo" }) {
       ) : (
         <span>{fallback}</span>
       )}
+    </span>
+  );
+}
+
+function BundesligaBrandLogo({ className = "bundesliga-brand-logo", decorative = false }) {
+  return (
+    <span className={className}>
+      <img
+        src={BUNDESLIGA_LOGO_URL}
+        alt={decorative ? "" : "Österfeld Bundesliga Tippspiel"}
+      />
     </span>
   );
 }
@@ -4478,6 +4490,14 @@ function BundesligaParticipantApp({ isTestMode }) {
     );
   }
 
+  function matchStatusLabel(match, result, tip) {
+    const state = getBundesligaMatchState(match, result);
+    if (result?.status === "final") return "ausgewertet";
+    if (tip?.saved) return "gespeichert";
+    if (state === "locked") return "gesperrt";
+    return "offen";
+  }
+
   async function saveBonus(source = bonusRef.current, { auto = false } = {}) {
     if (!participant?.id) {
       setMessage("Bitte zuerst Bundesliga-Code aktivieren.");
@@ -4604,18 +4624,27 @@ function BundesligaParticipantApp({ isTestMode }) {
         points: 0,
       }));
   const firstMatches = matches.slice(0, 5);
+  const upcomingMatches = matches
+    .filter((match) => new Date(match.kickoffAt).getTime() >= Date.now())
+    .slice(0, 5);
+  const dashboardMatches = upcomingMatches.length ? upcomingMatches : firstMatches;
   const topScorerPreview = topScorers.slice(0, 5);
   const currentParticipantRank = participant
     ? ranking.find((row) => row.id === participant.id || row.name === participant.name)
     : null;
+  const topRankingRows = ranking.slice(0, 3);
+  const openTipCount = Math.max(0, matches.length - savedTipCount);
+  const nextOpenMatchday = matchdayStatusRows.find((row) => row.openTipCount > 0)?.matchday ?? selectedMatchday;
 
   return (
     <div className="bundesliga-public-shell">
       <header className="bundesliga-public-header">
-        <button type="button" onClick={() => setBundesligaTab("bundesliga-start")}>
-          <span>BL</span>
-          <strong>Bundesliga Tippspiel</strong>
-          <small>versteckte Testversion</small>
+        <button type="button" className="bundesliga-header-brand" onClick={() => setBundesligaTab("bundesliga-start")}>
+          <BundesligaBrandLogo decorative />
+          <span>
+            <strong>Österfeld Bundesliga</strong>
+            <small>versteckte Testversion</small>
+          </span>
         </button>
         <nav>
           <button className={activeTab === "bundesliga-start" ? "active" : ""} onClick={() => setBundesligaTab("bundesliga-start")}>Start</button>
@@ -4636,10 +4665,35 @@ function BundesligaParticipantApp({ isTestMode }) {
         {activeTab === "bundesliga-start" && (
           <section className="bundesliga-home-grid">
             <section className="bundesliga-welcome-card bundesliga-public-card">
-              <div>
-                <span>Versteckte Testversion</span>
-                <h1>Bundesliga starten</h1>
-                <p>Tipps, Bonusfragen und Rangliste sind getrennt von der WM und laufen hier im Bundesliga-Design.</p>
+              <div className="bundesliga-dashboard-hero">
+                <BundesligaBrandLogo />
+                <div>
+                  <span>Versteckte Testversion</span>
+                  <h1>Bundesliga starten</h1>
+                  <p>Tipps, Bonusfragen und Rangliste sind getrennt von der WM und laufen hier im Bundesliga-Design.</p>
+                </div>
+              </div>
+              <div className="bundesliga-dashboard-metrics">
+                <article>
+                  <span>Offene Tipps</span>
+                  <strong>{openTipCount}</strong>
+                  <small>{savedTipCount} von {matches.length} gespeichert</small>
+                </article>
+                <article>
+                  <span>Bonus</span>
+                  <strong>{bonusStatus.doneCount}/{bonusStatus.totalCount}</strong>
+                  <small>{bonusStatus.complete ? "vollständig" : "noch offen"}</small>
+                </article>
+                <article>
+                  <span>Dein Stand</span>
+                  <strong>{currentParticipantRank ? `${currentParticipantRank.points} P` : "offen"}</strong>
+                  <small>{currentParticipantRank ? `${currentParticipantRank.matchdayWins ?? 0} Spieltagssiege` : "Code aktivieren"}</small>
+                </article>
+                <article>
+                  <span>Nächster Fokus</span>
+                  <strong>ST {nextOpenMatchday}</strong>
+                  <small>{selectedMatchdayStatus.openTipCount} offene Tipps dort</small>
+                </article>
               </div>
               <form onSubmit={claimCode}>
                 <label>Code<input value={code} onChange={(event) => setCode(event.target.value)} placeholder="BL-..." /></label>
@@ -4647,10 +4701,29 @@ function BundesligaParticipantApp({ isTestMode }) {
                 <button type="submit">Code aktivieren</button>
                 <small>Status: {codeStatus}</small>
               </form>
+              {participant && (
+                <div className="bundesliga-dashboard-actions">
+                  <button type="button" onClick={() => setBundesligaTab("bundesliga-tippen")}>Offene Tipps bearbeiten</button>
+                  <button type="button" onClick={() => setBundesligaTab("bundesliga-rangliste")}>Rangliste ansehen</button>
+                </div>
+              )}
             </section>
-            {renderBonusReminder()}
 
             <aside className="bundesliga-side-stack">
+              {renderBonusReminder()}
+              <section className="bundesliga-public-card bundesliga-top-three">
+                <h2>Top 3</h2>
+                <div>
+                  {topRankingRows.map((row, index) => (
+                    <article key={row.id ?? row.name}>
+                      <span>{index + 1}</span>
+                      <strong>{row.name}</strong>
+                      <b>{row.points} P</b>
+                    </article>
+                  ))}
+                  {topRankingRows.length === 0 && <p>Noch keine Rangliste vorhanden.</p>}
+                </div>
+              </section>
               <section className="bundesliga-public-card">
                 <h2>Live-Tabelle</h2>
                 <div className="bundesliga-mini-table">
@@ -4665,9 +4738,9 @@ function BundesligaParticipantApp({ isTestMode }) {
                 </div>
               </section>
               <section className="bundesliga-public-card">
-                <h2>Erste Spiele</h2>
+                <h2>Nächste Spiele</h2>
                 <div className="bundesliga-fixture-list">
-                  {firstMatches.map((match) => (
+                  {dashboardMatches.map((match) => (
                     <div key={match.id}>
                       <span>{formatDateTime(match.kickoffAt)}</span>
                       <strong>{match.teamA}</strong>
@@ -4716,24 +4789,29 @@ function BundesligaParticipantApp({ isTestMode }) {
                 {visibleMatches.map((match) => {
                   const tip = tips[match.id] ?? { scoreA: null, scoreB: null, saved: false };
                   const result = resultsByMatch.get(match.id);
+                  const matchState = getBundesligaMatchState(match, result);
+                  const tipLocked = !isTestMode && matchState !== "open";
+                  const statusLabel = matchStatusLabel(match, result, tip);
+                  const statusClass = result?.status === "final" ? "finished" : tip?.saved ? "saved" : matchState;
                   return (
-                    <article key={match.id} id={`bundesliga-match-${match.id}`} className={`bundesliga-user-match-card status-${getBundesligaMatchState(match, result)}`}>
+                    <article key={match.id} id={`bundesliga-match-${match.id}`} className={`bundesliga-user-match-card status-${matchState}${tip.saved ? " is-saved" : ""}`}>
                       <header>
                         <span>{formatDateTime(match.kickoffAt)}</span>
                         <b>{result ? `${result.score_a}:${result.score_b}` : "-:-"}</b>
+                        <em className={`bundesliga-match-status status-${statusClass}`}>{statusLabel}</em>
                       </header>
                       <div className="bundesliga-user-match-body">
                         {teamBadge(match.teamAId, match.teamA)}
                         <div className="score-row">
-                          <ScoreControl value={tip.scoreA} onIncrease={() => changeScore(match.id, "scoreA", 1)} onDecrease={() => changeScore(match.id, "scoreA", -1)} />
+                          <ScoreControl value={tip.scoreA} onIncrease={() => changeScore(match.id, "scoreA", 1)} onDecrease={() => changeScore(match.id, "scoreA", -1)} disabled={tipLocked} />
                           <span className="score-separator">:</span>
-                          <ScoreControl value={tip.scoreB} onIncrease={() => changeScore(match.id, "scoreB", 1)} onDecrease={() => changeScore(match.id, "scoreB", -1)} />
+                          <ScoreControl value={tip.scoreB} onIncrease={() => changeScore(match.id, "scoreB", 1)} onDecrease={() => changeScore(match.id, "scoreB", -1)} disabled={tipLocked} />
                         </div>
                         {teamBadge(match.teamBId, match.teamB, { align: "right" })}
                       </div>
                       <footer>
-                        <small>{tip.saved ? "gespeichert" : tipStatuses[match.id] === "pending" ? "Autosave wartet..." : "offen"}</small>
-                        <button type="button" onClick={() => saveTipRows([match.id])} disabled={!isCompleteTip(tip)}>Tipp speichern</button>
+                        <small>{tip.saved ? "✓ gespeichert" : tipStatuses[match.id] === "pending" ? "Autosave wartet..." : tipLocked ? "Spiel gesperrt" : "offen"}</small>
+                        <button type="button" onClick={() => saveTipRows([match.id])} disabled={!isCompleteTip(tip) || tipLocked}>Tipp speichern</button>
                       </footer>
                     </article>
                   );
@@ -4845,17 +4923,34 @@ function BundesligaParticipantApp({ isTestMode }) {
           <section className="bundesliga-stage-grid">
             <section className="bundesliga-public-card">
               <h2>Bundesliga Rangliste</h2>
+              <div className="bundesliga-ranking-podium">
+                {topRankingRows.map((row, index) => (
+                  <article key={row.id ?? row.name} className={participant?.id === row.id || participant?.name === row.name ? "current" : ""}>
+                    <span>#{index + 1}</span>
+                    <strong>{row.name}</strong>
+                    <b>{row.points} P</b>
+                    <small>{row.matchdayWins ?? 0} Spieltagssiege</small>
+                  </article>
+                ))}
+              </div>
+              {currentParticipantRank && (
+                <div className="bundesliga-current-rank">
+                  <span>Dein Platz</span>
+                  <strong>{ranking.findIndex((row) => row.id === currentParticipantRank.id || row.name === currentParticipantRank.name) + 1}. {currentParticipantRank.name}</strong>
+                  <b>{currentParticipantRank.points} Punkte</b>
+                </div>
+              )}
               <div className="bundesliga-public-ranking">
                 <div className="head"><span>Pl.</span><strong>Name</strong><span>Tipps</span><span>Siege</span><span>Spiel</span><span>Bonus</span><b>Gesamt</b></div>
                 {ranking.map((row, index) => (
                   <div key={row.id ?? row.name} className={participant?.id === row.id || participant?.name === row.name ? "current" : ""}>
-                    <span>{index + 1}</span>
-                    <strong>{row.name}</strong>
-                    <span>{row.tipCount}</span>
-                    <span>{row.matchdayWins ?? 0}</span>
-                    <span>{row.matchPoints}</span>
-                    <span>{row.bonusPoints}</span>
-                    <b>{row.points}</b>
+                    <span data-label="Platz">{index + 1}</span>
+                    <strong data-label="Name">{row.name}</strong>
+                    <span data-label="Tipps">{row.tipCount}</span>
+                    <span data-label="Siege">{row.matchdayWins ?? 0}</span>
+                    <span data-label="Spiel">{row.matchPoints}</span>
+                    <span data-label="Bonus">{row.bonusPoints}</span>
+                    <b data-label="Gesamt">{row.points}</b>
                   </div>
                 ))}
               </div>
@@ -4943,6 +5038,30 @@ function BundesligaAdminSetup({
   const teamRows = data?.teams ?? [];
   const logoIssueCount = dataQuality.logoIssueCount ?? 0;
   const normalizedLogoCount = dataQuality.normalizedLogoCount ?? 0;
+  const participantsWithoutTips = participants.filter(
+    (participant) => !participantTips.some((tip) => tip.participant_id === participant.id),
+  );
+  const participantsWithIncompleteBonus = participants.filter((participant) => {
+    const bonusTip = participantBonusTips.find((tip) => tip.participant_id === participant.id);
+    return !bonusTip?.champion_team_id ||
+      !(bonusTip?.top_scorer_id || bonusTip?.top_scorer) ||
+      (bonusTip?.relegated_team_ids ?? []).length < 3;
+  });
+  const matchdaysWithoutCompleteResults = matchdayOptions
+    .map((matchday) => {
+      const matchdayMatches = leagueMatches.filter((match) => Number(match.matchday) === Number(matchday));
+      const missingResults = matchdayMatches.filter((match) => !match.result).length;
+      return { matchday, missingResults, matchCount: matchdayMatches.length };
+    })
+    .filter((row) => row.missingResults > 0);
+  const matchdaysWithOpenParticipantTips = matchdayOptions
+    .map((matchday) => {
+      const matchdayMatches = leagueMatches.filter((match) => Number(match.matchday) === Number(matchday));
+      const expectedTips = participants.length * matchdayMatches.length;
+      const savedTips = participantTips.filter((tip) => matchdayMatches.some((match) => match.id === tip.match_id)).length;
+      return { matchday, openTips: Math.max(0, expectedTips - savedTips), expectedTips };
+    })
+    .filter((row) => row.expectedTips > 0 && row.openTips > 0);
   const bonusResultsPrepared = Boolean(
     bonusResults?.champion_team_id ||
     (bonusResults?.top_scorers ?? []).length > 0 ||
@@ -5003,6 +5122,26 @@ function BundesligaAdminSetup({
       label: "Regeln sichtbar",
       done: true,
       detail: "Punkte, Sichtbarkeit und Tie-Breaker sind erklärt",
+    },
+    {
+      label: "Branding eingebunden",
+      done: true,
+      detail: "Österfeld-Bundesliga-Logo in Teilnehmeransicht und Testlabor",
+    },
+    {
+      label: "Start-Dashboard aktiv",
+      done: true,
+      detail: "Status, Top 3, nächste Spiele und Tabelle sichtbar",
+    },
+    {
+      label: "Mobile Rangliste vorbereitet",
+      done: true,
+      detail: "Rangliste klappt auf Smartphone in Karten um",
+    },
+    {
+      label: "Admin-Qualitätscheck aktiv",
+      done: true,
+      detail: "offene Tipps, Bonus und Ergebnislücken werden sichtbar",
     },
   ];
   const importedThrough = leagueMatches.reduce((max, match) => {
@@ -5173,6 +5312,39 @@ function BundesligaAdminSetup({
             );
           })}
           {teamRows.length === 0 && <p>Noch keine Teams importiert.</p>}
+        </div>
+      </section>
+    );
+  }
+
+  function renderQualityCheck() {
+    return (
+      <section className="bundesliga-dark-panel bundesliga-quality-check">
+        <header>
+          <h3>Qualitätscheck</h3>
+          <span>{participants.length} Teilnehmer · {matchdayOptions.length} Spieltage</span>
+        </header>
+        <div className="bundesliga-quality-grid">
+          <article className={participantsWithoutTips.length === 0 ? "ok" : "warning"}>
+            <strong>{participantsWithoutTips.length}</strong>
+            <span>Teilnehmer ohne Tipps</span>
+            <small>{participantsWithoutTips.slice(0, 3).map((row) => row.display_name).join(", ") || "alles sauber"}</small>
+          </article>
+          <article className={participantsWithIncompleteBonus.length === 0 ? "ok" : "warning"}>
+            <strong>{participantsWithIncompleteBonus.length}</strong>
+            <span>Bonus unvollständig</span>
+            <small>{participantsWithIncompleteBonus.slice(0, 3).map((row) => row.display_name).join(", ") || "alles sauber"}</small>
+          </article>
+          <article className={matchdaysWithoutCompleteResults.length === 0 ? "ok" : "warning"}>
+            <strong>{matchdaysWithoutCompleteResults.length}</strong>
+            <span>Spieltage ohne komplette Ergebnisse</span>
+            <small>{matchdaysWithoutCompleteResults.slice(0, 4).map((row) => `ST ${row.matchday}: ${row.missingResults}`).join(" · ") || "alles importiert"}</small>
+          </article>
+          <article className={matchdaysWithOpenParticipantTips.length === 0 ? "ok" : "warning"}>
+            <strong>{matchdaysWithOpenParticipantTips.length}</strong>
+            <span>Spieltage mit offenen Tipps</span>
+            <small>{matchdaysWithOpenParticipantTips.slice(0, 4).map((row) => `ST ${row.matchday}: ${row.openTips}`).join(" · ") || "alle Tipps vollständig"}</small>
+          </article>
         </div>
       </section>
     );
@@ -5708,7 +5880,7 @@ function BundesligaAdminSetup({
     <section className="bundesliga-admin-setup">
       <aside className="bundesliga-lab-rail">
         <div className="bundesliga-mark">
-          <span>BL</span>
+          <BundesligaBrandLogo decorative />
           <strong>Testlabor</strong>
         </div>
         {labNavItems.map(({ id, label, Icon }) => (
@@ -5825,6 +5997,7 @@ function BundesligaAdminSetup({
             {renderStandingsTable()}
 
             <aside className="bundesliga-lab-side">
+              {renderQualityCheck()}
               {renderReleaseChecklist()}
               {renderResultsPanel({ compact: true })}
               {renderTipEvaluation({ compact: true })}
