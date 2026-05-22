@@ -1,6 +1,6 @@
 {
-  "versionCode": 11,
-  "versionName": "0.1.10",
+  "versionCode": 12,
+  "versionName": "0.1.11",
   "apkUrl": "https://wmtipp.netlify.app/downloads/wmtippspiel-latest.apk",
-  "notes": "Ausführlichere Infos und deutsches Datumsformat."
+  "notes": "Gruppenfilter zeigen Tipp-Fortschritt, Torschützenkönig jetzt per Spielerliste auswählbar."
 }
