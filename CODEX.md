@@ -158,6 +158,7 @@ cd android-app
 - Das Startdashboard zeigt „Nächste Spiele“ als kompakte Logo-Paarungen ohne Ergebnisanzeige.
 - Das Admin-Testlabor enthält jetzt einen sichtbaren Release-Probelauf mit Ampelstatus für Daten, Codes, Teilnehmer, Tipps, Bonus, Ergebnisse und Rangliste.
 - Der Release-Probelauf kann im Admin-Testlabor per Button vorbereitet werden; er schreibt nur `Release Test 1-3`, Spieltag-1-Tipps, Bonus-Tipps, Spieltag-1-Ergebnisse und hält `public_enabled = false`.
+- Release-Probelauf-Testdaten können gezielt wieder gelöscht werden; entfernt werden nur `Release Test 1-3` samt deren Tipps, Bonus-Tipps und Codes. Spielplan, Ergebnisse, Torschützen und echte Teilnehmer bleiben erhalten.
 - Nutzer-Komfort ist erweitert:
   - Karten „Was fehlt noch?“ und „Meine Statistik“ in Start/Tippen/Rangliste.
   - Live-Auswertung erklärt pro Tipp den Punktegrund.
@@ -214,6 +215,38 @@ cd android-app
     - richtige Tendenz: 2 Punkte
     - falsch oder offen: 0 Punkte
 11. Freigabe nur simulieren: `status`, `public_enabled`, Bonusfrist und Regeln prüfen, aber Bundesliga nicht öffentlich aktivieren.
+12. Bei Bedarf „Release-Testdaten löschen“ klicken. Das entfernt nur die drei Release-Testteilnehmer samt Tipps, Bonus-Tipps und Codes; importierte Daten und echte Teilnehmer bleiben bestehen.
+
+## Bundesliga Visuelle QA
+
+Start prüfen:
+
+- „Was fehlt noch?“ zeigt offene Tipps und Bonusstatus.
+- „Meine Statistik“, Community-Karte, Datenstatus und Top-3-Rangliste sind sichtbar.
+- „Nächste Spiele“ zeigt Paarungen mit Logos ohne Ergebnisanzeige.
+
+Tippen prüfen:
+
+- Spieltag-Navigation mit Pfeilen und Status-Chips funktioniert.
+- Tippkarten zeigen Logos, `-:-` für offene Tipps und klare Speicher-/Statushinweise.
+- Live-Auswertung zeigt Ergebnis, eigenen Tipp, Punktegrund und Trends; fremde Tipps bleiben bis Anpfiff versteckt.
+
+Bonus prüfen:
+
+- Meister, Torschützenkönig und drei Absteiger sind bedienbar.
+- Bonus-Erinnerung bleibt sichtbar, solange etwas offen ist.
+- Bonusfrist kommt aus der Release-Konfiguration, falls vorhanden.
+
+Rangliste prüfen:
+
+- Top 3, eigene Platzierung, Spieltagssiege und Spieltagssieger-Karte sind lesbar.
+- Mobile Rangliste bleibt als Kartenansicht ohne horizontales Quetschen nutzbar.
+
+Admin prüfen:
+
+- Release-Probelauf starten.
+- Release-Testdaten löschen.
+- Release-Checkliste, Datenqualität, Teilnehmer, Tipp-Auswertung und Regeln kontrollieren.
 
 Release-Lücken:
 

@@ -3574,6 +3574,14 @@ function AdminPanel({
             }
             return payload;
           }}
+          onResetReleaseProbe={async () => {
+            if (!window.confirm("Nur Release Test 1-3 samt Tipps, Bonus und Codes löschen? Spielplan, Ergebnisse und echte Teilnehmer bleiben erhalten.")) return null;
+            const payload = await runBundesligaAction("reset-release-probe");
+            if (payload?.resetReleaseProbe) {
+              setBundesligaMessage(`Release-Testdaten gelöscht: ${payload.resetReleaseProbe.deletedParticipants} Teilnehmer, ${payload.resetReleaseProbe.deletedInviteCodes} Codes.`);
+            }
+            return payload;
+          }}
           onImportResults={async (throughMatchday) => {
             const payload = await runBundesligaAction("import-results", { throughMatchday });
             if (payload) setBundesligaMessage(`Ergebnisse bis Spieltag ${payload.throughMatchday} importiert.`);
@@ -5258,6 +5266,7 @@ function BundesligaAdminSetup({
   onCreateInviteCodes,
   onGenerateDemoTips,
   onRunReleaseProbe,
+  onResetReleaseProbe,
   onImportResults,
   onResetResults,
   onImportTopScorers,
@@ -5601,6 +5610,14 @@ function BundesligaAdminSetup({
     if (payload?.releaseProbe) setReleaseProbeReport(payload.releaseProbe);
   }
 
+  async function resetReleaseProbe() {
+    const payload = await onResetReleaseProbe();
+    if (payload?.resetReleaseProbe) {
+      setReleaseProbeReport(null);
+      await onRefresh();
+    }
+  }
+
   const labNavItems = [
     { id: "overview", label: "Übersicht", Icon: House },
     { id: "schedule", label: "Spielplan", Icon: CalendarDays },
@@ -5650,7 +5667,10 @@ function BundesligaAdminSetup({
           <button type="button" onClick={runReleaseProbe} disabled={loading}>
             Release-Probelauf vorbereiten
           </button>
-          <small>Schreibt nur `Release Test 1-3`, Spieltag 1, Bonus und versteckte Bundesliga-Testdaten.</small>
+          <button type="button" className="danger-button" onClick={resetReleaseProbe} disabled={loading}>
+            Release-Testdaten löschen
+          </button>
+          <small>Schreibt oder löscht nur `Release Test 1-3`, deren Tipps, Bonus und Codes. Spielplan und Ergebnisse bleiben erhalten.</small>
         </div>
         {releaseProbeReport && (
           <div className="bundesliga-probe-report">

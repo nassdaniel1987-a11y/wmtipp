@@ -12,9 +12,9 @@ export default async () => {
     const messaging = getFirebaseMessaging();
     let sent = 0;
 
-    for (const window of reminderWindows) {
-      const lower = new Date(now.getTime() + (window.targetHours * 60 - toleranceMinutes) * 60_000).toISOString();
-      const upper = new Date(now.getTime() + window.targetHours * 60 * 60_000).toISOString();
+    for (const reminderWindow of reminderWindows) {
+      const lower = new Date(now.getTime() + (reminderWindow.targetHours * 60 - toleranceMinutes) * 60_000).toISOString();
+      const upper = new Date(now.getTime() + reminderWindow.targetHours * 60 * 60_000).toISOString();
       const { data: matches, error: matchError } = await supabase
         .from("matches")
         .select("id, match_number, kickoff_at, team_a, team_b")
@@ -23,11 +23,11 @@ export default async () => {
       if (matchError) throw matchError;
 
       for (const match of matches ?? []) {
-        const targets = await findReminderTargets(supabase, match, window.key);
+        const targets = await findReminderTargets(supabase, match, reminderWindow.key);
         if (!targets.length) continue;
 
         const responses = await messaging.sendEach(
-          targets.map((target) => buildReminderMessage(match, window.key, target.fcm_token)),
+          targets.map((target) => buildReminderMessage(match, reminderWindow.key, target.fcm_token)),
         );
         await disableInvalidTokens(supabase, targets, responses);
         const successfulRows = [
@@ -39,7 +39,7 @@ export default async () => {
                 {
                   participant_id: target.participant_id,
                   match_id: match.id,
-                  reminder_type: window.key,
+                  reminder_type: reminderWindow.key,
                 },
               ]),
           ).values(),
@@ -73,7 +73,7 @@ export default async () => {
           const [{ data: devices, error: deviceError }, { data: tips, error: tipError }, { data: reminders, error: reminderError }] = await Promise.all([
             supabase.from("participant_devices").select("participant_id, fcm_token").eq("notifications_enabled", true).in("participant_id", participantIds),
             supabase.from("competition_tips").select("participant_id").eq("competition_id", BUNDESLIGA_COMPETITION_ID).eq("match_id", match.id).in("participant_id", participantIds),
-            supabase.from("push_reminders").select("participant_id").eq("match_id", match.id).eq("reminder_type", `bundesliga-${window.key}`).in("participant_id", participantIds),
+            supabase.from("push_reminders").select("participant_id").eq("match_id", match.id).eq("reminder_type", `bundesliga-${reminderWindow.key}`).in("participant_id", participantIds),
           ]);
           if (deviceError) throw deviceError;
           if (tipError) throw tipError;
@@ -93,7 +93,7 @@ export default async () => {
           };
           const responses = await messaging.sendEach(
             targets.map((target) => ({
-              ...buildReminderMessage(reminderMatch, window.key, target.fcm_token),
+              ...buildReminderMessage(reminderMatch, reminderWindow.key, target.fcm_token),
               data: { openTab: "BundesligaTippen", matchId: match.id, competitionId: BUNDESLIGA_COMPETITION_ID },
             })),
           );
@@ -107,7 +107,7 @@ export default async () => {
                   {
                     participant_id: target.participant_id,
                     match_id: match.id,
-                    reminder_type: `bundesliga-${window.key}`,
+                    reminder_type: `bundesliga-${reminderWindow.key}`,
                   },
                 ]),
             ).values(),

@@ -26,6 +26,8 @@ function releaseProbeScoreFor(match, participantIndex, matchIndex) {
   return { score_a: scoreB, score_b: scoreA };
 }
 
+const releaseProbeParticipantNames = ["Release Test 1", "Release Test 2", "Release Test 3"];
+
 async function loadTopScorers(supabase) {
   const { data, error } = await supabase
     .from("competition_top_scorers")
@@ -228,7 +230,7 @@ export default async (req) => {
 
     if (action === "run-release-probe") {
       const warnings = [];
-      const releaseNames = ["Release Test 1", "Release Test 2", "Release Test 3"];
+      const releaseNames = releaseProbeParticipantNames;
 
       const { data: competition, error: competitionError } = await supabase
         .from("competitions")
@@ -389,6 +391,87 @@ export default async (req) => {
           officialBonusPrepared: Boolean(officialBonusResults),
           rankingRows: rankingParticipants?.length ?? 0,
           warnings,
+        },
+      });
+    }
+
+    if (action === "reset-release-probe") {
+      const { data: participants, error: participantReadError } = await supabase
+        .from("competition_participants")
+        .select("id, display_name, invite_code_id")
+        .eq("competition_id", BUNDESLIGA_COMPETITION_ID)
+        .in("display_name", releaseProbeParticipantNames);
+      if (participantReadError) throw participantReadError;
+
+      const participantRows = participants ?? [];
+      const participantIds = participantRows.map((participant) => participant.id);
+      const inviteCodeIdSet = new Set(participantRows.map((participant) => participant.invite_code_id).filter(Boolean));
+
+      if (participantIds.length) {
+        const { data: linkedCodes, error: linkedCodeError } = await supabase
+          .from("competition_invite_codes")
+          .select("id")
+          .eq("competition_id", BUNDESLIGA_COMPETITION_ID)
+          .in("participant_id", participantIds);
+        if (linkedCodeError) throw linkedCodeError;
+        for (const code of linkedCodes ?? []) {
+          inviteCodeIdSet.add(code.id);
+        }
+      }
+
+      const inviteCodeIds = [...inviteCodeIdSet];
+
+      if (participantIds.length) {
+        const { error: tipDeleteError } = await supabase
+          .from("competition_tips")
+          .delete()
+          .eq("competition_id", BUNDESLIGA_COMPETITION_ID)
+          .in("participant_id", participantIds);
+        if (tipDeleteError) throw tipDeleteError;
+
+        const { error: bonusDeleteError } = await supabase
+          .from("competition_participant_bonus_tips")
+          .delete()
+          .eq("competition_id", BUNDESLIGA_COMPETITION_ID)
+          .in("participant_id", participantIds);
+        if (bonusDeleteError) throw bonusDeleteError;
+      }
+
+      if (inviteCodeIds.length) {
+        const { error: codeDeleteError } = await supabase
+          .from("competition_invite_codes")
+          .delete()
+          .eq("competition_id", BUNDESLIGA_COMPETITION_ID)
+          .in("id", inviteCodeIds);
+        if (codeDeleteError) throw codeDeleteError;
+      }
+
+      if (participantIds.length) {
+        const { error: participantDeleteError } = await supabase
+          .from("competition_participants")
+          .delete()
+          .eq("competition_id", BUNDESLIGA_COMPETITION_ID)
+          .in("id", participantIds);
+        if (participantDeleteError) throw participantDeleteError;
+      }
+
+      const { data: competition, error: competitionError } = await supabase
+        .from("competitions")
+        .update({ status: "admin_test", public_enabled: false, updated_at: new Date().toISOString() })
+        .eq("id", BUNDESLIGA_COMPETITION_ID)
+        .select("status, public_enabled")
+        .single();
+      if (competitionError) throw competitionError;
+
+      return json({
+        resetReleaseProbe: {
+          deletedParticipants: participantRows.length,
+          deletedTipsForParticipantIds: participantIds,
+          deletedInviteCodes: inviteCodeIds.length,
+          competition: {
+            status: competition.status,
+            publicEnabled: competition.public_enabled,
+          },
         },
       });
     }

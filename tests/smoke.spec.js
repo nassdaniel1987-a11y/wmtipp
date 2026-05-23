@@ -70,10 +70,15 @@ test("hidden Bundesliga test flow supports tips, bonus and ranking", async ({ pa
 
   await expect(page.getByRole("heading", { name: "Bundesliga starten" })).toBeVisible();
   await expect(page.getByText("Angemeldet als Daniel BL")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Was fehlt noch?" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Meine Statistik" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Community" })).toBeVisible();
 
   await page.getByRole("button", { name: "Tippen" }).click();
   await expect(page).toHaveURL(/#bundesliga-tippen$/);
   await expect(page.getByRole("heading", { name: "Spieltag tippen" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Was fehlt noch?" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Meine Statistik" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Alle Tipps dieses Spieltags speichern" })).toBeVisible();
   await expect(page.getByText("Offene Tipps fertig machen")).toBeVisible();
   await expect(page.getByText("Live-Spieltag")).toBeVisible();
