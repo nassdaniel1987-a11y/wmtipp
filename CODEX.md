@@ -159,6 +159,7 @@ cd android-app
 - Das Admin-Testlabor enthält jetzt einen sichtbaren Release-Probelauf mit Ampelstatus für Daten, Codes, Teilnehmer, Tipps, Bonus, Ergebnisse und Rangliste.
 - Der Release-Probelauf kann im Admin-Testlabor per Button vorbereitet werden; er schreibt nur `Release Test 1-3`, Spieltag-1-Tipps, Bonus-Tipps, Spieltag-1-Ergebnisse und hält `public_enabled = false`.
 - Release-Probelauf-Testdaten können gezielt wieder gelöscht werden; entfernt werden nur `Release Test 1-3` samt deren Tipps, Bonus-Tipps und Codes. Spielplan, Ergebnisse, Torschützen und echte Teilnehmer bleiben erhalten.
+- Das Testlabor hat zusätzlich einen großen Bereinigungsbutton für Labor-Daten: Demo-Tipper, Demo-Tipps, Demo-Bonus, Release-Testdaten, Ergebnisse, Goal-Events und offizielle Bundesliga-Bonus-Ergebnisse werden gelöscht. Spielplan, Teams/Logos, Torschützenliste, echte Teilnehmer und echte Codes bleiben erhalten.
 - Nutzer-Komfort ist erweitert:
   - Karten „Was fehlt noch?“ und „Meine Statistik“ in Start/Tippen/Rangliste.
   - Live-Auswertung erklärt pro Tipp den Punktegrund.
@@ -216,6 +217,7 @@ cd android-app
     - falsch oder offen: 0 Punkte
 11. Freigabe nur simulieren: `status`, `public_enabled`, Bonusfrist und Regeln prüfen, aber Bundesliga nicht öffentlich aktivieren.
 12. Bei Bedarf „Release-Testdaten löschen“ klicken. Das entfernt nur die drei Release-Testteilnehmer samt Tipps, Bonus-Tipps und Codes; importierte Daten und echte Teilnehmer bleiben bestehen.
+13. Für einen kompletten Labor-Neustart „Testlabor-Daten löschen“ klicken. Das entfernt Demo- und Auswertungsdaten, lässt aber die importierte Grundlage für Teams, Logos, Spielplan und Torschützen stehen.
 
 ## Bundesliga Visuelle QA
 
@@ -246,6 +248,7 @@ Admin prüfen:
 
 - Release-Probelauf starten.
 - Release-Testdaten löschen.
+- Testlabor-Daten löschen und prüfen, dass Teams, Spielplan, Torschützen, echte Teilnehmer und echte Codes erhalten bleiben.
 - Release-Checkliste, Datenqualität, Teilnehmer, Tipp-Auswertung und Regeln kontrollieren.
 
 Release-Lücken:

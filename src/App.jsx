@@ -3582,6 +3582,15 @@ function AdminPanel({
             }
             return payload;
           }}
+          onResetTestlabData={async () => {
+            if (!window.confirm("Testlabor-Daten löschen? Entfernt Demo-Tipper, Demo-Tipps, Release-Testdaten, Ergebnisse, Goal-Events und Bonus-Ergebnisse. Spielplan, Teams/Logos, Torschützen, echte Teilnehmer und echte Codes bleiben erhalten.")) return null;
+            const payload = await runBundesligaAction("reset-testlab-data");
+            if (payload?.resetTestlabData) {
+              const reset = payload.resetTestlabData;
+              setBundesligaMessage(`Testlabor bereinigt: ${reset.deletedDemoParticipants} Demo-Tipper, ${reset.deletedDemoTips} Demo-Tipps, ${reset.deletedResults} Ergebnisse, ${reset.deletedGoals} Goal-Events gelöscht.`);
+            }
+            return payload;
+          }}
           onImportResults={async (throughMatchday) => {
             const payload = await runBundesligaAction("import-results", { throughMatchday });
             if (payload) setBundesligaMessage(`Ergebnisse bis Spieltag ${payload.throughMatchday} importiert.`);
@@ -5267,6 +5276,7 @@ function BundesligaAdminSetup({
   onGenerateDemoTips,
   onRunReleaseProbe,
   onResetReleaseProbe,
+  onResetTestlabData,
   onImportResults,
   onResetResults,
   onImportTopScorers,
@@ -5618,6 +5628,14 @@ function BundesligaAdminSetup({
     }
   }
 
+  async function resetTestlabData() {
+    const payload = await onResetTestlabData();
+    if (payload?.resetTestlabData) {
+      setReleaseProbeReport(null);
+      await onRefresh();
+    }
+  }
+
   const labNavItems = [
     { id: "overview", label: "Übersicht", Icon: House },
     { id: "schedule", label: "Spielplan", Icon: CalendarDays },
@@ -5670,7 +5688,10 @@ function BundesligaAdminSetup({
           <button type="button" className="danger-button" onClick={resetReleaseProbe} disabled={loading}>
             Release-Testdaten löschen
           </button>
-          <small>Schreibt oder löscht nur `Release Test 1-3`, deren Tipps, Bonus und Codes. Spielplan und Ergebnisse bleiben erhalten.</small>
+          <button type="button" className="danger-button" onClick={resetTestlabData} disabled={loading}>
+            Testlabor-Daten löschen
+          </button>
+          <small>Schreibt oder löscht Release-Testdaten. Der große Reset entfernt zusätzlich Demo-Tipps, Demo-Tipper, Ergebnisse, Goal-Events und Bonus-Ergebnisse; Spielplan, Teams/Logos, Torschützen und echte Teilnehmer bleiben erhalten.</small>
         </div>
         {releaseProbeReport && (
           <div className="bundesliga-probe-report">

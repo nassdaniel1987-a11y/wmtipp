@@ -28,6 +28,97 @@ function releaseProbeScoreFor(match, participantIndex, matchIndex) {
 
 const releaseProbeParticipantNames = ["Release Test 1", "Release Test 2", "Release Test 3"];
 
+async function deleteRowsByCompetition(supabase, table, select = "id") {
+  const { data, error } = await supabase
+    .from(table)
+    .delete()
+    .eq("competition_id", BUNDESLIGA_COMPETITION_ID)
+    .select(select);
+  if (error) throw error;
+  return data?.length ?? 0;
+}
+
+async function resetReleaseProbeData(supabase) {
+  const { data: participants, error: participantReadError } = await supabase
+    .from("competition_participants")
+    .select("id, display_name, invite_code_id")
+    .eq("competition_id", BUNDESLIGA_COMPETITION_ID)
+    .in("display_name", releaseProbeParticipantNames);
+  if (participantReadError) throw participantReadError;
+
+  const participantRows = participants ?? [];
+  const participantIds = participantRows.map((participant) => participant.id);
+  const inviteCodeIdSet = new Set(participantRows.map((participant) => participant.invite_code_id).filter(Boolean));
+
+  if (participantIds.length) {
+    const { data: linkedCodes, error: linkedCodeError } = await supabase
+      .from("competition_invite_codes")
+      .select("id")
+      .eq("competition_id", BUNDESLIGA_COMPETITION_ID)
+      .in("participant_id", participantIds);
+    if (linkedCodeError) throw linkedCodeError;
+    for (const code of linkedCodes ?? []) {
+      inviteCodeIdSet.add(code.id);
+    }
+  }
+
+  const inviteCodeIds = [...inviteCodeIdSet];
+  let deletedTips = 0;
+  let deletedBonusTips = 0;
+  let deletedInviteCodes = 0;
+  let deletedParticipants = 0;
+
+  if (participantIds.length) {
+    const { data: tips, error: tipDeleteError } = await supabase
+      .from("competition_tips")
+      .delete()
+      .eq("competition_id", BUNDESLIGA_COMPETITION_ID)
+      .in("participant_id", participantIds)
+      .select("id");
+    if (tipDeleteError) throw tipDeleteError;
+    deletedTips = tips?.length ?? 0;
+
+    const { data: bonusTips, error: bonusDeleteError } = await supabase
+      .from("competition_participant_bonus_tips")
+      .delete()
+      .eq("competition_id", BUNDESLIGA_COMPETITION_ID)
+      .in("participant_id", participantIds)
+      .select("participant_id");
+    if (bonusDeleteError) throw bonusDeleteError;
+    deletedBonusTips = bonusTips?.length ?? 0;
+  }
+
+  if (inviteCodeIds.length) {
+    const { data: codes, error: codeDeleteError } = await supabase
+      .from("competition_invite_codes")
+      .delete()
+      .eq("competition_id", BUNDESLIGA_COMPETITION_ID)
+      .in("id", inviteCodeIds)
+      .select("id");
+    if (codeDeleteError) throw codeDeleteError;
+    deletedInviteCodes = codes?.length ?? 0;
+  }
+
+  if (participantIds.length) {
+    const { data: deletedRows, error: participantDeleteError } = await supabase
+      .from("competition_participants")
+      .delete()
+      .eq("competition_id", BUNDESLIGA_COMPETITION_ID)
+      .in("id", participantIds)
+      .select("id");
+    if (participantDeleteError) throw participantDeleteError;
+    deletedParticipants = deletedRows?.length ?? 0;
+  }
+
+  return {
+    deletedParticipants,
+    deletedTips,
+    deletedBonusTips,
+    deletedInviteCodes,
+    participantIds,
+  };
+}
+
 async function loadTopScorers(supabase) {
   const { data, error } = await supabase
     .from("competition_top_scorers")
@@ -396,64 +487,7 @@ export default async (req) => {
     }
 
     if (action === "reset-release-probe") {
-      const { data: participants, error: participantReadError } = await supabase
-        .from("competition_participants")
-        .select("id, display_name, invite_code_id")
-        .eq("competition_id", BUNDESLIGA_COMPETITION_ID)
-        .in("display_name", releaseProbeParticipantNames);
-      if (participantReadError) throw participantReadError;
-
-      const participantRows = participants ?? [];
-      const participantIds = participantRows.map((participant) => participant.id);
-      const inviteCodeIdSet = new Set(participantRows.map((participant) => participant.invite_code_id).filter(Boolean));
-
-      if (participantIds.length) {
-        const { data: linkedCodes, error: linkedCodeError } = await supabase
-          .from("competition_invite_codes")
-          .select("id")
-          .eq("competition_id", BUNDESLIGA_COMPETITION_ID)
-          .in("participant_id", participantIds);
-        if (linkedCodeError) throw linkedCodeError;
-        for (const code of linkedCodes ?? []) {
-          inviteCodeIdSet.add(code.id);
-        }
-      }
-
-      const inviteCodeIds = [...inviteCodeIdSet];
-
-      if (participantIds.length) {
-        const { error: tipDeleteError } = await supabase
-          .from("competition_tips")
-          .delete()
-          .eq("competition_id", BUNDESLIGA_COMPETITION_ID)
-          .in("participant_id", participantIds);
-        if (tipDeleteError) throw tipDeleteError;
-
-        const { error: bonusDeleteError } = await supabase
-          .from("competition_participant_bonus_tips")
-          .delete()
-          .eq("competition_id", BUNDESLIGA_COMPETITION_ID)
-          .in("participant_id", participantIds);
-        if (bonusDeleteError) throw bonusDeleteError;
-      }
-
-      if (inviteCodeIds.length) {
-        const { error: codeDeleteError } = await supabase
-          .from("competition_invite_codes")
-          .delete()
-          .eq("competition_id", BUNDESLIGA_COMPETITION_ID)
-          .in("id", inviteCodeIds);
-        if (codeDeleteError) throw codeDeleteError;
-      }
-
-      if (participantIds.length) {
-        const { error: participantDeleteError } = await supabase
-          .from("competition_participants")
-          .delete()
-          .eq("competition_id", BUNDESLIGA_COMPETITION_ID)
-          .in("id", participantIds);
-        if (participantDeleteError) throw participantDeleteError;
-      }
+      const resetReleaseProbe = await resetReleaseProbeData(supabase);
 
       const { data: competition, error: competitionError } = await supabase
         .from("competitions")
@@ -465,9 +499,41 @@ export default async (req) => {
 
       return json({
         resetReleaseProbe: {
-          deletedParticipants: participantRows.length,
-          deletedTipsForParticipantIds: participantIds,
-          deletedInviteCodes: inviteCodeIds.length,
+          ...resetReleaseProbe,
+          competition: {
+            status: competition.status,
+            publicEnabled: competition.public_enabled,
+          },
+        },
+      });
+    }
+
+    if (action === "reset-testlab-data") {
+      const resetReleaseProbe = await resetReleaseProbeData(supabase);
+      const deletedDemoBonusTips = await deleteRowsByCompetition(supabase, "competition_bonus_tips", "participant_id");
+      const deletedDemoTips = await deleteRowsByCompetition(supabase, "competition_demo_tips", "id");
+      const deletedDemoParticipants = await deleteRowsByCompetition(supabase, "competition_demo_participants", "id");
+      const deletedResults = await deleteRowsByCompetition(supabase, "competition_results", "match_id");
+      const deletedGoals = await deleteRowsByCompetition(supabase, "competition_goals", "id");
+      const deletedBonusResults = await deleteRowsByCompetition(supabase, "competition_bonus_results", "competition_id");
+
+      const { data: competition, error: competitionError } = await supabase
+        .from("competitions")
+        .update({ status: "admin_test", public_enabled: false, updated_at: new Date().toISOString() })
+        .eq("id", BUNDESLIGA_COMPETITION_ID)
+        .select("status, public_enabled")
+        .single();
+      if (competitionError) throw competitionError;
+
+      return json({
+        resetTestlabData: {
+          deletedDemoParticipants,
+          deletedDemoTips,
+          deletedDemoBonusTips,
+          deletedResults,
+          deletedGoals,
+          deletedBonusResults,
+          resetReleaseProbe,
           competition: {
             status: competition.status,
             publicEnabled: competition.public_enabled,
