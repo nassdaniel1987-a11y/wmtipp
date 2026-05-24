@@ -150,10 +150,13 @@ cd android-app
 - Bundesliga-Teilnehmer sind im Admin standardmäßig eingeklappt; pro Teilnehmer öffnet sich ein Detailbereich für Name, Spieltag-Tipps, Bonus und QR-Code.
 - Im Bundesliga-Teilnehmerbereich kann der Admin per Zurück/Weiter oder Auswahl durch alle Spieltage wechseln und Tipps je Spieltag nachtragen.
 - Bundesliga-Grunddaten 2025/2026 können im Datenimport gelöscht werden: Spielplan, Teams/Logos, Ergebnisse, Goals, Torschützen sowie alte Tipps/Bonuswerte werden entfernt; echte Teilnehmer und Codes bleiben erhalten.
+- Bundesliga-Nutzeransicht hat einen Code-first Login: bestehende Teilnehmer-Codes melden direkt an, freie Codes fragen danach den Namen ab.
+- Bundesliga-Nutzer bekommen eine persönliche Zentrale mit Loginfeedback, nächstem Schritt, Fortschritt, Bonusstatus, Punkten und Direktaktionen.
+- Bundesliga-Nutzeransicht hat zusätzliche In-App-Detailseiten für Live-Spieltag, volle Tabelle, volle Torschützenliste und Spielplan.
 
 ## Bundesliga Stand
 
-- Versteckte Bundesliga-Version läuft getrennt von der WM unter den Hash-Routen `#bundesliga-start`, `#bundesliga-tippen`, `#bundesliga-bonus` und `#bundesliga-rangliste`.
+- Versteckte Bundesliga-Version läuft getrennt von der WM unter den Hash-Routen `#bundesliga-start`, `#bundesliga-tippen`, `#bundesliga-bonus`, `#bundesliga-rangliste`, `#bundesliga-live`, `#bundesliga-tabelle`, `#bundesliga-torschuetzen` und `#bundesliga-spielplan`.
 - Bundesliga-Admin ist über den Adminbereich erreichbar und bleibt nicht öffentlich.
 - Datenbasis nutzt `competition_*` Tabellen mit `competition_id = 'bundesliga-2025'`.
 - OpenLigaDB ist als Hauptquelle vorbereitet: Teams, Logos, Spielplan, Ergebnisse und Torschützen.
@@ -174,6 +177,7 @@ cd android-app
   - Live-Auswertung erklärt pro Tipp den Punktegrund.
   - Tipp-Trends und Teilnehmervergleich erscheinen nur für sichtbare Spiele ab Anpfiff.
   - Spieltagssieger und Share-Karte werden in der Community-Karte angezeigt.
+  - Vorschaukarten öffnen jetzt passende Detailseiten statt nur kompakte Sidebar-Ausschnitte zu zeigen.
 - Automatik ist vorbereitet, aber geschützt:
   - `netlify/functions/bundesliga-auto-import.js` importiert Ergebnisse/Torschützen nur mit `BUNDESLIGA_AUTO_IMPORT_ENABLED=true`.
   - Bundesliga-Push-Erinnerungen in `send-tip-reminders.js` laufen nur mit `BUNDESLIGA_PUSH_REMINDERS_ENABLED=true`.
