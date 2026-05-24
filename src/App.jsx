@@ -4919,12 +4919,25 @@ function BundesligaParticipantApp({ isTestMode }) {
     );
   }
 
-  function renderLivePanel({ showLink = true } = {}) {
+  function renderCardHeading(label, onClick, children = null) {
+    return (
+      <h2 className="bundesliga-card-heading">
+        <button type="button" className="bundesliga-card-heading-link" onClick={onClick}>
+          {children}
+          {label}
+        </button>
+      </h2>
+    );
+  }
+
+  function renderLivePanel({ headingLink = true } = {}) {
     const live = liveData;
     const trendsByMatch = new Map(liveTrends.map((trend) => [trend.matchId, trend]));
     return (
       <section className="bundesliga-public-card bundesliga-live-panel">
-        <h2>Live-Spieltag</h2>
+        {headingLink
+          ? renderCardHeading("Live-Spieltag", () => setBundesligaTab("bundesliga-live"))
+          : <h2>Live-Spieltag</h2>}
         <div className="bundesliga-live-standings">
           {(live?.standings ?? []).slice(0, 5).map((row, index) => (
             <div key={row.participantId ?? row.name}>
@@ -4965,7 +4978,6 @@ function BundesligaParticipantApp({ isTestMode }) {
             </article>
           ))}
         </div>
-        {showLink && <button type="button" className="bundesliga-card-link" onClick={() => setBundesligaTab("bundesliga-live")}>Live öffnen</button>}
       </section>
     );
   }
@@ -5038,7 +5050,7 @@ function BundesligaParticipantApp({ isTestMode }) {
       : [];
     return (
       <section className="bundesliga-public-card bundesliga-community-card">
-        <h2>Community</h2>
+        {renderCardHeading("Community", () => setBundesligaTab("bundesliga-live"))}
         {latestWinner ? (
           <div className="bundesliga-winner-callout">
             <img src={BUNDESLIGA_BRAND_ASSETS.badgeMatchdayWinner} alt="" aria-hidden="true" />
@@ -5076,7 +5088,6 @@ function BundesligaParticipantApp({ isTestMode }) {
             <b>{currentParticipantRank.points} Punkte · Platz {ranking.findIndex((row) => row.id === currentParticipantRank.id || row.name === currentParticipantRank.name) + 1}</b>
           </div>
         )}
-        <button type="button" className="bundesliga-card-link" onClick={() => setBundesligaTab("bundesliga-live")}>Community live ansehen</button>
       </section>
     );
   }
@@ -5253,7 +5264,7 @@ function BundesligaParticipantApp({ isTestMode }) {
               </button>
             </div>
           </div>
-          {renderLivePanel({ showLink: false })}
+          {renderLivePanel({ headingLink: false })}
         </section>
         <aside className="bundesliga-side-stack">
           {renderPersonalStatsCard()}
@@ -5365,7 +5376,10 @@ function BundesligaParticipantApp({ isTestMode }) {
               {renderPersonalStatsCard()}
               {renderBonusReminder()}
               <section className="bundesliga-public-card bundesliga-top-three">
-                <h2><img src={BUNDESLIGA_BRAND_ASSETS.badgeRankingTop3} alt="" aria-hidden="true" /> Top 3</h2>
+                {renderCardHeading("Top 3", () => {
+                  setBundesligaTab("bundesliga-rangliste");
+                  void refreshRanking();
+                }, <img src={BUNDESLIGA_BRAND_ASSETS.badgeRankingTop3} alt="" aria-hidden="true" />)}
                 <div>
                   {topRankingRows.map((row, index) => (
                     <article key={row.id ?? row.name}>
@@ -5376,10 +5390,9 @@ function BundesligaParticipantApp({ isTestMode }) {
                   ))}
                   {topRankingRows.length === 0 && <p>Noch keine Rangliste vorhanden.</p>}
                 </div>
-                <button type="button" className="bundesliga-card-link" onClick={() => { setBundesligaTab("bundesliga-rangliste"); void refreshRanking(); }}>Rangliste öffnen</button>
               </section>
               <section className="bundesliga-public-card">
-                <h2>Live-Tabelle</h2>
+                {renderCardHeading("Live-Tabelle", () => setBundesligaTab("bundesliga-tabelle"))}
                 <div className="bundesliga-mini-table">
                   {displayTableRows.slice(0, 8).map((row, index) => (
                     <div key={row.teamId}>
@@ -5390,11 +5403,10 @@ function BundesligaParticipantApp({ isTestMode }) {
                     </div>
                   ))}
                 </div>
-                <button type="button" className="bundesliga-card-link" onClick={() => setBundesligaTab("bundesliga-tabelle")}>Ganze Tabelle öffnen</button>
               </section>
               {renderCommunityCard()}
               <section className="bundesliga-public-card">
-                <h2>Nächste Spiele</h2>
+                {renderCardHeading("Nächste Spiele", () => setBundesligaTab("bundesliga-spielplan"))}
                 <div className="bundesliga-fixture-list">
                   {dashboardMatches.map((match) => (
                     <div key={match.id}>
@@ -5407,7 +5419,6 @@ function BundesligaParticipantApp({ isTestMode }) {
                     </div>
                   ))}
                 </div>
-                <button type="button" className="bundesliga-card-link" onClick={() => setBundesligaTab("bundesliga-spielplan")}>Spielplan öffnen</button>
               </section>
               {renderImportStatusCard()}
             </aside>
@@ -5486,7 +5497,7 @@ function BundesligaParticipantApp({ isTestMode }) {
               {renderPersonalStatsCard()}
               {renderLivePanel()}
               <section className="bundesliga-public-card">
-                <h2>Live-Tabelle</h2>
+                {renderCardHeading("Live-Tabelle", () => setBundesligaTab("bundesliga-tabelle"))}
                 <div className="bundesliga-mini-table">
                   {displayTableRows.slice(0, 6).map((row, index) => (
                     <div key={row.teamId}>
@@ -5497,10 +5508,9 @@ function BundesligaParticipantApp({ isTestMode }) {
                     </div>
                   ))}
                 </div>
-                <button type="button" className="bundesliga-card-link" onClick={() => setBundesligaTab("bundesliga-tabelle")}>Ganze Tabelle öffnen</button>
               </section>
               <section className="bundesliga-public-card">
-                <h2>Torschützen</h2>
+                {renderCardHeading("Torschützen", () => setBundesligaTab("bundesliga-torschuetzen"))}
                 <div className="bundesliga-scorer-mini-list">
                   {topScorerPreview.map((row, index) => (
                     <div key={row.id}>
@@ -5510,7 +5520,6 @@ function BundesligaParticipantApp({ isTestMode }) {
                     </div>
                   ))}
                 </div>
-                <button type="button" className="bundesliga-card-link" onClick={() => setBundesligaTab("bundesliga-torschuetzen")}>Alle Torschützen öffnen</button>
               </section>
               {renderRulesCard()}
             </aside>
@@ -5626,7 +5635,7 @@ function BundesligaParticipantApp({ isTestMode }) {
               {renderPersonalStatsCard()}
               {renderRulesCard()}
               <section className="bundesliga-public-card">
-                <h2>Live-Tabelle</h2>
+                {renderCardHeading("Live-Tabelle", () => setBundesligaTab("bundesliga-tabelle"))}
                 <div className="bundesliga-mini-table">
                   {displayTableRows.slice(0, 6).map((row, index) => (
                     <div key={row.teamId}>

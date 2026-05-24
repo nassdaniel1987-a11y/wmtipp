@@ -177,7 +177,7 @@ cd android-app
   - Live-Auswertung erklärt pro Tipp den Punktegrund.
   - Tipp-Trends und Teilnehmervergleich erscheinen nur für sichtbare Spiele ab Anpfiff.
   - Spieltagssieger und Share-Karte werden in der Community-Karte angezeigt.
-  - Vorschaukarten öffnen jetzt passende Detailseiten statt nur kompakte Sidebar-Ausschnitte zu zeigen.
+  - Vorschaukarten öffnen passende Detailseiten direkt über klickbare Überschriften statt über zusätzliche Öffnen-Buttons.
 - Automatik ist vorbereitet, aber geschützt:
   - `netlify/functions/bundesliga-auto-import.js` importiert Ergebnisse/Torschützen nur mit `BUNDESLIGA_AUTO_IMPORT_ENABLED=true`.
   - Bundesliga-Push-Erinnerungen in `send-tip-reminders.js` laufen nur mit `BUNDESLIGA_PUSH_REMINDERS_ENABLED=true`.

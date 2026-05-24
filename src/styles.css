@@ -5639,6 +5639,10 @@ tbody tr:nth-child(1) td:first-child {
   font-size: clamp(1.1rem, 1.7vw, 1.5rem);
 }
 
+.bundesliga-public-card h2.bundesliga-card-heading {
+  border-bottom: 0;
+}
+
 .bundesliga-public-section-head {
   align-items: start;
   padding-bottom: 2px;
@@ -5838,8 +5842,7 @@ tbody tr:nth-child(1) td:first-child {
 }
 
 .bundesliga-login-panel button,
-.bundesliga-next-step button,
-.bundesliga-card-link {
+.bundesliga-next-step button {
   min-height: 40px;
   border: 1px solid #b93730;
   border-radius: 7px;
@@ -5869,11 +5872,38 @@ tbody tr:nth-child(1) td:first-child {
   margin: 0;
 }
 
-.bundesliga-card-link {
-  width: fit-content;
-  margin-top: 12px;
-  background: #11161a;
-  border-color: var(--bl-line);
+.bundesliga-card-heading-link {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  min-height: 34px;
+  border: 0;
+  border-bottom: 2px solid var(--bl-red);
+  padding: 0 0 5px;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  font-weight: 950;
+  text-align: left;
+  cursor: pointer;
+}
+
+.bundesliga-card-heading-link:hover,
+.bundesliga-card-heading-link:focus-visible {
+  color: #ffd0cd;
+}
+
+.bundesliga-card-heading-link:focus-visible {
+  outline: 2px solid rgba(223, 47, 40, 0.72);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+.bundesliga-card-heading-link img {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
 }
 
 .bundesliga-side-stack {
@@ -7128,7 +7158,6 @@ tbody tr:nth-child(1) td:first-child {
 
   .bundesliga-detail-head > button,
   .bundesliga-login-panel button,
-  .bundesliga-card-link,
   .bundesliga-next-step button {
     width: 100%;
   }
