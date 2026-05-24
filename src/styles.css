@@ -2980,8 +2980,42 @@ tbody tr:nth-child(1) td:first-child {
   align-items: center;
 }
 
+.bundesliga-matchday-admin-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.bundesliga-matchday-admin-controls button,
+.bundesliga-participant-summary button {
+  min-height: 38px;
+  border: 1px solid #3d454d;
+  border-radius: 4px;
+  padding: 0 12px;
+  color: #ffffff;
+  background: #151b20;
+  font-weight: 950;
+}
+
+.bundesliga-matchday-admin-controls button {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.bundesliga-matchday-admin-controls button:disabled {
+  color: #69747d;
+  cursor: not-allowed;
+}
+
+.flip-icon {
+  transform: rotate(180deg);
+}
+
 .bundesliga-participant-admin-list,
 .bundesliga-participant-admin-list article,
+.bundesliga-participant-editor,
 .bundesliga-participant-tip-editor,
 .bundesliga-participant-bonus-editor,
 .bundesliga-bonus-result-editor,
@@ -2996,6 +3030,80 @@ tbody tr:nth-child(1) td:first-child {
   border: 1px solid #333c44;
   border-radius: 6px;
   background: rgba(255, 255, 255, 0.025);
+}
+
+.bundesliga-participant-admin-list article.is-expanded {
+  border-color: rgba(223, 47, 40, 0.58);
+  background: rgba(223, 47, 40, 0.04);
+}
+
+.bundesliga-participant-summary {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) 132px 132px 86px auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.bundesliga-participant-summary-main {
+  justify-self: stretch;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  text-align: left;
+}
+
+.bundesliga-participant-summary-main span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.bundesliga-participant-summary-main strong,
+.bundesliga-participant-summary-main small,
+.bundesliga-participant-summary > span {
+  overflow-wrap: anywhere;
+}
+
+.bundesliga-participant-summary-main strong {
+  color: #ffffff;
+}
+
+.bundesliga-participant-summary-main small,
+.bundesliga-participant-summary > span,
+.bundesliga-participant-qr small {
+  color: #b4bec6;
+  font-weight: 850;
+}
+
+.bundesliga-participant-summary > span.ok {
+  color: #79d59b;
+}
+
+.bundesliga-participant-summary > span.warning {
+  color: #f3b36b;
+}
+
+.bundesliga-participant-summary .secondary-button {
+  border-color: #df2f28;
+  background: #df2f28;
+}
+
+.bundesliga-participant-qr {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 62px;
+}
+
+.bundesliga-participant-qr .qr-image {
+  width: 58px;
+  height: 58px;
+  border-radius: 4px;
+}
+
+.bundesliga-participant-qr .qr-image img {
+  width: 46px;
+  height: 46px;
 }
 
 .bundesliga-participant-admin-head,
@@ -6649,6 +6757,34 @@ tbody tr:nth-child(1) td:first-child {
 
   .bundesliga-admin-inline-controls {
     display: grid;
+  }
+
+  .bundesliga-matchday-admin-controls,
+  .bundesliga-participant-summary,
+  .bundesliga-participant-admin-head,
+  .bundesliga-participant-bonus-editor,
+  .bundesliga-participant-tip-editor div,
+  .bundesliga-code-list.expanded div {
+    grid-template-columns: 1fr;
+  }
+
+  .bundesliga-matchday-admin-controls {
+    display: grid;
+    width: 100%;
+  }
+
+  .bundesliga-matchday-admin-controls button,
+  .bundesliga-participant-summary .secondary-button {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .bundesliga-participant-summary {
+    justify-items: stretch;
+  }
+
+  .bundesliga-participant-qr {
+    justify-content: flex-start;
   }
 
   .bundesliga-operations-queue article > span {

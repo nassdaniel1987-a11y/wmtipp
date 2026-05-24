@@ -5330,6 +5330,7 @@ function BundesligaAdminArea({
   const [includeRelegation, setIncludeRelegation] = useState(true);
   const [throughMatchday, setThroughMatchday] = useState(1);
   const [selectedMatchday, setSelectedMatchday] = useState(1);
+  const [expandedParticipantId, setExpandedParticipantId] = useState(null);
   const [activeAdminView, setActiveAdminView] = useState("overview");
   const [demoName, setDemoName] = useState("");
   const [newParticipantName, setNewParticipantName] = useState("");
@@ -5352,6 +5353,10 @@ function BundesligaAdminArea({
   const matchdayOptions = Array.from(
     new Set(leagueMatches.map((match) => Number(match.matchday)).filter(Number.isInteger)),
   ).sort((first, second) => first - second);
+  const adminMatchdayOptions = matchdayOptions.length
+    ? matchdayOptions
+    : Array.from({ length: maxMatchday }, (_, index) => index + 1);
+  const selectedMatchdayIndex = Math.max(0, adminMatchdayOptions.indexOf(activeMatchday));
   const visibleMatches = leagueMatches.filter((match) => Number(match.matchday) === activeMatchday);
   const matchdayTipCount = visibleMatches.reduce((sum, match) => sum + (match.demoTips?.length ?? 0), 0);
   const tableRows = data?.table ?? [];
@@ -5562,7 +5567,18 @@ function BundesligaAdminArea({
 
   async function createParticipant() {
     const payload = await onCreateParticipant(newParticipantName);
-    if (payload?.participant) setNewParticipantName("");
+    if (payload?.participant) {
+      setNewParticipantName("");
+      setExpandedParticipantId(payload.participant.id);
+    }
+  }
+
+  function moveAdminMatchday(delta) {
+    if (!adminMatchdayOptions.length) return;
+    const currentIndex = adminMatchdayOptions.indexOf(activeMatchday);
+    const safeIndex = currentIndex >= 0 ? currentIndex : 0;
+    const nextIndex = Math.max(0, Math.min(adminMatchdayOptions.length - 1, safeIndex + delta));
+    setSelectedMatchday(adminMatchdayOptions[nextIndex]);
   }
 
   function scorerDraftFor(row) {
@@ -6111,11 +6127,21 @@ function BundesligaAdminArea({
         <header>
           <h3>Bundesliga Teilnehmer</h3>
           <span>{participants.length} echte Teilnehmer</span>
-          <select value={activeMatchday} onChange={(event) => setSelectedMatchday(Number(event.target.value))}>
-            {(matchdayOptions.length ? matchdayOptions : Array.from({ length: maxMatchday }, (_, index) => index + 1)).map((matchday) => (
-              <option key={matchday} value={matchday}>Spieltag {matchday}</option>
-            ))}
-          </select>
+          <div className="bundesliga-matchday-admin-controls" aria-label="Spieltag für Tipp-Nachtrag">
+            <button type="button" onClick={() => moveAdminMatchday(-1)} disabled={selectedMatchdayIndex <= 0}>
+              <ChevronRight aria-hidden="true" className="flip-icon" size={16} />
+              Zurück
+            </button>
+            <select value={activeMatchday} onChange={(event) => setSelectedMatchday(Number(event.target.value))}>
+              {adminMatchdayOptions.map((matchday) => (
+                <option key={matchday} value={matchday}>Spieltag {matchday}</option>
+              ))}
+            </select>
+            <button type="button" onClick={() => moveAdminMatchday(1)} disabled={selectedMatchdayIndex >= adminMatchdayOptions.length - 1}>
+              Weiter
+              <ChevronRight aria-hidden="true" size={16} />
+            </button>
+          </div>
         </header>
         <section className="bundesliga-admin-create">
           <label>
@@ -6139,79 +6165,121 @@ function BundesligaAdminArea({
             const linkedCode = inviteCodes.find((code) => code.participant_id === participant.id || code.id === participant.invite_code_id);
             const tipCount = participantTips.filter((tip) => tip.participant_id === participant.id).length;
             const bonusDraft = participantBonusDraft(participant.id);
+            const isExpanded = expandedParticipantId === participant.id;
+            const bonusComplete = Boolean(
+              bonusDraft.championTeamId &&
+              (bonusDraft.topScorerId || bonusDraft.topScorer) &&
+              bonusDraft.relegatedTeamIds.length >= 3,
+            );
             return (
-              <article key={participant.id}>
-                <div className="bundesliga-participant-admin-head">
-                  <label>
-                    Name
-                    <input
-                      value={participantNameDraft(participant)}
-                      onChange={(event) => setParticipantNameDrafts((current) => ({ ...current, [participant.id]: event.target.value }))}
-                    />
-                  </label>
-                  <span>{linkedCode?.code ?? "ohne Code"}</span>
-                  <b>{tipCount} / {leagueMatches.length} Tipps</b>
-                  <button type="button" onClick={() => onRenameParticipant(participant.id, participantNameDraft(participant))} disabled={participantNameDraft(participant).trim().length < 2}>
-                    Name speichern
+              <article key={participant.id} className={isExpanded ? "is-expanded" : "is-collapsed"}>
+                <div className="bundesliga-participant-summary">
+                  <button
+                    type="button"
+                    className="bundesliga-participant-summary-main"
+                    onClick={() => setExpandedParticipantId(isExpanded ? null : participant.id)}
+                    aria-expanded={isExpanded}
+                  >
+                    {isExpanded ? <ChevronDown aria-hidden="true" size={18} /> : <ChevronRight aria-hidden="true" size={18} />}
+                    <span>
+                      <strong>{participant.display_name}</strong>
+                      <small>{linkedCode?.code ?? "ohne Code"}</small>
+                    </span>
                   </button>
-                  <button type="button" className="danger-button" onClick={() => onDeleteParticipant(participant.id, participant.display_name)}>
-                    Löschen
-                  </button>
-                </div>
-                <div className="bundesliga-participant-tip-editor">
-                  {visibleMatches.map((match) => {
-                    const draft = participantTipDraft(participant.id, match.id);
-                    return (
-                      <div key={match.id}>
-                        <span>ST {match.matchday}</span>
-                        <strong>{match.team_a_name} - {match.team_b_name}</strong>
-                        <input
-                          type="number"
-                          min="0"
-                          max="12"
-                          placeholder="-"
-                          value={Number.isInteger(draft.scoreA) ? draft.scoreA : ""}
-                          onChange={(event) => updateParticipantTipDraft(participant.id, match.id, { scoreA: event.target.value === "" ? null : Number(event.target.value) })}
-                        />
-                        <input
-                          type="number"
-                          min="0"
-                          max="12"
-                          placeholder="-"
-                          value={Number.isInteger(draft.scoreB) ? draft.scoreB : ""}
-                          onChange={(event) => updateParticipantTipDraft(participant.id, match.id, { scoreB: event.target.value === "" ? null : Number(event.target.value) })}
-                        />
-                        <button type="button" onClick={() => onSaveParticipantTip(participant.id, match.id, draft.scoreA, draft.scoreB)} disabled={!isCompleteTip(draft)}>
-                          Tipp speichern
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-                <div className="bundesliga-participant-bonus-editor">
-                  <select value={bonusDraft.championTeamId} onChange={(event) => updateParticipantBonusDraft(participant.id, { championTeamId: event.target.value })}>
-                    <option value="">Meister offen</option>
-                    {data?.teams?.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}
-                  </select>
-                  <select value={bonusDraft.topScorerId} onChange={(event) => updateParticipantBonusDraft(participant.id, { topScorerId: event.target.value })}>
-                    <option value="">Torschütze offen</option>
-                    {topScorerRows.filter((row) => row.id).map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}
-                  </select>
-                  <span>Absteiger: {bonusDraft.relegatedTeamIds.length} / 3</span>
-                  <div className="bundesliga-mini-choice-row">
-                    {data?.teams?.map((team) => (
-                      <button
-                        key={team.id}
-                        type="button"
-                        className={bonusDraft.relegatedTeamIds.includes(team.id) ? "selected" : ""}
-                        onClick={() => updateParticipantBonusDraft(participant.id, { relegatedTeamIds: toggleId(bonusDraft.relegatedTeamIds, team.id, 3) })}
-                      >
-                        {team.short_name || team.name}
-                      </button>
-                    ))}
+                  <span>{tipCount} / {leagueMatches.length} Tipps</span>
+                  <span className={bonusComplete ? "ok" : "warning"}>{bonusComplete ? "Bonus komplett" : "Bonus offen"}</span>
+                  <div className="bundesliga-participant-qr">
+                    {linkedCode?.code ? (
+                      <QrCodeImage value={getBundesligaInviteUrl(linkedCode.code)} />
+                    ) : (
+                      <small>kein QR</small>
+                    )}
                   </div>
-                  <button type="button" onClick={() => saveParticipantBonus(participant.id)}>Bonus speichern</button>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => setExpandedParticipantId(isExpanded ? null : participant.id)}
+                  >
+                    {isExpanded ? "Schließen" : "Bearbeiten"}
+                  </button>
                 </div>
+
+                {isExpanded && (
+                  <div className="bundesliga-participant-editor">
+                    <div className="bundesliga-participant-admin-head">
+                      <label>
+                        Name
+                        <input
+                          value={participantNameDraft(participant)}
+                          onChange={(event) => setParticipantNameDrafts((current) => ({ ...current, [participant.id]: event.target.value }))}
+                        />
+                      </label>
+                      <span>{linkedCode?.code ?? "ohne Code"}</span>
+                      <b>{tipCount} / {leagueMatches.length} Tipps</b>
+                      <button type="button" onClick={() => onRenameParticipant(participant.id, participantNameDraft(participant))} disabled={participantNameDraft(participant).trim().length < 2}>
+                        Name speichern
+                      </button>
+                      <button type="button" className="danger-button" onClick={() => onDeleteParticipant(participant.id, participant.display_name)}>
+                        Löschen
+                      </button>
+                    </div>
+                    <div className="bundesliga-participant-tip-editor">
+                      {visibleMatches.map((match) => {
+                        const draft = participantTipDraft(participant.id, match.id);
+                        return (
+                          <div key={match.id}>
+                            <span>ST {match.matchday}</span>
+                            <strong>{match.team_a_name} - {match.team_b_name}</strong>
+                            <input
+                              type="number"
+                              min="0"
+                              max="12"
+                              placeholder="-"
+                              value={Number.isInteger(draft.scoreA) ? draft.scoreA : ""}
+                              onChange={(event) => updateParticipantTipDraft(participant.id, match.id, { scoreA: event.target.value === "" ? null : Number(event.target.value) })}
+                            />
+                            <input
+                              type="number"
+                              min="0"
+                              max="12"
+                              placeholder="-"
+                              value={Number.isInteger(draft.scoreB) ? draft.scoreB : ""}
+                              onChange={(event) => updateParticipantTipDraft(participant.id, match.id, { scoreB: event.target.value === "" ? null : Number(event.target.value) })}
+                            />
+                            <button type="button" onClick={() => onSaveParticipantTip(participant.id, match.id, draft.scoreA, draft.scoreB)} disabled={!isCompleteTip(draft)}>
+                              Tipp speichern
+                            </button>
+                          </div>
+                        );
+                      })}
+                      {visibleMatches.length === 0 && <p>Noch keine Spiele für diesen Spieltag importiert.</p>}
+                    </div>
+                    <div className="bundesliga-participant-bonus-editor">
+                      <select value={bonusDraft.championTeamId} onChange={(event) => updateParticipantBonusDraft(participant.id, { championTeamId: event.target.value })}>
+                        <option value="">Meister offen</option>
+                        {data?.teams?.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}
+                      </select>
+                      <select value={bonusDraft.topScorerId} onChange={(event) => updateParticipantBonusDraft(participant.id, { topScorerId: event.target.value })}>
+                        <option value="">Torschütze offen</option>
+                        {topScorerRows.filter((row) => row.id).map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}
+                      </select>
+                      <span>Absteiger: {bonusDraft.relegatedTeamIds.length} / 3</span>
+                      <div className="bundesliga-mini-choice-row">
+                        {data?.teams?.map((team) => (
+                          <button
+                            key={team.id}
+                            type="button"
+                            className={bonusDraft.relegatedTeamIds.includes(team.id) ? "selected" : ""}
+                            onClick={() => updateParticipantBonusDraft(participant.id, { relegatedTeamIds: toggleId(bonusDraft.relegatedTeamIds, team.id, 3) })}
+                          >
+                            {team.short_name || team.name}
+                          </button>
+                        ))}
+                      </div>
+                      <button type="button" onClick={() => saveParticipantBonus(participant.id)}>Bonus speichern</button>
+                    </div>
+                  </div>
+                )}
               </article>
             );
           })}

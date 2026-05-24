@@ -64,7 +64,7 @@ export default async (req) => {
       fetchAllPages(() => supabase.from("competition_demo_tips").select("*").eq("competition_id", BUNDESLIGA_COMPETITION_ID).order("saved_at")),
       supabase.from("competition_bonus_results").select("*").eq("competition_id", BUNDESLIGA_COMPETITION_ID).maybeSingle(),
       loadOptionalTopScorers(supabase),
-      supabase.from("competition_invite_codes").select("*").eq("competition_id", BUNDESLIGA_COMPETITION_ID).order("created_at", { ascending: false }).limit(20),
+      supabase.from("competition_invite_codes").select("*").eq("competition_id", BUNDESLIGA_COMPETITION_ID).order("created_at", { ascending: false }),
       supabase.from("competition_participants").select("*").eq("competition_id", BUNDESLIGA_COMPETITION_ID).order("created_at"),
       fetchAllPages(() => supabase.from("competition_tips").select("*").eq("competition_id", BUNDESLIGA_COMPETITION_ID).order("saved_at")),
       fetchExactCount(supabase.from("competition_tips").select("id", { count: "exact", head: true }).eq("competition_id", BUNDESLIGA_COMPETITION_ID)),

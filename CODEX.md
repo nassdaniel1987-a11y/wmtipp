@@ -147,6 +147,8 @@ cd android-app
 - Bundesliga-Admin ist jetzt als Betriebsbereich aufgebaut: linke Navigation, kompakte KPI-Leiste, Operations-Queue, Ergebnis-/Teilnehmer-Arbeitsflächen und Diagnose-Bereich.
 - Bundesliga-Codes können im Bundesliga-Admin wieder gelöscht werden, solange sie frei und keinem Teilnehmer zugeordnet sind.
 - Echte Bundesliga-Teilnehmer können im Bundesliga-Admin direkt mit verknüpftem Code angelegt werden.
+- Bundesliga-Teilnehmer sind im Admin standardmäßig eingeklappt; pro Teilnehmer öffnet sich ein Detailbereich für Name, Spieltag-Tipps, Bonus und QR-Code.
+- Im Bundesliga-Teilnehmerbereich kann der Admin per Zurück/Weiter oder Auswahl durch alle Spieltage wechseln und Tipps je Spieltag nachtragen.
 - Bundesliga-Grunddaten 2025/2026 können im Datenimport gelöscht werden: Spielplan, Teams/Logos, Ergebnisse, Goals, Torschützen sowie alte Tipps/Bonuswerte werden entfernt; echte Teilnehmer und Codes bleiben erhalten.
 
 ## Bundesliga Stand
@@ -158,6 +160,7 @@ cd android-app
 - Torschützen werden über `getgoalgetters/bl1/2025` importiert und im Admin korrigierbar gemacht.
 - Bundesliga-Teilnehmer, Codes, Tipps und Bonus-Tipps sind von WM-Teilnehmern getrennt.
 - Echte Bundesliga-Teilnehmer können per Bundesliga-Code beitreten oder im Admin direkt mit Code angelegt werden; freie Bundesliga-Codes lassen sich im Admin löschen.
+- Verknüpfte Teilnehmer-Codes zeigen im Admin einen QR-Code; die Daten-API lädt dafür alle Bundesliga-Codes statt nur eines kleinen Ausschnitts.
 - Bundesliga-UX nutzt ein eigenes Branding-Set unter `public/brand/bundesliga/`: Scoreboard-Header aus Konzept C, App-Icon aus Konzept D und Badge-Grafiken aus dem ersten Logo-Durchgang.
 - Spieltag-Zentrale, Live-Spieltag-Auswertung, Bonus-Erinnerung, mobile Rangliste und Admin-Qualitätscheck sind eingebaut.
 - Das Startdashboard zeigt „Nächste Spiele“ als kompakte Logo-Paarungen ohne Ergebnisanzeige.
