@@ -144,11 +144,12 @@ cd android-app
 - Teilnehmernamen können direkt in der Teilnehmerliste bearbeitet werden.
 - Personalisierte Offline-Tippbögen enthalten einen scannbaren QR-Code je Teilnehmer.
 - Admin-Daten laden Spieltipps und Bonus-Tipps paginiert, damit Counter und Nachträge auch über dem Supabase-Standardlimit von 1000 Zeilen stimmen.
+- Bundesliga-Admin ist jetzt als Betriebsbereich aufgebaut: linke Navigation, kompakte KPI-Leiste, Operations-Queue, Ergebnis-/Teilnehmer-Arbeitsflächen und Diagnose-Bereich.
 
 ## Bundesliga Stand
 
 - Versteckte Bundesliga-Version läuft getrennt von der WM unter den Hash-Routen `#bundesliga-start`, `#bundesliga-tippen`, `#bundesliga-bonus` und `#bundesliga-rangliste`.
-- Admin-Testlabor ist über den Adminbereich erreichbar und bleibt nicht öffentlich.
+- Bundesliga-Admin ist über den Adminbereich erreichbar und bleibt nicht öffentlich.
 - Datenbasis nutzt `competition_*` Tabellen mit `competition_id = 'bundesliga-2025'`.
 - OpenLigaDB ist als Hauptquelle vorbereitet: Teams, Logos, Spielplan, Ergebnisse und Torschützen.
 - Torschützen werden über `getgoalgetters/bl1/2025` importiert und im Admin korrigierbar gemacht.
@@ -156,10 +157,10 @@ cd android-app
 - Bundesliga-UX nutzt ein eigenes Branding-Set unter `public/brand/bundesliga/`: Scoreboard-Header aus Konzept C, App-Icon aus Konzept D und Badge-Grafiken aus dem ersten Logo-Durchgang.
 - Spieltag-Zentrale, Live-Spieltag-Auswertung, Bonus-Erinnerung, mobile Rangliste und Admin-Qualitätscheck sind eingebaut.
 - Das Startdashboard zeigt „Nächste Spiele“ als kompakte Logo-Paarungen ohne Ergebnisanzeige.
-- Das Admin-Testlabor enthält jetzt einen sichtbaren Release-Probelauf mit Ampelstatus für Daten, Codes, Teilnehmer, Tipps, Bonus, Ergebnisse und Rangliste.
-- Der Release-Probelauf kann im Admin-Testlabor per Button vorbereitet werden; er schreibt nur `Release Test 1-3`, Spieltag-1-Tipps, Bonus-Tipps, Spieltag-1-Ergebnisse und hält `public_enabled = false`.
+- Der Bundesliga-Admin enthält in `Diagnose` einen sichtbaren Release-Probelauf mit Ampelstatus für Daten, Codes, Teilnehmer, Tipps, Bonus, Ergebnisse und Rangliste.
+- Der Release-Probelauf kann im Diagnose-Bereich per Button vorbereitet werden; er schreibt nur `Release Test 1-3`, Spieltag-1-Tipps, Bonus-Tipps, Spieltag-1-Ergebnisse und hält `public_enabled = false`.
 - Release-Probelauf-Testdaten können gezielt wieder gelöscht werden; entfernt werden nur `Release Test 1-3` samt deren Tipps, Bonus-Tipps und Codes. Spielplan, Ergebnisse, Torschützen und echte Teilnehmer bleiben erhalten.
-- Das Testlabor hat zusätzlich einen großen Bereinigungsbutton für Labor-Daten: Demo-Tipper, Demo-Tipps, Demo-Bonus, Release-Testdaten, Ergebnisse, Goal-Events und offizielle Bundesliga-Bonus-Ergebnisse werden gelöscht. Spielplan, Teams/Logos, Torschützenliste, echte Teilnehmer und echte Codes bleiben erhalten.
+- Der Diagnose-Bereich hat zusätzlich einen großen Bereinigungsbutton für Demo-/Diagnose-Daten: Demo-Tipper, Demo-Tipps, Demo-Bonus, Release-Testdaten, Ergebnisse, Goal-Events und offizielle Bundesliga-Bonus-Ergebnisse werden gelöscht. Spielplan, Teams/Logos, Torschützenliste, echte Teilnehmer und echte Codes bleiben erhalten.
 - Nutzer-Komfort ist erweitert:
   - Karten „Was fehlt noch?“ und „Meine Statistik“ in Start/Tippen/Rangliste.
   - Live-Auswertung erklärt pro Tipp den Punktegrund.
@@ -168,7 +169,7 @@ cd android-app
 - Automatik ist vorbereitet, aber geschützt:
   - `netlify/functions/bundesliga-auto-import.js` importiert Ergebnisse/Torschützen nur mit `BUNDESLIGA_AUTO_IMPORT_ENABLED=true`.
   - Bundesliga-Push-Erinnerungen in `send-tip-reminders.js` laufen nur mit `BUNDESLIGA_PUSH_REMINDERS_ENABLED=true`.
-  - Admin-Testlabor zeigt Datenstatus, letzte Imports und ob Automatik/Push aktiv sind.
+  - Bundesliga-Admin zeigt Datenstatus, letzte Imports und ob Automatik/Push aktiv sind.
 
 ## Zuletzt ausgeführte / benötigte SQL-Dateien
 
@@ -195,7 +196,7 @@ cd android-app
 
 ## Bundesliga Release-Probelauf
 
-1. Admin öffnen und ins Bundesliga-Testlabor wechseln.
+1. Admin öffnen und in die Bundesliga-Admin-Ansicht wechseln.
 2. OpenLigaDB-Daten prüfen oder importieren: Teams, Logos, Spielplan und Torschützen.
 3. In der Karte „Release-Probelauf“ den Button „Release-Probelauf vorbereiten“ klicken.
 4. Der Button stellt sicher:
@@ -217,7 +218,7 @@ cd android-app
     - falsch oder offen: 0 Punkte
 11. Freigabe nur simulieren: `status`, `public_enabled`, Bonusfrist und Regeln prüfen, aber Bundesliga nicht öffentlich aktivieren.
 12. Bei Bedarf „Release-Testdaten löschen“ klicken. Das entfernt nur die drei Release-Testteilnehmer samt Tipps, Bonus-Tipps und Codes; importierte Daten und echte Teilnehmer bleiben bestehen.
-13. Für einen kompletten Labor-Neustart „Testlabor-Daten löschen“ klicken. Das entfernt Demo- und Auswertungsdaten, lässt aber die importierte Grundlage für Teams, Logos, Spielplan und Torschützen stehen.
+13. Für einen kompletten Diagnose-Neustart „Diagnose-Daten löschen“ klicken. Das entfernt Demo- und Auswertungsdaten, lässt aber die importierte Grundlage für Teams, Logos, Spielplan und Torschützen stehen.
 
 ## Bundesliga Visuelle QA
 
@@ -246,10 +247,11 @@ Rangliste prüfen:
 
 Admin prüfen:
 
+- Bundesliga-Admin öffnet mit Betriebsübersicht, KPI-Leiste, Operations-Queue und den Bereichen `Teilnehmer`, `Codes`, `Spielplan`, `Ergebnisse`, `Bonus`, `Rangliste`, `Datenimport`, `Diagnose`.
 - Release-Probelauf starten.
 - Release-Testdaten löschen.
-- Testlabor-Daten löschen und prüfen, dass Teams, Spielplan, Torschützen, echte Teilnehmer und echte Codes erhalten bleiben.
-- Release-Checkliste, Datenqualität, Teilnehmer, Tipp-Auswertung und Regeln kontrollieren.
+- Diagnose-Daten löschen und prüfen, dass Teams, Spielplan, Torschützen, echte Teilnehmer und echte Codes erhalten bleiben.
+- Release-Checkliste, Datenqualität, Teilnehmer, Tipp-Auswertung, Datenimport und Regeln kontrollieren.
 
 Release-Lücken:
 

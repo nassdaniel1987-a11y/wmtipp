@@ -3559,7 +3559,7 @@ function AdminPanel({
       </section>
 
       {isBundesligaAdmin && (
-        <BundesligaAdminSetup
+        <BundesligaAdminArea
           data={bundesligaData}
           loading={bundesligaLoading}
           message={bundesligaMessage}
@@ -3593,11 +3593,11 @@ function AdminPanel({
             return payload;
           }}
           onResetTestlabData={async () => {
-            if (!window.confirm("Testlabor-Daten löschen? Entfernt Demo-Tipper, Demo-Tipps, Release-Testdaten, Ergebnisse, Goal-Events und Bonus-Ergebnisse. Spielplan, Teams/Logos, Torschützen, echte Teilnehmer und echte Codes bleiben erhalten.")) return null;
+            if (!window.confirm("Diagnose- und Demo-Daten löschen? Entfernt Demo-Tipper, Demo-Tipps, Release-Testdaten, Ergebnisse, Goal-Events und Bonus-Ergebnisse. Spielplan, Teams/Logos, Torschützen, echte Teilnehmer und echte Codes bleiben erhalten.")) return null;
             const payload = await runBundesligaAction("reset-testlab-data");
             if (payload?.resetTestlabData) {
               const reset = payload.resetTestlabData;
-              setBundesligaMessage(`Testlabor bereinigt: ${reset.deletedDemoParticipants} Demo-Tipper, ${reset.deletedDemoTips} Demo-Tipps, ${reset.deletedResults} Ergebnisse, ${reset.deletedGoals} Goal-Events gelöscht.`);
+              setBundesligaMessage(`Diagnose bereinigt: ${reset.deletedDemoParticipants} Demo-Tipper, ${reset.deletedDemoTips} Demo-Tipps, ${reset.deletedResults} Ergebnisse, ${reset.deletedGoals} Goal-Events gelöscht.`);
             }
             return payload;
           }}
@@ -5279,7 +5279,7 @@ function BundesligaParticipantApp({ isTestMode }) {
   );
 }
 
-function BundesligaAdminSetup({
+function BundesligaAdminArea({
   data,
   loading,
   message,
@@ -5305,8 +5305,8 @@ function BundesligaAdminSetup({
 }) {
   const [includeRelegation, setIncludeRelegation] = useState(true);
   const [throughMatchday, setThroughMatchday] = useState(1);
-  const [selectedMatchday, setSelectedMatchday] = useState(34);
-  const [activeLabView, setActiveLabView] = useState("overview");
+  const [selectedMatchday, setSelectedMatchday] = useState(1);
+  const [activeAdminView, setActiveAdminView] = useState("overview");
   const [demoName, setDemoName] = useState("");
   const [scorerDrafts, setScorerDrafts] = useState({});
   const [participantNameDrafts, setParticipantNameDrafts] = useState({});
@@ -5442,7 +5442,7 @@ function BundesligaAdminSetup({
     {
       label: "Branding eingebunden",
       done: true,
-      detail: "Österfeld-Bundesliga-Logo in Teilnehmeransicht und Testlabor",
+      detail: "Österfeld-Bundesliga-Logo in Teilnehmeransicht und Admin",
     },
     {
       label: "Start-Dashboard aktiv",
@@ -5650,18 +5650,59 @@ function BundesligaAdminSetup({
     }
   }
 
-  const labNavItems = [
+  const adminNavItems = [
     { id: "overview", label: "Übersicht", Icon: House },
-    { id: "schedule", label: "Spielplan", Icon: CalendarDays },
-    { id: "table", label: "Tabelle", Icon: Trophy },
-    { id: "results", label: "Ergebnisse", Icon: ListFilter },
-    { id: "tips", label: "Tipp-Auswertung", Icon: Medal },
     { id: "participants", label: "Teilnehmer", Icon: UsersRound },
     { id: "codes", label: "Codes", Icon: QrCode },
-    { id: "bonus-results", label: "Bonus-Ergebnisse", Icon: ShieldCheck },
-    { id: "ranking", label: "Demo-Rangliste", Icon: UsersRound },
-    { id: "scorers", label: "Torschützen", Icon: Goal },
-    { id: "rules", label: "Regeln", Icon: Info },
+    { id: "schedule", label: "Spielplan", Icon: CalendarDays },
+    { id: "results", label: "Ergebnisse", Icon: ListFilter },
+    { id: "bonus", label: "Bonus", Icon: ShieldCheck },
+    { id: "ranking", label: "Rangliste", Icon: Trophy },
+    { id: "import", label: "Datenimport", Icon: Download },
+    { id: "diagnostics", label: "Diagnose", Icon: Info },
+  ];
+  const criticalReleaseChecks = releaseChecks.filter((item) => !item.done);
+  const operationQueue = [
+    {
+      label: topScorerRows.length > 0 && dataQuality.topScorerSource !== "match_goals_fallback"
+        ? "Torschützen aktuell"
+        : "Torschützen importieren",
+      detail: `${dataQuality.topScorerCount ?? topScorerRows.length} Einträge · ${dataQuality.topScorerSource === "match_goals_fallback" ? "Fallback aktiv" : "OpenLigaDB"}`,
+      severity: topScorerRows.length > 0 && dataQuality.topScorerSource !== "match_goals_fallback" ? "ok" : "warning",
+      action: () => setActiveAdminView("import"),
+      actionLabel: "Import öffnen",
+    },
+    {
+      label: matchdaysWithoutCompleteResults.length ? `Spieltag ${matchdaysWithoutCompleteResults[0].matchday} Ergebnisse prüfen` : "Ergebnisse vollständig",
+      detail: matchdaysWithoutCompleteResults.length
+        ? `${matchdaysWithoutCompleteResults[0].missingResults} von ${matchdaysWithoutCompleteResults[0].matchCount} Ergebnissen fehlen`
+        : `${importedThrough || 0} Spieltage gewertet`,
+      severity: matchdaysWithoutCompleteResults.length ? "warning" : "ok",
+      action: () => setActiveAdminView("results"),
+      actionLabel: "Ergebnisse",
+    },
+    {
+      label: participantsWithIncompleteBonus.length ? `${participantsWithIncompleteBonus.length} Teilnehmer ohne vollständigen Bonus` : "Bonus-Tipps vollständig",
+      detail: participantsWithIncompleteBonus.slice(0, 3).map((row) => row.display_name).join(", ") || "keine offenen Bonus-Lücken",
+      severity: participantsWithIncompleteBonus.length ? "warning" : "ok",
+      action: () => setActiveAdminView("participants"),
+      actionLabel: "Teilnehmer",
+    },
+    {
+      label: criticalReleaseChecks.length ? `${criticalReleaseChecks.length} Release-Hinweise offen` : "Release-Check ohne Blocker",
+      detail: criticalReleaseChecks.slice(0, 2).map((item) => item.label).join(" · ") || "Freigabe bleibt bewusst versteckt",
+      severity: criticalReleaseChecks.length ? "warning" : "ok",
+      action: () => setActiveAdminView("diagnostics"),
+      actionLabel: "Diagnose",
+    },
+  ];
+  const kpiRows = [
+    { label: "Liga-Spiele", value: leagueMatches.length, detail: "Spielplan" },
+    { label: "Teams", value: data?.teams?.length ?? 0, detail: logoIssueCount ? `${logoIssueCount} Logo-Hinweise` : "Logos ok" },
+    { label: "Teilnehmer", value: participants.length, detail: `${inviteCodes.length} Codes` },
+    { label: "Offene Tipps", value: matchdaysWithOpenParticipantTips.reduce((sum, row) => sum + row.openTips, 0), detail: "echte Teilnehmer" },
+    { label: "Gewertet", value: importedThrough || 0, detail: "Spieltage" },
+    { label: "Torschützen", value: dataQuality.topScorerCount ?? topScorerRows.length, detail: dataQuality.topScorerSource === "match_goals_fallback" ? "Fallback" : "OpenLigaDB" },
   ];
 
   function renderReleaseChecklist() {
@@ -5703,7 +5744,7 @@ function BundesligaAdminSetup({
             Release-Testdaten löschen
           </button>
           <button type="button" className="danger-button" onClick={resetTestlabData} disabled={loading}>
-            Testlabor-Daten löschen
+            Diagnose-Daten löschen
           </button>
           <small>Schreibt oder löscht Release-Testdaten. Der große Reset entfernt zusätzlich Demo-Tipps, Demo-Tipper, Ergebnisse, Goal-Events und Bonus-Ergebnisse; Spielplan, Teams/Logos, Torschützen und echte Teilnehmer bleiben erhalten.</small>
         </div>
@@ -5734,7 +5775,7 @@ function BundesligaAdminSetup({
           ))}
         </div>
         <ol className="bundesliga-probe-steps">
-          <li>OpenLigaDB-Daten, Logos und Torschützen im Testlabor prüfen.</li>
+          <li>OpenLigaDB-Daten, Logos und Torschützen im Admin prüfen.</li>
           <li>Code erzeugen und in der versteckten Teilnehmeransicht aktivieren.</li>
           <li>Spieltag {probeMatchday} tippen, ein offenes -:- stehen lassen und speichern.</li>
           <li>Bonus vollständig tippen und im Admin gegenprüfen.</li>
@@ -6040,6 +6081,11 @@ function BundesligaAdminSetup({
         <header>
           <h3>Bundesliga Teilnehmer</h3>
           <span>{participants.length} echte Teilnehmer</span>
+          <select value={activeMatchday} onChange={(event) => setSelectedMatchday(Number(event.target.value))}>
+            {(matchdayOptions.length ? matchdayOptions : Array.from({ length: maxMatchday }, (_, index) => index + 1)).map((matchday) => (
+              <option key={matchday} value={matchday}>Spieltag {matchday}</option>
+            ))}
+          </select>
         </header>
         <div className="bundesliga-participant-admin-list">
           {participants.map((participant) => {
@@ -6202,30 +6248,24 @@ function BundesligaAdminSetup({
 
   function renderRules() {
     return (
-      <div className="bundesliga-release-grid">
-        <section className="bundesliga-dark-panel bundesliga-view-panel">
-          <header>
-            <h3>Bundesliga Regeln</h3>
-            <span>Release-v1 Punktelogik</span>
-          </header>
-          <div className="bundesliga-rule-grid">
-            {bundesligaRuleRows.map(([label, value]) => (
-              <div key={label}>
-                <strong>{label}</strong>
-                <b>{value}</b>
-              </div>
-            ))}
-          </div>
-          <div className="bundesliga-status-editor">
-            <span>Status: {data?.competition?.status ?? "admin_test"} · öffentlich: {data?.competition?.public_enabled ? "ja" : "nein"}</span>
-            <button type="button" onClick={() => onSetCompetitionStatus("admin_test", false)}>Versteckt lassen</button>
-          </div>
-        </section>
-        {renderReleaseProbe()}
-        {renderReleaseChecklist()}
-        {renderReleaseSettings()}
-        {renderTeamLogoQuality()}
-      </div>
+      <section className="bundesliga-dark-panel bundesliga-view-panel">
+        <header>
+          <h3>Bundesliga Regeln</h3>
+          <span>Release-v1 Punktelogik</span>
+        </header>
+        <div className="bundesliga-rule-grid">
+          {bundesligaRuleRows.map(([label, value]) => (
+            <div key={label}>
+              <strong>{label}</strong>
+              <b>{value}</b>
+            </div>
+          ))}
+        </div>
+        <div className="bundesliga-status-editor">
+          <span>Status: {data?.competition?.status ?? "admin_test"} · öffentlich: {data?.competition?.public_enabled ? "ja" : "nein"}</span>
+          <button type="button" onClick={() => onSetCompetitionStatus("admin_test", false)}>Versteckt lassen</button>
+        </div>
+      </section>
     );
   }
 
@@ -6385,19 +6425,185 @@ function BundesligaAdminSetup({
     );
   }
 
+  function renderOperationsQueue() {
+    return (
+      <section className="bundesliga-dark-panel bundesliga-operations-queue">
+        <header>
+          <h3>Operations-Queue</h3>
+          <span>{operationQueue.filter((item) => item.severity !== "ok").length} offen</span>
+        </header>
+        <div>
+          {operationQueue.map((item) => (
+            <article key={item.label} className={item.severity}>
+              <span>{item.severity === "ok" ? "OK" : "!"}</span>
+              <div>
+                <strong>{item.label}</strong>
+                <small>{item.detail}</small>
+              </div>
+              <button type="button" onClick={item.action}>{item.actionLabel}</button>
+            </article>
+          ))}
+        </div>
+      </section>
+    );
+  }
+
+  function renderKpis() {
+    return (
+      <section className="bundesliga-admin-kpis" aria-label="Bundesliga Admin Kennzahlen">
+        {kpiRows.map((item) => (
+          <article key={item.label}>
+            <span>{item.label}</span>
+            <strong>{item.value}</strong>
+            <small>{item.detail}</small>
+          </article>
+        ))}
+      </section>
+    );
+  }
+
+  function renderOverview() {
+    return (
+      <div className="bundesliga-admin-overview">
+        {renderKpis()}
+        <div className="bundesliga-admin-workbench">
+          <main>
+            {renderOperationsQueue()}
+            {renderResultsPanel()}
+            {renderParticipantEvaluation()}
+          </main>
+          <aside className="bundesliga-admin-side">
+            {renderReleaseSettings()}
+            {renderQualityCheck()}
+            {renderTopScorers({ compact: true })}
+            <section className="bundesliga-dark-panel bundesliga-diagnostic-teaser">
+              <header>
+                <h3>Diagnose & Probelauf</h3>
+                <button type="button" onClick={() => setActiveAdminView("diagnostics")}>Öffnen</button>
+              </header>
+              <p>Release-Probelauf, Testdaten-Reset, Team-Logoqualität und geschützte Automatik-Flags sind gebündelt in der Diagnose.</p>
+            </section>
+          </aside>
+        </div>
+      </div>
+    );
+  }
+
+  function renderDataImport() {
+    return (
+      <div className="bundesliga-release-grid">
+        <section className="bundesliga-dark-panel bundesliga-import-panel">
+          <header>
+            <h3>Datenimport</h3>
+            <span>OpenLigaDB · bl1/2025</span>
+          </header>
+          <div className="bundesliga-command-grid">
+            <button type="button" onClick={() => onImport(includeRelegation)} disabled={loading}>
+              <Download size={23} />
+              <span><strong>Spielplan importieren</strong><small>Teams, Spielplan, Logos, Tore</small></span>
+            </button>
+            <div className="bundesliga-import-control">
+              <CalendarDays size={22} />
+              <span><strong>Ergebnisse bis Spieltag</strong></span>
+              <input
+                type="number"
+                min="1"
+                max={maxMatchday}
+                value={nextMatchday}
+                onChange={(event) => setThroughMatchday(Number(event.target.value))}
+              />
+              <button type="button" onClick={() => onImportResults(nextMatchday)} disabled={loading || leagueMatches.length === 0}>
+                Importieren
+              </button>
+            </div>
+            <button type="button" onClick={() => onImportResults(maxMatchday)} disabled={loading || leagueMatches.length === 0}>
+              <ListFilter size={23} />
+              <span><strong>Alle Ergebnisse aktualisieren</strong><small>alle Spieltage prüfen</small></span>
+            </button>
+            <button type="button" onClick={onImportTopScorers} disabled={loading}>
+              <Goal size={23} />
+              <span><strong>Torschützen aktualisieren</strong><small>OpenLigaDB Goalgetters</small></span>
+            </button>
+          </div>
+          <div className="bundesliga-admin-inline-controls">
+            <label>
+              <input
+                type="checkbox"
+                checked={includeRelegation}
+                onChange={(event) => setIncludeRelegation(event.target.checked)}
+              />
+              Relegation beim Spielplanimport mitladen
+            </label>
+            <button type="button" onClick={onResetResults} disabled={loading || resultCount === 0}>Ergebnisse zurücksetzen</button>
+            <button type="button" onClick={onRefresh} disabled={loading}>Daten aktualisieren</button>
+          </div>
+        </section>
+        {renderTopScorers()}
+        {renderTeamLogoQuality()}
+        {renderReleaseSettings()}
+      </div>
+    );
+  }
+
+  function renderBonusAdmin() {
+    return (
+      <div className="bundesliga-release-grid">
+        {renderBonusResults()}
+        {renderTopScorers()}
+        {renderRules()}
+      </div>
+    );
+  }
+
+  function renderDiagnostics() {
+    return (
+      <div className="bundesliga-release-grid">
+        {renderReleaseProbe()}
+        {renderReleaseChecklist()}
+        {renderQualityCheck()}
+        {renderTeamLogoQuality()}
+        <section className="bundesliga-dark-panel">
+          <header>
+            <h3>Demo-Daten</h3>
+            <span>{data?.demoParticipants?.length ?? 0} Demo-Tipper</span>
+          </header>
+          <div className="bundesliga-command-grid">
+            <button type="button" onClick={onGenerateDemoTips} disabled={loading || leagueMatches.length === 0}>
+              <UsersRound size={23} />
+              <span><strong>Demo-Tipps füllen</strong><small>alle Spiele für Demo-Tipper</small></span>
+            </button>
+          </div>
+          <section className="bundesliga-demo-create">
+            <label>
+              Demo-Tipper
+              <input
+                value={demoName}
+                onChange={(event) => setDemoName(event.target.value)}
+                placeholder="Name des Test-Tippers"
+              />
+            </label>
+            <button type="button" onClick={createDemoParticipant} disabled={loading || demoName.trim().length < 2}>
+              Speichern
+            </button>
+          </section>
+        </section>
+      </div>
+    );
+  }
+
   return (
     <section className="bundesliga-admin-setup">
       <aside className="bundesliga-lab-rail">
         <div className="bundesliga-mark">
           <BundesligaBrandLogo decorative variant="icon" />
-          <strong>Testlabor</strong>
+          <strong>Admin</strong>
         </div>
-        {labNavItems.map(({ id, label, Icon }) => (
+        {adminNavItems.map(({ id, label, Icon }) => (
           <button
             key={id}
             type="button"
-            className={activeLabView === id ? "active" : ""}
-            onClick={() => setActiveLabView(id)}
+            className={activeAdminView === id ? "active" : ""}
+            onClick={() => setActiveAdminView(id)}
           >
             <Icon size={18} />
             {label}
@@ -6416,75 +6622,22 @@ function BundesligaAdminSetup({
       <div className="bundesliga-lab-main">
         <header className="bundesliga-lab-header">
           <div>
-            <h2>Bundesliga Testlabor</h2>
-            <p>Admin · Testumgebung 2025/2026</p>
+            <h2>Bundesliga Admin</h2>
+            <p>Saison 2025/2026 · OpenLigaDB · {data?.competition?.public_enabled ? "öffentlich" : "versteckt"}</p>
           </div>
-          <span>Testmodus: <strong>Admin</strong></span>
+          <span>Status: <strong>{data?.competition?.public_enabled ? "Öffentlich" : "Versteckt"}</strong></span>
           <button type="button" onClick={onBackToWorldCup}>Zur WM-2026 Version</button>
         </header>
-
-        <section className="bundesliga-command-grid">
-          <button type="button" onClick={() => onImport(includeRelegation)} disabled={loading}>
-            <Download size={23} />
-            <span><strong>OpenLigaDB importieren</strong><small>Teams, Spielplan, Logos</small></span>
-          </button>
-          <button type="button" onClick={onGenerateDemoTips} disabled={loading || leagueMatches.length === 0}>
-            <UsersRound size={23} />
-            <span><strong>Demo-Tipps füllen</strong><small>Alle Spiele für Demo-Tipper</small></span>
-          </button>
-          <div className="bundesliga-import-control">
-            <CalendarDays size={22} />
-            <span><strong>Ergebnisse bis Spieltag</strong></span>
-            <input
-              type="number"
-              min="1"
-              max={maxMatchday}
-              value={nextMatchday}
-              onChange={(event) => setThroughMatchday(Number(event.target.value))}
-            />
-            <button type="button" onClick={() => onImportResults(nextMatchday)} disabled={loading || leagueMatches.length === 0}>
-              Importieren
-            </button>
-          </div>
-          <button type="button" onClick={onResetResults} disabled={loading || resultCount === 0}>
-            <ShieldCheck size={23} />
-            <span><strong>Ergebnisse zurücksetzen</strong><small>Nur Bundesliga-Testdaten</small></span>
-          </button>
-          <button type="button" onClick={() => onImportResults(maxMatchday)} disabled={loading || leagueMatches.length === 0}>
-            <ListFilter size={23} />
-            <span><strong>Ergebnisse aktualisieren</strong><small>alle Spieltage prüfen</small></span>
-          </button>
-          <button type="button" onClick={onImportTopScorers} disabled={loading}>
-            <Goal size={23} />
-            <span><strong>Torschützen aktualisieren</strong><small>OpenLigaDB Goalgetters</small></span>
-          </button>
-          <button type="button" onClick={() => { window.location.hash = "bundesliga-start"; }}>
-            <ChevronRight size={23} />
-            <span><strong>Teilnehmeransicht öffnen</strong><small>Versteckte Bundesliga-Version</small></span>
-          </button>
-          <button type="button" onClick={onCreateInviteCodes} disabled={loading}>
-            <QrCode size={23} />
-            <span><strong>10 Bundesliga-Codes</strong><small>Getrennte Teilnehmercodes</small></span>
-          </button>
-        </section>
 
         <section className="bundesliga-lab-stats" aria-label="Bundesliga Teststatus">
           <span><strong>{leagueMatches.length}</strong> Liga-Spiele</span>
           <span><strong>{data?.teams?.length ?? 0}</strong> Teams</span>
           <span><strong>{participants.length}</strong> Teilnehmer</span>
-          <span><strong>{data?.demoTips?.length ?? 0}</strong> Demo-Tipps</span>
           <span><strong>{importedThrough || 0}</strong> Spieltage gewertet</span>
           <span><strong>{dataQuality.topScorerCount ?? topScorerRows.length}</strong> Torschützen</span>
           {dataQuality.lastTopScorerImportAt && <span><strong>{formatDateTime(dataQuality.lastTopScorerImportAt)}</strong> letzter Torschützen-Import</span>}
-          <label>
-            <input
-              type="checkbox"
-              checked={includeRelegation}
-              onChange={(event) => setIncludeRelegation(event.target.checked)}
-            />
-            Relegation mitladen
-          </label>
           <button type="button" onClick={onRefresh} disabled={loading}>Aktualisieren</button>
+          <button type="button" onClick={() => { window.location.hash = "bundesliga-start"; }}>Teilnehmeransicht öffnen</button>
         </section>
 
         {message && <p className="bundesliga-lab-message">{message}</p>}
@@ -6509,59 +6662,31 @@ function BundesligaAdminSetup({
           </p>
         )}
 
-        {activeLabView === "overview" && (
-          <div className="bundesliga-lab-layout">
-            {renderStandingsTable()}
-
-            <aside className="bundesliga-lab-side">
-              {renderReleaseProbe()}
-              {renderQualityCheck()}
-              {renderReleaseSettings()}
-              {renderReleaseChecklist()}
-              {renderResultsPanel({ compact: true })}
-              {renderTipEvaluation({ compact: true })}
-              {renderTopScorers({ compact: true })}
-              <section className="bundesliga-demo-create">
-              <label>
-                Demo-Tipper
-                <input
-                  value={demoName}
-                  onChange={(event) => setDemoName(event.target.value)}
-                  placeholder="Name des Test-Tippers"
-                />
-              </label>
-              <button type="button" onClick={createDemoParticipant} disabled={loading || demoName.trim().length < 2}>
-                Speichern
-              </button>
-            </section>
-              <section className="bundesliga-dark-panel">
-                <header><h3>Letzte Bundesliga-Codes</h3></header>
-                <div className="bundesliga-code-list">
-                  {inviteCodes.slice(0, 5).map((item) => (
-                    <div key={item.id}>
-                      <strong>{item.code}</strong>
-                      <span>{item.status}</span>
-                      <small>{getBundesligaInviteUrl(item.code)}</small>
-                    </div>
-                  ))}
-                  {inviteCodes.length === 0 && <p>Noch keine Bundesliga-Codes erzeugt.</p>}
-                </div>
-              </section>
-            </aside>
+        {activeAdminView === "overview" && renderOverview()}
+        {activeAdminView === "participants" && (
+          <div className="bundesliga-release-grid">
+            {renderParticipants()}
+            {renderParticipantEvaluation()}
           </div>
         )}
-
-        {activeLabView === "schedule" && renderSchedule()}
-        {activeLabView === "table" && renderStandingsTable()}
-        {activeLabView === "results" && renderResultsPanel()}
-        {activeLabView === "tips" && renderTipEvaluation()}
-        {activeLabView === "participants" && renderParticipants()}
-        {activeLabView === "codes" && renderCodes()}
-        {activeLabView === "bonus-results" && renderBonusResults()}
-        {activeLabView === "ranking" && renderRanking()}
-        {activeLabView === "participants" && renderParticipantEvaluation()}
-        {activeLabView === "scorers" && renderTopScorers()}
-        {activeLabView === "rules" && renderRules()}
+        {activeAdminView === "codes" && renderCodes()}
+        {activeAdminView === "schedule" && (
+          <div className="bundesliga-release-grid">
+            {renderSchedule()}
+            {renderStandingsTable()}
+          </div>
+        )}
+        {activeAdminView === "results" && (
+          <div className="bundesliga-release-grid">
+            {renderResultsPanel()}
+            {renderParticipantEvaluation()}
+            {renderTipEvaluation()}
+          </div>
+        )}
+        {activeAdminView === "bonus" && renderBonusAdmin()}
+        {activeAdminView === "ranking" && renderRanking()}
+        {activeAdminView === "import" && renderDataImport()}
+        {activeAdminView === "diagnostics" && renderDiagnostics()}
       </div>
     </section>
   );

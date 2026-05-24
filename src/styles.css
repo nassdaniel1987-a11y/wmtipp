@@ -2086,7 +2086,7 @@ tbody tr:nth-child(1) td:first-child {
 
 .bundesliga-lab-rail {
   display: grid;
-  grid-template-rows: auto repeat(7, auto) minmax(0, 1fr);
+  grid-template-rows: auto repeat(9, auto) minmax(0, 1fr);
   gap: 6px;
   padding: 18px 12px;
   background:
@@ -2199,6 +2199,144 @@ tbody tr:nth-child(1) td:first-child {
   background:
     radial-gradient(circle at 82% 5%, rgba(255, 255, 255, 0.08), transparent 26%),
     linear-gradient(145deg, #151a1e 0%, #101418 52%, #161b1f 100%);
+}
+
+.bundesliga-admin-overview,
+.bundesliga-release-grid {
+  min-width: 0;
+}
+
+.bundesliga-admin-kpis {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.bundesliga-admin-kpis article {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 13px 14px;
+  border: 1px solid #343d45;
+  border-radius: 5px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.018));
+}
+
+.bundesliga-admin-kpis span,
+.bundesliga-admin-kpis small {
+  color: #aeb8c1;
+  font-size: 0.76rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.bundesliga-admin-kpis strong {
+  color: #ffffff;
+  font-size: 1.45rem;
+  font-weight: 950;
+}
+
+.bundesliga-admin-workbench {
+  display: grid;
+  grid-template-columns: minmax(610px, 1fr) minmax(320px, 0.46fr);
+  gap: 16px;
+  align-items: start;
+  margin-top: 14px;
+}
+
+.bundesliga-admin-workbench > main,
+.bundesliga-admin-side {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.bundesliga-operations-queue > div {
+  display: grid;
+}
+
+.bundesliga-operations-queue article {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  min-height: 58px;
+  padding: 10px 14px;
+  border-bottom: 1px solid #2c343b;
+}
+
+.bundesliga-operations-queue article:last-child {
+  border-bottom: 0;
+}
+
+.bundesliga-operations-queue article > span {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  color: #ffffff;
+  background: #8a2b25;
+  font-size: 0.72rem;
+  font-weight: 950;
+}
+
+.bundesliga-operations-queue article.ok > span {
+  background: #286d38;
+}
+
+.bundesliga-operations-queue article div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.bundesliga-operations-queue strong {
+  color: #ffffff;
+  font-weight: 950;
+}
+
+.bundesliga-operations-queue small {
+  color: #aeb8c1;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.bundesliga-operations-queue button,
+.bundesliga-diagnostic-teaser button,
+.bundesliga-admin-inline-controls button {
+  min-height: 34px;
+  border: 1px solid #4a535c;
+  border-radius: 4px;
+  padding: 0 12px;
+  color: #ffffff;
+  background: #161b20;
+  font-weight: 950;
+}
+
+.bundesliga-diagnostic-teaser p {
+  line-height: 1.45;
+}
+
+.bundesliga-admin-inline-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  padding: 14px;
+  border-top: 1px solid #2c343b;
+}
+
+.bundesliga-admin-inline-controls label {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  color: #c9d1d8;
+  font-weight: 850;
+}
+
+.bundesliga-import-panel .bundesliga-command-grid {
+  padding: 14px;
 }
 
 .bundesliga-lab-header {
@@ -4134,19 +4272,23 @@ tbody tr:nth-child(1) td:first-child {
   }
 
   .bundesliga-lab-rail {
-    grid-template-columns: auto repeat(4, auto) minmax(0, 1fr);
+    grid-template-columns: auto repeat(9, auto) minmax(0, 1fr);
     grid-template-rows: auto;
     align-items: center;
     overflow-x: auto;
   }
 
-  .bundesliga-lab-rail > button:nth-of-type(n+5),
   .bundesliga-rail-meta {
     display: none;
   }
 
-  .bundesliga-lab-layout {
+  .bundesliga-lab-layout,
+  .bundesliga-admin-workbench {
     grid-template-columns: 1fr;
+  }
+
+  .bundesliga-admin-kpis {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .bundesliga-command-grid {
@@ -6453,6 +6595,22 @@ tbody tr:nth-child(1) td:first-child {
   .bundesliga-probe-report,
   .bundesliga-probe-warnings {
     grid-template-columns: 1fr;
+  }
+
+  .bundesliga-admin-kpis,
+  .bundesliga-admin-workbench,
+  .bundesliga-operations-queue article,
+  .bundesliga-admin-inline-controls,
+  .bundesliga-import-control {
+    grid-template-columns: 1fr;
+  }
+
+  .bundesliga-admin-inline-controls {
+    display: grid;
+  }
+
+  .bundesliga-operations-queue article > span {
+    justify-self: start;
   }
 
   .bundesliga-public-header {
