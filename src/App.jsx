@@ -38,7 +38,15 @@ import { displayTeamName } from "./teamNames.js";
 
 const STORAGE_KEY = "wm-tippspiel-participant";
 const BUNDESLIGA_STORAGE_KEY = "bundesliga-tippspiel-participant";
-const BUNDESLIGA_LOGO_URL = "/bundesliga-logo.png";
+const BUNDESLIGA_BRAND_ASSETS = {
+  header: "/brand/bundesliga/logo-header.png",
+  compact: "/brand/bundesliga/logo-compact.png",
+  icon: "/brand/bundesliga/icon-512.png",
+  badgeMatchdayWinner: "/brand/bundesliga/badge-matchday-winner.png",
+  badgeRankingTop3: "/brand/bundesliga/badge-ranking-top3.png",
+  badgeLive: "/brand/bundesliga/badge-live.png",
+  shareCardBg: "/brand/bundesliga/share-card-bg.png",
+};
 const ANDROID_APK_URL = "/downloads/wmtippspiel-latest.apk";
 const tabs = [
   { id: "start", label: "Start", icon: House },
@@ -210,11 +218,13 @@ function BundesligaLogo({ src, name, className = "bundesliga-team-logo" }) {
   );
 }
 
-function BundesligaBrandLogo({ className = "bundesliga-brand-logo", decorative = false }) {
+function BundesligaBrandLogo({ className = "bundesliga-brand-logo", decorative = false, variant = "header" }) {
+  const src = BUNDESLIGA_BRAND_ASSETS[variant] ?? BUNDESLIGA_BRAND_ASSETS.header;
+
   return (
-    <span className={className}>
+    <span className={`${className} ${variant ? `is-${variant}` : ""}`}>
       <img
-        src={BUNDESLIGA_LOGO_URL}
+        src={src}
         alt={decorative ? "" : "Österfeld Bundesliga Tippspiel"}
       />
     </span>
@@ -4836,7 +4846,10 @@ function BundesligaParticipantApp({ isTestMode }) {
       <section className="bundesliga-public-card bundesliga-community-card">
         <h2>Community</h2>
         {latestWinner ? (
-          <p>Letzter Spieltagssieger: <strong>{latestWinner.winners.map((row) => row.name).join(", ")}</strong> mit {latestWinner.bestPoints} Punkten an ST {latestWinner.matchday}.</p>
+          <div className="bundesliga-winner-callout">
+            <img src={BUNDESLIGA_BRAND_ASSETS.badgeMatchdayWinner} alt="" aria-hidden="true" />
+            <p>Letzter Spieltagssieger: <strong>{latestWinner.winners.map((row) => row.name).join(", ")}</strong> mit {latestWinner.bestPoints} Punkten an ST {latestWinner.matchday}.</p>
+          </div>
         ) : (
           <p>Spieltagssieger erscheinen, sobald Ergebnisse und Tipps gewertet sind.</p>
         )}
@@ -4863,6 +4876,7 @@ function BundesligaParticipantApp({ isTestMode }) {
         )}
         {currentParticipantRank && (
           <div className="bundesliga-share-card">
+            <img src={BUNDESLIGA_BRAND_ASSETS.icon} alt="" aria-hidden="true" />
             <span>Share-Karte</span>
             <strong>{currentParticipantRank.name}</strong>
             <b>{currentParticipantRank.points} Punkte · Platz {ranking.findIndex((row) => row.id === currentParticipantRank.id || row.name === currentParticipantRank.name) + 1}</b>
@@ -4915,7 +4929,7 @@ function BundesligaParticipantApp({ isTestMode }) {
     <div className="bundesliga-public-shell">
       <header className="bundesliga-public-header">
         <button type="button" className="bundesliga-header-brand" onClick={() => setBundesligaTab("bundesliga-start")}>
-          <BundesligaBrandLogo decorative />
+          <BundesligaBrandLogo decorative variant="compact" />
           <span>
             <strong>Österfeld Bundesliga</strong>
             <small>versteckte Testversion</small>
@@ -4941,7 +4955,7 @@ function BundesligaParticipantApp({ isTestMode }) {
           <section className="bundesliga-home-grid">
             <section className="bundesliga-welcome-card bundesliga-public-card">
               <div className="bundesliga-dashboard-hero">
-                <BundesligaBrandLogo />
+                <BundesligaBrandLogo variant="header" />
                 <div>
                   <span>Versteckte Testversion</span>
                   <h1>Bundesliga starten</h1>
@@ -4989,7 +5003,7 @@ function BundesligaParticipantApp({ isTestMode }) {
               {renderPersonalStatsCard()}
               {renderBonusReminder()}
               <section className="bundesliga-public-card bundesliga-top-three">
-                <h2>Top 3</h2>
+                <h2><img src={BUNDESLIGA_BRAND_ASSETS.badgeRankingTop3} alt="" aria-hidden="true" /> Top 3</h2>
                 <div>
                   {topRankingRows.map((row, index) => (
                     <article key={row.id ?? row.name}>
@@ -6375,7 +6389,7 @@ function BundesligaAdminSetup({
     <section className="bundesliga-admin-setup">
       <aside className="bundesliga-lab-rail">
         <div className="bundesliga-mark">
-          <BundesligaBrandLogo decorative />
+          <BundesligaBrandLogo decorative variant="icon" />
           <strong>Testlabor</strong>
         </div>
         {labNavItems.map(({ id, label, Icon }) => (

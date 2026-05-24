@@ -153,7 +153,7 @@ cd android-app
 - OpenLigaDB ist als Hauptquelle vorbereitet: Teams, Logos, Spielplan, Ergebnisse und Torschützen.
 - Torschützen werden über `getgoalgetters/bl1/2025` importiert und im Admin korrigierbar gemacht.
 - Bundesliga-Teilnehmer, Codes, Tipps und Bonus-Tipps sind von WM-Teilnehmern getrennt.
-- Bundesliga-UX nutzt das dunkle Testlabor-Design mit Österfeld-Bundesliga-Logo aus `public/bundesliga-logo.png`.
+- Bundesliga-UX nutzt ein eigenes Branding-Set unter `public/brand/bundesliga/`: Scoreboard-Header aus Konzept C, App-Icon aus Konzept D und Badge-Grafiken aus dem ersten Logo-Durchgang.
 - Spieltag-Zentrale, Live-Spieltag-Auswertung, Bonus-Erinnerung, mobile Rangliste und Admin-Qualitätscheck sind eingebaut.
 - Das Startdashboard zeigt „Nächste Spiele“ als kompakte Logo-Paarungen ohne Ergebnisanzeige.
 - Das Admin-Testlabor enthält jetzt einen sichtbaren Release-Probelauf mit Ampelstatus für Daten, Codes, Teilnehmer, Tipps, Bonus, Ergebnisse und Rangliste.
