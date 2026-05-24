@@ -175,6 +175,14 @@ const bundesligaTabIds = new Set([
   "bundesliga-tabelle",
   "bundesliga-torschuetzen",
   "bundesliga-spielplan",
+  "bundesliga-v2-start",
+  "bundesliga-v2-tippen",
+  "bundesliga-v2-bonus",
+  "bundesliga-v2-rangliste",
+  "bundesliga-v2-live",
+  "bundesliga-v2-tabelle",
+  "bundesliga-v2-torschuetzen",
+  "bundesliga-v2-spielplan",
 ]);
 
 function getBundesligaTabFromHash() {
@@ -4558,6 +4566,10 @@ function BundesligaParticipantApp({ isTestMode }) {
     setActiveTab(tabId);
   }
 
+  function setBundesligaV2Section(sectionId) {
+    setBundesligaTab(`bundesliga-v2-${sectionId}`);
+  }
+
   async function refreshRanking() {
     if (isTestMode) {
       const testData = createTestBundesligaData();
@@ -5275,6 +5287,491 @@ function BundesligaParticipantApp({ isTestMode }) {
     );
   }
 
+  function renderV2LoginPanel() {
+    const needsName = loginState === "needsName";
+    const busy = loginState === "checking" || loginState === "submitting";
+    return (
+      <section className={`bundesliga-v2-panel bundesliga-v2-login state-${loginState}`}>
+        <div className="bundesliga-v2-panel-head">
+          <span>{participant ? "Zugang aktiv" : "Code Login"}</span>
+          <strong>{participant ? participant.name : "Bundesliga-Code eingeben"}</strong>
+          <p>{loginFeedback}</p>
+        </div>
+        {!participant ? (
+          <form onSubmit={needsName ? claimCode : checkBundesligaCode}>
+            <label>
+              Code
+              <input
+                value={code}
+                onChange={(event) => {
+                  setCode(event.target.value);
+                  if (loginState !== "idle") {
+                    setLoginState("idle");
+                    setLoginFeedback("Code bereit zur Prüfung.");
+                  }
+                }}
+                placeholder="BL-..."
+                autoComplete="one-time-code"
+              />
+            </label>
+            {needsName && (
+              <label>
+                Name
+                <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Dein Name" />
+              </label>
+            )}
+            <button type="submit" disabled={busy || !code.trim() || (needsName && name.trim().length < 2)}>
+              {needsName ? "Aktivieren" : busy ? "Prüfe..." : "Einloggen"}
+            </button>
+          </form>
+        ) : (
+          <div className="bundesliga-v2-action-row">
+            <button type="button" onClick={() => setBundesligaV2Section("tippen")}>Tipps öffnen</button>
+            <button type="button" className="ghost" onClick={resetBundesligaLogin}>Code wechseln</button>
+          </div>
+        )}
+      </section>
+    );
+  }
+
+  function renderV2MatchdayControls() {
+    return (
+      <div className="bundesliga-v2-matchday-bar">
+        <button type="button" onClick={() => moveMatchday(-1)} disabled={selectedMatchdayIndex <= 0}>
+          <ChevronRight size={18} />
+        </button>
+        <strong>ST {selectedMatchday}</strong>
+        <button type="button" onClick={() => moveMatchday(1)} disabled={selectedMatchdayIndex >= matchdayOptions.length - 1}>
+          <ChevronRight size={18} />
+        </button>
+        <span>{visibleSavedTipCount}/{visibleMatches.length} Tipps</span>
+      </div>
+    );
+  }
+
+  function renderV2MatchdayRail() {
+    return (
+      <div className="bundesliga-v2-day-rail" aria-label="Spieltag wählen">
+        {matchdayOptions.map((day) => {
+          const status = matchdayStatusRows.find((row) => row.matchday === day)?.status ?? "open";
+          return (
+            <button key={day} type="button" className={[Number(selectedMatchday) === day ? "active" : "", `status-${status}`].filter(Boolean).join(" ")} onClick={() => setSelectedMatchday(day)}>
+              {day}
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
+
+  function renderV2ScoreCell(match, tip, tipLocked) {
+    return (
+      <div className="bundesliga-v2-score-cell">
+        <ScoreControl value={tip.scoreA} onIncrease={() => changeScore(match.id, "scoreA", 1)} onDecrease={() => changeScore(match.id, "scoreA", -1)} disabled={tipLocked} />
+        <span>:</span>
+        <ScoreControl value={tip.scoreB} onIncrease={() => changeScore(match.id, "scoreB", 1)} onDecrease={() => changeScore(match.id, "scoreB", -1)} disabled={tipLocked} />
+      </div>
+    );
+  }
+
+  function renderV2TipRows({ compact = false } = {}) {
+    return (
+      <div className={compact ? "bundesliga-v2-tip-feed compact" : "bundesliga-v2-tip-feed"}>
+        {visibleMatches.map((match) => {
+          const tip = tips[match.id] ?? { scoreA: null, scoreB: null, saved: false };
+          const result = resultsByMatch.get(match.id);
+          const matchState = getBundesligaMatchState(match, result);
+          const tipLocked = !isTestMode && matchState !== "open";
+          const statusLabel = matchStatusLabel(match, result, tip);
+          const statusClass = result?.status === "final" ? "finished" : tip?.saved ? "saved" : matchState;
+          return (
+            <article key={match.id} id={`bundesliga-match-${match.id}`} className={`bundesliga-v2-match-row status-${matchState}${tip.saved ? " is-saved" : ""}`}>
+              <time>{formatDateTime(match.kickoffAt)}</time>
+              <div className="bundesliga-v2-clubs">
+                {teamBadge(match.teamAId, match.teamA)}
+                {teamBadge(match.teamBId, match.teamB)}
+              </div>
+              {renderV2ScoreCell(match, tip, tipLocked)}
+              <div className="bundesliga-v2-row-meta">
+                <span className={`bundesliga-match-status status-${statusClass}`}>{statusLabel}</span>
+                <small>{tip.saved ? "gespeichert" : tipStatuses[match.id] === "pending" ? "Autosave wartet" : result ? `${result.score_a}:${result.score_b}` : "offen"}</small>
+              </div>
+              <button type="button" onClick={() => saveTipRows([match.id])} disabled={!isCompleteTip(tip) || tipLocked}>Speichern</button>
+            </article>
+          );
+        })}
+      </div>
+    );
+  }
+
+  function renderV2Start() {
+    return (
+      <section className="bundesliga-v2-dashboard">
+        <section className="bundesliga-v2-hero">
+          <div>
+            <BundesligaBrandLogo variant="compact" />
+            <h1>{participant ? `Hallo ${participant.name}` : "Bundesliga starten"}</h1>
+            <p>{participant ? "Deine Spieltage, dein Bonus und dein Live-Stand in einer kompakten Zentrale." : "Code eingeben, Bereich aktivieren und direkt mit deinen Tipps loslegen."}</p>
+          </div>
+          <div className="bundesliga-v2-hero-score">
+            <span>Dein Stand</span>
+            <strong>{currentParticipantRank ? `${currentParticipantRank.points} P` : "0 P"}</strong>
+            <small>{currentParticipantRank ? `Platz ${ranking.findIndex((row) => row.id === currentParticipantRank.id || row.name === currentParticipantRank.name) + 1}` : "nach Login sichtbar"}</small>
+          </div>
+        </section>
+        <section className="bundesliga-v2-kpi-grid">
+          <article><span>Offene Tipps</span><strong>{openTipCount}</strong><small>{savedTipCount}/{matches.length} gespeichert</small></article>
+          <article><span>Bonus</span><strong>{bonusStatus.doneCount}/{bonusStatus.totalCount}</strong><small>{bonusStatus.complete ? "fertig" : "noch offen"}</small></article>
+          <article><span>Nächster Fokus</span><strong>ST {nextOpenMatchday}</strong><small>{selectedMatchdayStatus.openTipCount} offen</small></article>
+          <article><span>Live</span><strong>{liveData?.standings?.[0]?.points ?? 0}</strong><small>aktueller Spieltag</small></article>
+        </section>
+        {renderV2LoginPanel()}
+        <section className="bundesliga-v2-grid">
+          <article className="bundesliga-v2-panel bundesliga-v2-next">
+            <div className="bundesliga-v2-panel-head">
+              <span>Nächster Schritt</span>
+              <strong>{openTipCount > 0 ? `Spieltag ${nextOpenMatchday} tippen` : bonusStatus.complete ? "Live verfolgen" : "Bonus fertig machen"}</strong>
+              <p>{openTipCount > 0 ? "Der nächste offene Spieltag wartet schon." : bonusStatus.complete ? "Alles vorbereitet, jetzt zählt der Spieltag." : "Meister, Torschütze und Absteiger fehlen noch."}</p>
+            </div>
+            <div className="bundesliga-v2-action-row">
+              <button type="button" onClick={() => {
+                if (openTipCount > 0) {
+                  setSelectedMatchday(nextOpenMatchday);
+                  setBundesligaV2Section("tippen");
+                } else if (!bonusStatus.complete) {
+                  setBundesligaV2Section("bonus");
+                } else {
+                  setBundesligaV2Section("live");
+                }
+              }}>
+                Weiter
+              </button>
+              <button type="button" className="ghost" onClick={() => setBundesligaV2Section("rangliste")}>Rangliste</button>
+            </div>
+          </article>
+          <article className="bundesliga-v2-panel">
+            <button type="button" className="bundesliga-v2-heading-link" onClick={() => setBundesligaV2Section("tabelle")}>Live-Tabelle</button>
+            <div className="bundesliga-v2-mini-table">
+              {displayTableRows.slice(0, 6).map((row, index) => (
+                <div key={row.teamId}>
+                  <span>{index + 1}</span>
+                  <BundesligaLogo src={row.logoUrl} name={row.team} />
+                  <strong>{row.team}</strong>
+                  <b>{row.points}</b>
+                </div>
+              ))}
+            </div>
+          </article>
+          <article className="bundesliga-v2-panel">
+            <button type="button" className="bundesliga-v2-heading-link" onClick={() => setBundesligaV2Section("live")}>Live-Spieltag</button>
+            <div className="bundesliga-v2-live-strip">
+              {(liveData?.standings ?? topRankingRows).slice(0, 4).map((row, index) => (
+                <div key={row.participantId ?? row.id ?? row.name}>
+                  <span>{index + 1}</span>
+                  <strong>{row.name}</strong>
+                  <b>{row.points} P</b>
+                </div>
+              ))}
+              {(liveData?.standings ?? topRankingRows).length === 0 && <p>Noch keine Live-Daten.</p>}
+            </div>
+          </article>
+          <article className="bundesliga-v2-panel">
+            <button type="button" className="bundesliga-v2-heading-link" onClick={() => setBundesligaV2Section("spielplan")}>Nächste Spiele</button>
+            <div className="bundesliga-v2-fixtures">
+              {dashboardMatches.slice(0, 4).map((match) => (
+                <div key={match.id}>
+                  <time>{formatDateTime(match.kickoffAt)}</time>
+                  {teamBadge(match.teamAId, match.teamA)}
+                  <span>vs</span>
+                  {teamBadge(match.teamBId, match.teamB)}
+                </div>
+              ))}
+            </div>
+          </article>
+          <article className="bundesliga-v2-panel">
+            <button type="button" className="bundesliga-v2-heading-link" onClick={() => setBundesligaV2Section("torschuetzen")}>Torschützen</button>
+            <div className="bundesliga-v2-scorers">
+              {topScorerPreview.map((row, index) => (
+                <div key={row.id ?? row.display_name}>
+                  <span>{index + 1}</span>
+                  <strong>{row.display_name}</strong>
+                  <b>{row.goals}</b>
+                </div>
+              ))}
+            </div>
+          </article>
+        </section>
+      </section>
+    );
+  }
+
+  function renderV2Tippen() {
+    return (
+      <section className="bundesliga-v2-page-grid">
+        <section className="bundesliga-v2-panel">
+          <div className="bundesliga-v2-section-title">
+            <div><span>Tippen</span><h1>Spieltag {selectedMatchday}</h1></div>
+            <button type="button" onClick={saveVisibleMatchdayTips}>Spieltag speichern</button>
+          </div>
+          {renderV2MatchdayControls()}
+          {renderV2MatchdayRail()}
+          {renderV2TipRows()}
+        </section>
+        <aside className="bundesliga-v2-aside">
+          <section className="bundesliga-v2-panel">
+            <div className="bundesliga-v2-panel-head"><span>Fortschritt</span><strong>{visibleSavedTipCount}/{visibleMatches.length}</strong><p>{message}</p></div>
+          </section>
+          {renderV2LoginPanel()}
+        </aside>
+      </section>
+    );
+  }
+
+  function renderV2Live() {
+    return (
+      <section className="bundesliga-v2-page-grid">
+        <section className="bundesliga-v2-panel">
+          <div className="bundesliga-v2-section-title">
+            <div><span>Live</span><h1>Spieltag {selectedMatchday}</h1></div>
+            <button type="button" onClick={() => setLiveRefreshKey((current) => current + 1)}>Aktualisieren</button>
+          </div>
+          {renderV2MatchdayControls()}
+          <div className="bundesliga-v2-live-board">
+            <section>
+              <h2>Live-Rangliste</h2>
+              {(liveData?.standings ?? []).map((row, index) => (
+                <div key={row.participantId ?? row.name} className={row.participantId === participant?.id ? "current" : ""}>
+                  <span>{index + 1}</span><strong>{row.name}</strong><b>{row.points} P</b>
+                </div>
+              ))}
+              {(!liveData?.standings || liveData.standings.length === 0) && <p>Noch keine sichtbare Spieltag-Auswertung.</p>}
+            </section>
+            <section>
+              <h2>Spiele & Tipps</h2>
+              {(liveData?.matches ?? []).map((match) => (
+                <article key={match.id}>
+                  <header><span>{match.teamA} - {match.teamB}</span><b>{Number.isInteger(match.scoreA) ? `${match.scoreA}:${match.scoreB}` : "-:-"}</b></header>
+                  {(match.tips ?? []).slice(0, 6).map((tip) => (
+                    <div key={`${match.id}-${tip.participantId}-${tip.name}`} className={tip.isOwnTip ? "own" : ""}>
+                      <strong>{tip.isOwnTip ? "Du" : tip.name}</strong>
+                      <span>{tip.visible ? `${tip.scoreA}:${tip.scoreB}` : "versteckt"}</span>
+                      <b>{Number.isInteger(tip.points) ? `${tip.points} P` : "-"}</b>
+                      {tip.reason && <small>{tip.reason}</small>}
+                    </div>
+                  ))}
+                </article>
+              ))}
+            </section>
+          </div>
+        </section>
+        <aside className="bundesliga-v2-aside">
+          <section className="bundesliga-v2-panel">
+            <button type="button" className="bundesliga-v2-heading-link" onClick={() => setBundesligaV2Section("rangliste")}>Gesamtrangliste</button>
+            <div className="bundesliga-v2-live-strip">
+              {topRankingRows.map((row, index) => <div key={row.id ?? row.name}><span>{index + 1}</span><strong>{row.name}</strong><b>{row.points} P</b></div>)}
+            </div>
+          </section>
+        </aside>
+      </section>
+    );
+  }
+
+  function renderV2Bonus() {
+    return (
+      <section className="bundesliga-v2-page-grid">
+        <section className="bundesliga-v2-panel">
+          <div className="bundesliga-v2-section-title">
+            <div><span>Bonus</span><h1>Saisonfragen</h1></div>
+            <button type="button" onClick={() => saveBonus()}>Bonus speichern</button>
+          </div>
+          <section className="bundesliga-v2-choice-block">
+            <h2>Meister</h2>
+            <div className="bundesliga-v2-team-grid">
+              {teams.map((team) => (
+                <button key={team.id} type="button" className={bonusTip.championTeamId === team.id ? "selected" : ""} onClick={() => updateBonus({ championTeamId: team.id })}>
+                  <BundesligaLogo src={team.logo_url} name={team.name} /><strong>{team.name}</strong>
+                </button>
+              ))}
+            </div>
+          </section>
+          <section className="bundesliga-v2-choice-block">
+            <h2>Torschützenkönig</h2>
+            <div className="bundesliga-v2-scorer-choice">
+              {topScorers.slice(0, 14).map((row) => (
+                <button key={row.id} type="button" className={bonusTip.topScorerId === row.id ? "selected" : ""} onClick={() => updateBonus({ topScorerId: row.id })}>
+                  <strong>{row.display_name}</strong><span>{row.team_name || "OpenLigaDB"}</span><b>{row.goals}</b>
+                </button>
+              ))}
+            </div>
+          </section>
+          <section className="bundesliga-v2-choice-block">
+            <h2>Absteiger {bonusTip.relegatedTeamIds.length}/3</h2>
+            <div className="bundesliga-v2-team-grid compact">
+              {teams.map((team) => (
+                <button key={team.id} type="button" className={bonusTip.relegatedTeamIds.includes(team.id) ? "selected" : ""} onClick={() => toggleRelegatedTeam(team.id)}>
+                  <BundesligaLogo src={team.logo_url} name={team.name} /><strong>{team.name}</strong>
+                </button>
+              ))}
+            </div>
+          </section>
+        </section>
+        <aside className="bundesliga-v2-aside">
+          <section className="bundesliga-v2-panel">
+            <div className="bundesliga-v2-panel-head">
+              <span>Status</span><strong>{bonusStatus.doneCount}/{bonusStatus.totalCount}</strong>
+              <p>{bonusStatus.complete ? "Bonus vollständig." : "Noch nicht alles erledigt."}</p>
+            </div>
+          </section>
+        </aside>
+      </section>
+    );
+  }
+
+  function renderV2Ranking() {
+    return (
+      <section className="bundesliga-v2-page-grid">
+        <section className="bundesliga-v2-panel">
+          <div className="bundesliga-v2-section-title"><div><span>Rangliste</span><h1>Gesamtwertung</h1></div><button type="button" onClick={() => void refreshRanking()}>Aktualisieren</button></div>
+          <div className="bundesliga-v2-ranking-list">
+            {ranking.map((row, index) => (
+              <article key={row.id ?? row.name} className={participant?.id === row.id || participant?.name === row.name ? "current" : ""}>
+                <span>{index + 1}</span><strong>{row.name}</strong><small>{row.tipCount ?? 0} Tipps · {row.matchdayWins ?? 0} Siege</small><b>{row.points} P</b>
+              </article>
+            ))}
+          </div>
+        </section>
+        <aside className="bundesliga-v2-aside">
+          <section className="bundesliga-v2-panel"><div className="bundesliga-v2-panel-head"><span>Dein Platz</span><strong>{currentParticipantRank ? `${ranking.findIndex((row) => row.id === currentParticipantRank.id || row.name === currentParticipantRank.name) + 1}.` : "-"}</strong><p>{currentParticipantRank ? `${currentParticipantRank.points} Punkte` : "Nach Login sichtbar."}</p></div></section>
+        </aside>
+      </section>
+    );
+  }
+
+  function renderV2Table() {
+    return (
+      <section className="bundesliga-v2-panel">
+        <div className="bundesliga-v2-section-title"><div><span>Tabelle</span><h1>Bundesliga Tabelle</h1></div></div>
+        <div className="bundesliga-v2-table-scroll">
+          <table className="bundesliga-v2-data-table">
+            <thead><tr><th>Pl.</th><th>Team</th><th>Sp.</th><th>S</th><th>U</th><th>N</th><th>Tore</th><th>Diff.</th><th>Pkt.</th></tr></thead>
+            <tbody>
+              {displayTableRows.map((row, index) => {
+                const diff = (row.goalsFor ?? 0) - (row.goalsAgainst ?? 0);
+                return (
+                  <tr key={row.teamId}>
+                    <td>{index + 1}</td><td>{teamBadge(row.teamId, row.team)}</td><td>{row.played ?? 0}</td><td>{row.won ?? 0}</td><td>{row.drawn ?? 0}</td><td>{row.lost ?? 0}</td><td>{row.goalsFor ?? 0}:{row.goalsAgainst ?? 0}</td><td>{diff > 0 ? `+${diff}` : diff}</td><td><b>{row.points}</b></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    );
+  }
+
+  function renderV2Scorers() {
+    return (
+      <section className="bundesliga-v2-panel">
+        <div className="bundesliga-v2-section-title"><div><span>Torschützen</span><h1>Torjägerliste</h1></div><button type="button" onClick={() => setBundesligaV2Section("bonus")}>Bonus öffnen</button></div>
+        <div className="bundesliga-v2-ranking-list scorers">
+          {topScorers.map((row, index) => (
+            <article key={row.id ?? `${row.display_name}-${index}`}><span>{index + 1}</span><strong>{row.display_name}</strong><small>{row.team_name || "OpenLigaDB"}</small><b>{row.goals}</b></article>
+          ))}
+          {topScorers.length === 0 && <p>Noch keine Torschützen importiert.</p>}
+        </div>
+      </section>
+    );
+  }
+
+  function renderV2Schedule() {
+    return (
+      <section className="bundesliga-v2-panel">
+        <div className="bundesliga-v2-section-title"><div><span>Spielplan</span><h1>Spieltag {selectedMatchday}</h1></div>{renderV2MatchdayControls()}</div>
+        {renderV2MatchdayRail()}
+        <div className="bundesliga-v2-schedule-list">
+          {visibleMatches.map((match) => {
+            const tip = tips[match.id];
+            const result = resultsByMatch.get(match.id);
+            const state = getBundesligaMatchState(match, result);
+            return (
+              <article key={match.id}>
+                <time>{formatDateTime(match.kickoffAt)}</time>
+                {teamBadge(match.teamAId, match.teamA)}
+                <b>{result ? `${result.score_a}:${result.score_b}` : "-:-"}</b>
+                {teamBadge(match.teamBId, match.teamB, { align: "right" })}
+                <span className={`bundesliga-match-status status-${tip?.saved ? "saved" : result?.status === "final" ? "finished" : state}`}>{matchStatusLabel(match, result, tip)}</span>
+                <button type="button" onClick={() => setBundesligaV2Section("tippen")}>Tippen</button>
+              </article>
+            );
+          })}
+        </div>
+      </section>
+    );
+  }
+
+  function renderV2Content(sectionId) {
+    if (sectionId === "tippen") return renderV2Tippen();
+    if (sectionId === "live") return renderV2Live();
+    if (sectionId === "bonus") return renderV2Bonus();
+    if (sectionId === "rangliste") return renderV2Ranking();
+    if (sectionId === "tabelle") return renderV2Table();
+    if (sectionId === "torschuetzen") return renderV2Scorers();
+    if (sectionId === "spielplan") return renderV2Schedule();
+    return renderV2Start();
+  }
+
+  function renderV2Shell(sectionId) {
+    const navItems = [
+      ["start", "Start", House],
+      ["tippen", "Tippen", Goal],
+      ["live", "Live", ListFilter],
+      ["bonus", "Bonus", ShieldCheck],
+      ["rangliste", "Rangliste", Trophy],
+      ["tabelle", "Tabelle", Medal],
+      ["torschuetzen", "Torschützen", Goal],
+      ["spielplan", "Spielplan", CalendarDays],
+    ];
+    return (
+      <div className="bundesliga-v2-shell">
+        <aside className="bundesliga-v2-rail">
+          <button type="button" className="bundesliga-v2-brand" onClick={() => setBundesligaV2Section("start")}>
+            <BundesligaBrandLogo decorative variant="compact" />
+            <span>Variante B</span>
+          </button>
+          <nav>
+            {navItems.map(([id, label, Icon]) => (
+              <button key={id} type="button" className={sectionId === id ? "active" : ""} onClick={() => {
+                setBundesligaV2Section(id);
+                if (id === "rangliste") void refreshRanking();
+              }}>
+                <Icon size={18} />
+                <span>{label}</span>
+              </button>
+            ))}
+          </nav>
+          <button type="button" className="bundesliga-v2-a-switch" onClick={() => setBundesligaTab("bundesliga-start")}>Variante A</button>
+          <button type="button" className="bundesliga-v2-a-switch" onClick={() => { window.location.hash = "start"; }}>Zur WM</button>
+        </aside>
+        <nav className="bundesliga-v2-bottom-nav" aria-label="Bundesliga Variante B">
+          {navItems.slice(0, 5).map(([id, label, Icon]) => (
+            <button key={id} type="button" className={sectionId === id ? "active" : ""} onClick={() => setBundesligaV2Section(id)}>
+              <Icon size={18} />
+              <span>{label}</span>
+            </button>
+          ))}
+        </nav>
+        <main className="bundesliga-v2-main">
+          <header className="bundesliga-v2-topbar">
+            <div><span>{participant ? `Angemeldet als ${participant.name}` : "Code erforderlich"}</span><strong>{participant ? `${savedTipCount}/${matches.length} Tipps` : loginFeedback}</strong></div>
+            <div><span>Status</span><strong>{message}</strong></div>
+          </header>
+          {renderV2Content(sectionId)}
+        </main>
+      </div>
+    );
+  }
+
   const tableRows = data?.table ?? [];
   const displayTableRows = tableRows.length
     ? tableRows
@@ -5296,6 +5793,12 @@ function BundesligaParticipantApp({ isTestMode }) {
   const topRankingRows = ranking.slice(0, 3);
   const openTipCount = Math.max(0, matches.length - savedTipCount);
   const nextOpenMatchday = matchdayStatusRows.find((row) => row.openTipCount > 0)?.matchday ?? selectedMatchday;
+  const isBundesligaV2 = activeTab.startsWith("bundesliga-v2-");
+  const bundesligaV2Section = isBundesligaV2 ? activeTab.replace("bundesliga-v2-", "") : "start";
+
+  if (isBundesligaV2) {
+    return renderV2Shell(bundesligaV2Section);
+  }
 
   return (
     <div className="bundesliga-public-shell">
