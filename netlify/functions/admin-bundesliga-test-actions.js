@@ -595,6 +595,50 @@ export default async (req) => {
       });
     }
 
+    if (action === "reset-season-foundation") {
+      const resetReleaseProbe = await resetReleaseProbeData(supabase);
+      const deletedParticipantBonusTips = await deleteRowsByCompetition(supabase, "competition_participant_bonus_tips", "participant_id");
+      const deletedParticipantTips = await deleteRowsByCompetition(supabase, "competition_tips", "id");
+      const deletedDemoBonusTips = await deleteRowsByCompetition(supabase, "competition_bonus_tips", "participant_id");
+      const deletedDemoTips = await deleteRowsByCompetition(supabase, "competition_demo_tips", "id");
+      const deletedDemoParticipants = await deleteRowsByCompetition(supabase, "competition_demo_participants", "id");
+      const deletedResults = await deleteRowsByCompetition(supabase, "competition_results", "match_id");
+      const deletedGoals = await deleteRowsByCompetition(supabase, "competition_goals", "id");
+      const deletedBonusResults = await deleteRowsByCompetition(supabase, "competition_bonus_results", "competition_id");
+      const deletedTopScorers = await deleteRowsByCompetition(supabase, "competition_top_scorers", "id");
+      const deletedMatches = await deleteRowsByCompetition(supabase, "competition_matches", "id");
+      const deletedTeams = await deleteRowsByCompetition(supabase, "competition_teams", "id");
+
+      const { data: competition, error: competitionError } = await supabase
+        .from("competitions")
+        .update({ status: "admin_test", public_enabled: false, updated_at: new Date().toISOString() })
+        .eq("id", BUNDESLIGA_COMPETITION_ID)
+        .select("status, public_enabled")
+        .single();
+      if (competitionError) throw competitionError;
+
+      return json({
+        resetSeasonFoundation: {
+          deletedParticipantBonusTips,
+          deletedParticipantTips,
+          deletedDemoBonusTips,
+          deletedDemoTips,
+          deletedDemoParticipants,
+          deletedResults,
+          deletedGoals,
+          deletedBonusResults,
+          deletedTopScorers,
+          deletedMatches,
+          deletedTeams,
+          resetReleaseProbe,
+          competition: {
+            status: competition.status,
+            publicEnabled: competition.public_enabled,
+          },
+        },
+      });
+    }
+
     if (action === "import-results") {
       const throughMatchday = Number(body.throughMatchday);
       if (!Number.isInteger(throughMatchday) || throughMatchday < 1) {

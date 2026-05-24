@@ -147,6 +147,7 @@ cd android-app
 - Bundesliga-Admin ist jetzt als Betriebsbereich aufgebaut: linke Navigation, kompakte KPI-Leiste, Operations-Queue, Ergebnis-/Teilnehmer-Arbeitsflächen und Diagnose-Bereich.
 - Bundesliga-Codes können im Bundesliga-Admin wieder gelöscht werden, solange sie frei und keinem Teilnehmer zugeordnet sind.
 - Echte Bundesliga-Teilnehmer können im Bundesliga-Admin direkt mit verknüpftem Code angelegt werden.
+- Bundesliga-Grunddaten 2025/2026 können im Datenimport gelöscht werden: Spielplan, Teams/Logos, Ergebnisse, Goals, Torschützen sowie alte Tipps/Bonuswerte werden entfernt; echte Teilnehmer und Codes bleiben erhalten.
 
 ## Bundesliga Stand
 
@@ -164,6 +165,7 @@ cd android-app
 - Der Release-Probelauf kann im Diagnose-Bereich per Button vorbereitet werden; er schreibt nur `Release Test 1-3`, Spieltag-1-Tipps, Bonus-Tipps, Spieltag-1-Ergebnisse und hält `public_enabled = false`.
 - Release-Probelauf-Testdaten können gezielt wieder gelöscht werden; entfernt werden nur `Release Test 1-3` samt deren Tipps, Bonus-Tipps und Codes. Spielplan, Ergebnisse, Torschützen und echte Teilnehmer bleiben erhalten.
 - Der Diagnose-Bereich hat zusätzlich einen großen Bereinigungsbutton für Demo-/Diagnose-Daten: Demo-Tipper, Demo-Tipps, Demo-Bonus, Release-Testdaten, Ergebnisse, Goal-Events und offizielle Bundesliga-Bonus-Ergebnisse werden gelöscht. Spielplan, Teams/Logos, Torschützenliste, echte Teilnehmer und echte Codes bleiben erhalten.
+- Im Bereich `Datenimport` gibt es zusätzlich einen Reset für die importierten 2025/2026-Grunddaten, damit Test-Spielplan, Teams/Logos und Torschützen vor dem Livegang komplett entfernt werden können. Echte Teilnehmer und Codes bleiben stehen.
 - Nutzer-Komfort ist erweitert:
   - Karten „Was fehlt noch?“ und „Meine Statistik“ in Start/Tippen/Rangliste.
   - Live-Auswertung erklärt pro Tipp den Punktegrund.
@@ -255,6 +257,7 @@ Admin prüfen:
 - Release-Testdaten löschen.
 - Diagnose-Daten löschen und prüfen, dass Teams, Spielplan, Torschützen, echte Teilnehmer und echte Codes erhalten bleiben.
 - Release-Checkliste, Datenqualität, Teilnehmer, Tipp-Auswertung, Datenimport und Regeln kontrollieren.
+- Bei Bedarf im Bereich `Datenimport` „25/26-Grunddaten löschen“ nutzen und prüfen, dass echte Teilnehmer und Codes erhalten bleiben.
 
 Release-Lücken:
 

@@ -3613,6 +3613,15 @@ function AdminPanel({
             }
             return payload;
           }}
+          onResetSeasonFoundation={async () => {
+            if (!window.confirm("Bundesliga-Grunddaten 2025/2026 wirklich löschen? Entfernt Spielplan, Teams/Logos, Ergebnisse, Goals, Torschützen und alle daran hängenden Bundesliga-Tipps/Bonuswerte. Echte Teilnehmer und Codes bleiben erhalten.")) return null;
+            const payload = await runBundesligaAction("reset-season-foundation");
+            if (payload?.resetSeasonFoundation) {
+              const reset = payload.resetSeasonFoundation;
+              setBundesligaMessage(`Bundesliga-Grunddaten gelöscht: ${reset.deletedMatches} Spiele, ${reset.deletedTeams} Teams, ${reset.deletedTopScorers} Torschützen, ${reset.deletedParticipantTips} Tipps.`);
+            }
+            return payload;
+          }}
           onImportResults={async (throughMatchday) => {
             const payload = await runBundesligaAction("import-results", { throughMatchday });
             if (payload) setBundesligaMessage(`Ergebnisse bis Spieltag ${payload.throughMatchday} importiert.`);
@@ -5305,6 +5314,7 @@ function BundesligaAdminArea({
   onRunReleaseProbe,
   onResetReleaseProbe,
   onResetTestlabData,
+  onResetSeasonFoundation,
   onImportResults,
   onResetResults,
   onImportTopScorers,
@@ -6581,6 +6591,9 @@ function BundesligaAdminArea({
               Relegation beim Spielplanimport mitladen
             </label>
             <button type="button" onClick={onResetResults} disabled={loading || resultCount === 0}>Ergebnisse zurücksetzen</button>
+            <button type="button" className="danger-button" onClick={onResetSeasonFoundation} disabled={loading}>
+              25/26-Grunddaten löschen
+            </button>
             <button type="button" onClick={onRefresh} disabled={loading}>Daten aktualisieren</button>
           </div>
         </section>
