@@ -2019,6 +2019,48 @@ tbody tr:nth-child(1) td:first-child {
   grid-template-columns: minmax(220px, 1fr) auto;
 }
 
+.bundesliga-admin-create {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+  margin: 14px;
+  padding: 14px;
+  border: 1px solid #333c44;
+  border-radius: 6px;
+  color: #ffffff;
+  background: #11161a;
+}
+
+.bundesliga-admin-create label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  color: #b4bec6;
+  font-weight: 850;
+}
+
+.bundesliga-admin-create input {
+  min-height: 38px;
+  min-width: 0;
+  border: 1px solid #3d454d;
+  border-radius: 4px;
+  padding: 0 10px;
+  color: #ffffff;
+  background: #11161a;
+  font-weight: 850;
+}
+
+.bundesliga-admin-create button {
+  min-height: 38px;
+  border: 1px solid #df2f28;
+  border-radius: 4px;
+  padding: 0 12px;
+  color: #ffffff;
+  background: #df2f28;
+  font-weight: 950;
+}
+
 .bundesliga-admin-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2934,7 +2976,7 @@ tbody tr:nth-child(1) td:first-child {
 }
 
 .bundesliga-code-list.expanded div {
-  grid-template-columns: 140px 100px minmax(0, 1fr);
+  grid-template-columns: 140px 100px minmax(0, 1fr) auto;
   align-items: center;
 }
 

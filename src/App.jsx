@@ -3573,6 +3573,18 @@ function AdminPanel({
             const payload = await runBundesligaAction("create-invite-codes", { count: 10 });
             if (payload) setBundesligaMessage(`${payload.codes?.length ?? 0} Bundesliga-Codes erzeugt.`);
           }}
+          onCreateParticipant={async (displayName) => {
+            const payload = await runBundesligaAction("create-participant", { displayName });
+            if (payload?.participant && payload?.code) {
+              setBundesligaMessage(`Teilnehmer ${payload.participant.display_name} erstellt: ${payload.code.code}`);
+            }
+            return payload;
+          }}
+          onDeleteInviteCode={async (codeId, code) => {
+            if (!window.confirm(`${code} wirklich löschen? Dieser Bundesliga-Code kann danach nicht mehr benutzt werden.`)) return;
+            const payload = await runBundesligaAction("delete-invite-code", { codeId });
+            if (payload?.deletedCodeId) setBundesligaMessage(`${code} wurde gelöscht.`);
+          }}
           onGenerateDemoTips={async () => {
             const payload = await runBundesligaAction("generate-demo-tips");
             if (payload) setBundesligaMessage(`${payload.tips?.length ?? 0} Demo-Tipps gespeichert.`);
@@ -5287,6 +5299,8 @@ function BundesligaAdminArea({
   onImport,
   onCreateDemoParticipant,
   onCreateInviteCodes,
+  onCreateParticipant,
+  onDeleteInviteCode,
   onGenerateDemoTips,
   onRunReleaseProbe,
   onResetReleaseProbe,
@@ -5308,6 +5322,7 @@ function BundesligaAdminArea({
   const [selectedMatchday, setSelectedMatchday] = useState(1);
   const [activeAdminView, setActiveAdminView] = useState("overview");
   const [demoName, setDemoName] = useState("");
+  const [newParticipantName, setNewParticipantName] = useState("");
   const [scorerDrafts, setScorerDrafts] = useState({});
   const [participantNameDrafts, setParticipantNameDrafts] = useState({});
   const [participantTipDrafts, setParticipantTipDrafts] = useState({});
@@ -5533,6 +5548,11 @@ function BundesligaAdminArea({
   async function createDemoParticipant() {
     await onCreateDemoParticipant(demoName);
     setDemoName("");
+  }
+
+  async function createParticipant() {
+    const payload = await onCreateParticipant(newParticipantName);
+    if (payload?.participant) setNewParticipantName("");
   }
 
   function scorerDraftFor(row) {
@@ -6087,6 +6107,23 @@ function BundesligaAdminArea({
             ))}
           </select>
         </header>
+        <section className="bundesliga-admin-create">
+          <label>
+            Echten Bundesliga-Teilnehmer direkt anlegen
+            <input
+              value={newParticipantName}
+              onChange={(event) => setNewParticipantName(event.target.value)}
+              placeholder="Name des Teilnehmers"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={createParticipant}
+            disabled={loading || newParticipantName.trim().length < 2}
+          >
+            Teilnehmer + Code erzeugen
+          </button>
+        </section>
         <div className="bundesliga-participant-admin-list">
           {participants.map((participant) => {
             const linkedCode = inviteCodes.find((code) => code.participant_id === participant.id || code.id === participant.invite_code_id);
@@ -6187,6 +6224,15 @@ function BundesligaAdminArea({
               <strong>{item.code}</strong>
               <span>{item.status}</span>
               <small>{getBundesligaInviteUrl(item.code)}</small>
+              <button
+                type="button"
+                className="danger-button code-delete"
+                onClick={() => onDeleteInviteCode(item.id, item.code)}
+                disabled={item.status !== "free" || Boolean(item.participant_id)}
+                title={item.status === "free" && !item.participant_id ? "Bundesliga-Code löschen" : "Nur freie Bundesliga-Codes können gelöscht werden"}
+              >
+                Code löschen
+              </button>
             </div>
           ))}
           {inviteCodes.length === 0 && <p>Noch keine Bundesliga-Codes erzeugt.</p>}

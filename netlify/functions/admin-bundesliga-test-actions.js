@@ -271,6 +271,59 @@ export default async (req) => {
       return json({ codes: data ?? [] });
     }
 
+    if (action === "create-participant") {
+      const displayName = String(body.displayName || "").trim();
+      if (displayName.length < 2 || displayName.length > 80) {
+        return json({ error: "Name muss zwischen 2 und 80 Zeichen lang sein." }, 400);
+      }
+
+      let invite = null;
+      let attempts = 0;
+      while (!invite && attempts < 5) {
+        attempts += 1;
+        const { data, error } = await supabase
+          .from("competition_invite_codes")
+          .insert({
+            competition_id: BUNDESLIGA_COMPETITION_ID,
+            code: makeInviteCode("BL"),
+            status: "free",
+          })
+          .select("id, code, status, created_at")
+          .single();
+
+        if (!error) invite = data;
+        if (error && error.code !== "23505") throw error;
+      }
+
+      if (!invite) return json({ error: "Bundesliga-Code konnte nicht eindeutig erzeugt werden." }, 500);
+
+      const { data: participant, error: participantError } = await supabase
+        .from("competition_participants")
+        .insert({
+          competition_id: BUNDESLIGA_COMPETITION_ID,
+          display_name: displayName,
+          invite_code_id: invite.id,
+        })
+        .select("*")
+        .single();
+      if (participantError) throw participantError;
+
+      const { data: code, error: updateError } = await supabase
+        .from("competition_invite_codes")
+        .update({
+          status: "claimed",
+          participant_id: participant.id,
+          claimed_at: new Date().toISOString(),
+        })
+        .eq("competition_id", BUNDESLIGA_COMPETITION_ID)
+        .eq("id", invite.id)
+        .select("*")
+        .single();
+      if (updateError) throw updateError;
+
+      return json({ participant, code });
+    }
+
     if (action === "generate-demo-tips") {
       const { data: participants, error: participantError } = await supabase
         .from("competition_demo_participants")
@@ -677,6 +730,32 @@ export default async (req) => {
         if (codeError) throw codeError;
       }
       return json({ deletedParticipantId: participantId });
+    }
+
+    if (action === "delete-invite-code") {
+      const codeId = String(body.codeId || "").trim();
+      if (!codeId) return json({ error: "Bundesliga-Code fehlt." }, 400);
+
+      const { data: inviteCode, error: readError } = await supabase
+        .from("competition_invite_codes")
+        .select("id, code, status, participant_id")
+        .eq("competition_id", BUNDESLIGA_COMPETITION_ID)
+        .eq("id", codeId)
+        .maybeSingle();
+      if (readError) throw readError;
+      if (!inviteCode) return json({ error: "Bundesliga-Code wurde nicht gefunden." }, 404);
+      if (inviteCode.status !== "free" || inviteCode.participant_id) {
+        return json({ error: "Nur freie Bundesliga-Codes können gelöscht werden." }, 400);
+      }
+
+      const { error: deleteError } = await supabase
+        .from("competition_invite_codes")
+        .delete()
+        .eq("competition_id", BUNDESLIGA_COMPETITION_ID)
+        .eq("id", codeId);
+      if (deleteError) throw deleteError;
+
+      return json({ deletedCodeId: codeId });
     }
 
     if (action === "save-participant-tip") {
