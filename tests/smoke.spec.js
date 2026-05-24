@@ -68,8 +68,10 @@ test("new unsaved tips start empty and can become an active zero", async ({ page
 test("hidden Bundesliga test flow supports tips, bonus and ranking", async ({ page }) => {
   await page.goto("/?test=1#bundesliga-start");
 
-  await expect(page.getByRole("heading", { name: "Bundesliga starten" })).toBeVisible();
-  await expect(page.getByText("Angemeldet als Daniel BL")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Hallo Daniel BL" })).toBeVisible();
+  await expect(page.getByText("Zugang aktiv")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Abmelden" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Einloggen" })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Was fehlt noch?" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Meine Statistik" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Community" })).toBeVisible();
@@ -104,4 +106,14 @@ test("hidden Bundesliga test flow supports tips, bonus and ranking", async ({ pa
   await expect(page.getByRole("heading", { name: "Bundesliga Rangliste" })).toBeVisible();
   await expect(page.locator(".bundesliga-public-ranking").getByText("Daniel BL", { exact: true })).toBeVisible();
   await expect(page.locator(".bundesliga-public-ranking").getByText("Siege")).toBeVisible();
+});
+
+test("Bundesliga logout returns to the focused code login", async ({ page }) => {
+  await page.goto("/?test=1#bundesliga-start");
+
+  await page.getByRole("button", { name: "Abmelden" }).click();
+  await expect(page.getByRole("heading", { name: "Bundesliga starten" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Einloggen" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Was fehlt noch?" })).toHaveCount(0);
+  await expect(page.getByText("Angemeldet als Daniel BL")).toHaveCount(0);
 });

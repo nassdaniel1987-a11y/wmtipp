@@ -151,14 +151,14 @@ cd android-app
 - Im Bundesliga-Teilnehmerbereich kann der Admin per Zurück/Weiter oder Auswahl durch alle Spieltage wechseln und Tipps je Spieltag nachtragen.
 - Bundesliga-Grunddaten 2025/2026 können im Datenimport gelöscht werden: Spielplan, Teams/Logos, Ergebnisse, Goals, Torschützen sowie alte Tipps/Bonuswerte werden entfernt; echte Teilnehmer und Codes bleiben erhalten.
 - Bundesliga-Nutzeransicht hat einen Code-first Login: bestehende Teilnehmer-Codes melden direkt an, freie Codes fragen danach den Namen ab.
-- Bundesliga-Nutzer bekommen eine persönliche Zentrale mit Loginfeedback, nächstem Schritt, Fortschritt, Bonusstatus, Punkten und Direktaktionen.
+- Bundesliga-Nutzer sehen vor der Anmeldung einen fokussierten Code-Login; nach erfolgreicher Anmeldung erscheint nur die persönliche Zentrale mit Abmelden, nächstem Schritt, Fortschritt, Bonusstatus, Punkten und Direktaktionen.
 - Bundesliga-Nutzeransicht hat zusätzliche In-App-Detailseiten für Live-Spieltag, volle Tabelle, volle Torschützenliste und Spielplan.
 
 ## Bundesliga Stand
 
 - Versteckte Bundesliga-Version läuft getrennt von der WM unter den Hash-Routen `#bundesliga-start`, `#bundesliga-tippen`, `#bundesliga-bonus`, `#bundesliga-rangliste`, `#bundesliga-live`, `#bundesliga-tabelle`, `#bundesliga-torschuetzen` und `#bundesliga-spielplan`.
-- Bundesliga Variante B ist als versteckte UX-Testversion zusätzlich eingebaut: `#bundesliga-v2-start`, `#bundesliga-v2-tippen`, `#bundesliga-v2-live`, `#bundesliga-v2-bonus`, `#bundesliga-v2-rangliste`, `#bundesliga-v2-tabelle`, `#bundesliga-v2-torschuetzen` und `#bundesliga-v2-spielplan`. Variante A bleibt die stabile bestehende Nutzeransicht.
-- Der Bundesliga-Admin bietet getrennte Einstiege in beide Nutzeransichten: Version A (`#bundesliga-start`) und Version B (`#bundesliga-v2-start`).
+- Die zuvor erprobte Bundesliga Variante B wurde wieder entfernt; die bestehenden `#bundesliga-*` Routen sind die einzige Bundesliga-Nutzeransicht.
+- Der Bundesliga-Admin öffnet über einen einzelnen Einstieg die Teilnehmeransicht unter `#bundesliga-start`.
 - Bundesliga-Admin ist über den Adminbereich erreichbar und bleibt nicht öffentlich.
 - Datenbasis nutzt `competition_*` Tabellen mit `competition_id = 'bundesliga-2025'`.
 - OpenLigaDB ist als Hauptquelle vorbereitet: Teams, Logos, Spielplan, Ergebnisse und Torschützen.
@@ -180,9 +180,7 @@ cd android-app
   - Tipp-Trends und Teilnehmervergleich erscheinen nur für sichtbare Spiele ab Anpfiff.
   - Spieltagssieger und Share-Karte werden in der Community-Karte angezeigt.
   - Vorschaukarten öffnen passende Detailseiten direkt über klickbare Überschriften statt über zusätzliche Öffnen-Buttons.
-  - Variante B nutzt dasselbe Bundesliga-Datenmodell und dieselben APIs, aber ein eigenes Stitch-inspiriertes Designsystem mit linker Desktop-Navigation, sticky Mobile-Navigation, kompakten Panels, Tabellen und einheitlichen Feedbackzuständen über Start, Tippen, Live, Bonus, Rangliste, Tabelle, Torschützen und Spielplan.
-  - Variante B soll Feature-Parity mit Variante A halten: offene Aufgaben, persönliche Statistik, Bonusstatus, Community/Spieltagssieger-Badge, Teilnehmervergleich, Share-Karte, Regeln, Datenstatus und Top-3-Einstieg gehören auch in die V2-Oberfläche.
-  - Stitch-Projekt für die Richtung: `Bundesliga UX Variante B` (`projects/10625406488495890748`), Konzept "Pitch Commander": dunkle Sport-App, Graphite-Flächen, roter Österfeld-Akzent, klare Betriebs-/Nutzerzentrale statt Admin-Look.
+  - `#bundesliga-start` trennt die Zustände klar: anonym wird nur der Code-first Login gezeigt, angemeldet die persönliche Zentrale samt `Abmelden`.
 - Automatik ist vorbereitet, aber geschützt:
   - `netlify/functions/bundesliga-auto-import.js` importiert Ergebnisse/Torschützen nur mit `BUNDESLIGA_AUTO_IMPORT_ENABLED=true`.
   - Bundesliga-Push-Erinnerungen in `send-tip-reminders.js` laufen nur mit `BUNDESLIGA_PUSH_REMINDERS_ENABLED=true`.
