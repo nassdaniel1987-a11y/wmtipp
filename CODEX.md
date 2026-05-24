@@ -158,6 +158,7 @@ cd android-app
 
 - Versteckte Bundesliga-Version läuft getrennt von der WM unter den Hash-Routen `#bundesliga-start`, `#bundesliga-tippen`, `#bundesliga-bonus`, `#bundesliga-rangliste`, `#bundesliga-live`, `#bundesliga-tabelle`, `#bundesliga-torschuetzen` und `#bundesliga-spielplan`.
 - Bundesliga Variante B ist als versteckte UX-Testversion zusätzlich eingebaut: `#bundesliga-v2-start`, `#bundesliga-v2-tippen`, `#bundesliga-v2-live`, `#bundesliga-v2-bonus`, `#bundesliga-v2-rangliste`, `#bundesliga-v2-tabelle`, `#bundesliga-v2-torschuetzen` und `#bundesliga-v2-spielplan`. Variante A bleibt die stabile bestehende Nutzeransicht.
+- Der Bundesliga-Admin bietet getrennte Einstiege in beide Nutzeransichten: Version A (`#bundesliga-start`) und Version B (`#bundesliga-v2-start`).
 - Bundesliga-Admin ist über den Adminbereich erreichbar und bleibt nicht öffentlich.
 - Datenbasis nutzt `competition_*` Tabellen mit `competition_id = 'bundesliga-2025'`.
 - OpenLigaDB ist als Hauptquelle vorbereitet: Teams, Logos, Spielplan, Ergebnisse und Torschützen.
@@ -180,6 +181,7 @@ cd android-app
   - Spieltagssieger und Share-Karte werden in der Community-Karte angezeigt.
   - Vorschaukarten öffnen passende Detailseiten direkt über klickbare Überschriften statt über zusätzliche Öffnen-Buttons.
   - Variante B nutzt dasselbe Bundesliga-Datenmodell und dieselben APIs, aber ein eigenes Stitch-inspiriertes Designsystem mit linker Desktop-Navigation, sticky Mobile-Navigation, kompakten Panels, Tabellen und einheitlichen Feedbackzuständen über Start, Tippen, Live, Bonus, Rangliste, Tabelle, Torschützen und Spielplan.
+  - Variante B soll Feature-Parity mit Variante A halten: offene Aufgaben, persönliche Statistik, Bonusstatus, Community/Spieltagssieger-Badge, Teilnehmervergleich, Share-Karte, Regeln, Datenstatus und Top-3-Einstieg gehören auch in die V2-Oberfläche.
   - Stitch-Projekt für die Richtung: `Bundesliga UX Variante B` (`projects/10625406488495890748`), Konzept "Pitch Commander": dunkle Sport-App, Graphite-Flächen, roter Österfeld-Akzent, klare Betriebs-/Nutzerzentrale statt Admin-Look.
 - Automatik ist vorbereitet, aber geschützt:
   - `netlify/functions/bundesliga-auto-import.js` importiert Ergebnisse/Torschützen nur mit `BUNDESLIGA_AUTO_IMPORT_ENABLED=true`.

@@ -5365,6 +5365,16 @@ function BundesligaParticipantApp({ isTestMode }) {
   }
 
   function renderV2ScoreCell(match, tip, tipLocked) {
+    if (tipLocked) {
+      const result = resultsByMatch.get(match.id);
+      return (
+        <div className="bundesliga-v2-locked-score">
+          <span>Dein Tipp</span>
+          <strong>{isCompleteTip(tip) ? `${tip.scoreA}:${tip.scoreB}` : "-:-"}</strong>
+          <small>{result ? `Ergebnis ${result.score_a}:${result.score_b}` : "Eingabe geschlossen"}</small>
+        </div>
+      );
+    }
     return (
       <div className="bundesliga-v2-score-cell">
         <ScoreControl value={tip.scoreA} onIncrease={() => changeScore(match.id, "scoreA", 1)} onDecrease={() => changeScore(match.id, "scoreA", -1)} disabled={tipLocked} />
@@ -5385,7 +5395,7 @@ function BundesligaParticipantApp({ isTestMode }) {
           const statusLabel = matchStatusLabel(match, result, tip);
           const statusClass = result?.status === "final" ? "finished" : tip?.saved ? "saved" : matchState;
           return (
-            <article key={match.id} id={`bundesliga-match-${match.id}`} className={`bundesliga-v2-match-row status-${matchState}${tip.saved ? " is-saved" : ""}`}>
+            <article key={match.id} id={`bundesliga-match-${match.id}`} className={`bundesliga-v2-match-row status-${matchState}${tip.saved ? " is-saved" : ""}${tipLocked ? " is-locked" : ""}`}>
               <time>{formatDateTime(match.kickoffAt)}</time>
               <div className="bundesliga-v2-clubs">
                 {teamBadge(match.teamAId, match.teamA)}
@@ -5401,6 +5411,222 @@ function BundesligaParticipantApp({ isTestMode }) {
           );
         })}
       </div>
+    );
+  }
+
+  function renderV2PanelHeading(label, onClick, children = null) {
+    return (
+      <button type="button" className="bundesliga-v2-heading-link" onClick={onClick}>
+        {children}
+        <span>{label}</span>
+      </button>
+    );
+  }
+
+  function renderV2OpenTasksCard() {
+    const firstOpenStatus = matchdayStatusRows.find((row) => row.openTipCount > 0);
+    return (
+      <article className="bundesliga-v2-panel bundesliga-v2-task-card">
+        <div className="bundesliga-v2-panel-head">
+          <span>Was fehlt noch?</span>
+          <strong>{openTipCount === 0 && bonusStatus.complete ? "Alles bereit" : "Offene Aufgaben"}</strong>
+        </div>
+        <div className="bundesliga-v2-task-grid">
+          <section className={openTipCount === 0 ? "done" : ""}>
+            <b>{openTipCount}</b>
+            <span>offene Tipps</span>
+            <small>{firstOpenStatus ? `nächster Spieltag: ${firstOpenStatus.matchday}` : "alle Spieltipps gespeichert"}</small>
+          </section>
+          <section className={bonusStatus.complete ? "done" : ""}>
+            <b>{bonusStatus.doneCount}/{bonusStatus.totalCount}</b>
+            <span>Bonus erledigt</span>
+            <small>{bonusStatus.complete ? "Bonus vollständig" : "Meister, Torschütze oder Absteiger fehlen"}</small>
+          </section>
+        </div>
+        <div className="bundesliga-v2-action-row">
+          <button type="button" onClick={() => {
+            const firstOpen = matchdayStatusRows.find((row) => row.openTipCount > 0);
+            if (firstOpen) setSelectedMatchday(firstOpen.matchday);
+            setBundesligaV2Section("tippen");
+            window.setTimeout(jumpToFirstOpenTip, 80);
+          }}>
+            Offene Tipps
+          </button>
+          <button type="button" className="ghost" onClick={() => setBundesligaV2Section("bonus")}>Bonus</button>
+        </div>
+      </article>
+    );
+  }
+
+  function renderV2PersonalStatsCard() {
+    const stats = personalStats ?? {
+      savedTipCount,
+      scoredTipCount: currentParticipantRank?.scoredTipCount ?? 0,
+      exactHits: 0,
+      goalDiffHits: 0,
+      tendencyHits: 0,
+      wrongTips: 0,
+      bestMatchdays: [],
+    };
+    const statRows = [
+      ["Gespeichert", stats.savedTipCount ?? savedTipCount],
+      ["Gewertet", stats.scoredTipCount ?? 0],
+      ["Exakt", stats.exactHits ?? 0],
+      ["Differenz", stats.goalDiffHits ?? 0],
+      ["Tendenz", stats.tendencyHits ?? 0],
+      ["Falsch", stats.wrongTips ?? 0],
+    ];
+    return (
+      <article className="bundesliga-v2-panel bundesliga-v2-stats-card">
+        <div className="bundesliga-v2-panel-head">
+          <span>Meine Statistik</span>
+          <strong>{currentParticipantRank ? `${currentParticipantRank.points} Punkte` : "Noch offen"}</strong>
+        </div>
+        <div className="bundesliga-v2-stat-grid">
+          {statRows.map(([label, value]) => (
+            <section key={label}>
+              <span>{label}</span>
+              <b>{value}</b>
+            </section>
+          ))}
+        </div>
+        <small>
+          {(stats.bestMatchdays ?? []).length > 0
+            ? stats.bestMatchdays.map((row) => `ST ${row.matchday}: ${row.points} P`).join(" · ")
+            : "Beste Spieltage erscheinen nach den ersten Ergebnissen."}
+        </small>
+      </article>
+    );
+  }
+
+  function renderV2BonusReminderCard() {
+    const bonusDeadlineText = rulesSummary?.bonusDeadlineAt
+      ? `Bonusfrist: ${formatDateTime(rulesSummary.bonusDeadlineAt)}`
+      : "Bonusfrist: bis zum Saisonstart";
+    return (
+      <article className={`bundesliga-v2-panel bundesliga-v2-bonus-card ${bonusStatus.complete ? "complete" : ""}`}>
+        {renderV2PanelHeading("Bonusfragen", () => setBundesligaV2Section("bonus"))}
+        <p>{bonusStatus.doneCount} / {bonusStatus.totalCount} Bonus-Tipps erledigt.</p>
+        <small>{bonusDeadlineText}</small>
+        <div className="bundesliga-v2-chip-row">
+          <span className={bonusTip.championTeamId ? "done" : ""}>Meister</span>
+          <span className={bonusTip.topScorerId || bonusTip.topScorer ? "done" : ""}>Torschützenkönig</span>
+          <span className={bonusStatus.relegatedDoneCount === 3 ? "done" : ""}>Absteiger {bonusStatus.relegatedDoneCount}/3</span>
+        </div>
+      </article>
+    );
+  }
+
+  function renderV2TopThreeCard() {
+    return (
+      <article className="bundesliga-v2-panel bundesliga-v2-top-card">
+        {renderV2PanelHeading("Top 3", () => {
+          setBundesligaV2Section("rangliste");
+          void refreshRanking();
+        }, <img src={BUNDESLIGA_BRAND_ASSETS.badgeRankingTop3} alt="" aria-hidden="true" />)}
+        <div className="bundesliga-v2-live-strip">
+          {topRankingRows.map((row, index) => (
+            <div key={row.id ?? row.name}>
+              <span>{index + 1}</span>
+              <strong>{row.name}</strong>
+              <b>{row.points} P</b>
+            </div>
+          ))}
+          {topRankingRows.length === 0 && <p>Noch keine Rangliste vorhanden.</p>}
+        </div>
+      </article>
+    );
+  }
+
+  function renderV2RulesCard() {
+    return (
+      <article className="bundesliga-v2-panel bundesliga-v2-rules-card">
+        <div className="bundesliga-v2-panel-head">
+          <span>Regeln</span>
+          <strong>Punktevergabe</strong>
+        </div>
+        <div className="bundesliga-v2-rule-grid">
+          {(rulesSummary?.matchPoints ?? bundesligaRuleRows.slice(0, 4)).map(([label, value]) => (
+            <section key={label}><span>{label}</span><b>{value}</b></section>
+          ))}
+        </div>
+        <p>Fremde Tipps sind pro Spiel ab Anpfiff sichtbar. Bei Punktgleichstand zählen zuerst Spieltagssiege.</p>
+      </article>
+    );
+  }
+
+  function renderV2ImportStatusCard() {
+    const importStatus = data?.importStatus ?? {};
+    return (
+      <article className="bundesliga-v2-panel bundesliga-v2-import-card">
+        <div className="bundesliga-v2-panel-head">
+          <span>Datenstatus</span>
+          <strong>{importStatus.source ?? "OpenLigaDB"}</strong>
+        </div>
+        <div className="bundesliga-v2-data-grid">
+          <section><span>Teams</span><b>{importStatus.teams ?? teams.length}</b></section>
+          <section><span>Spiele</span><b>{importStatus.matches ?? matches.length}</b></section>
+          <section><span>Ergebnisse</span><b>{importStatus.results ?? data?.results?.length ?? 0}</b></section>
+          <section><span>Torschützen</span><b>{importStatus.topScorers ?? topScorers.length}</b></section>
+        </div>
+        <small>Letzter Ergebnisimport: {importStatus.lastResultImportAt ? formatDateTime(importStatus.lastResultImportAt) : "noch nicht bekannt"}</small>
+      </article>
+    );
+  }
+
+  function renderV2CommunityCard() {
+    const latestWinner = [...matchdayWinners].reverse().find((row) => row.winners?.length);
+    const compareRows = ranking.filter((row) => row.id && row.id !== participant?.id).slice(0, 12);
+    const selectedCompare = ranking.find((row) => row.id === compareParticipantId) ?? null;
+    const ownLiveTips = (liveData?.matches ?? []).flatMap((match) => (match.tips ?? [])
+      .filter((tip) => tip.isOwnTip)
+      .map((tip) => ({ ...tip, match })));
+    const rivalLiveTips = selectedCompare
+      ? (liveData?.matches ?? []).flatMap((match) => (match.tips ?? [])
+        .filter((tip) => tip.participantId === selectedCompare.id && tip.visible)
+        .map((tip) => ({ ...tip, match })))
+      : [];
+    return (
+      <article className="bundesliga-v2-panel bundesliga-v2-community-card">
+        {renderV2PanelHeading("Community", () => setBundesligaV2Section("live"))}
+        {latestWinner ? (
+          <div className="bundesliga-v2-winner-callout">
+            <img src={BUNDESLIGA_BRAND_ASSETS.badgeMatchdayWinner} alt="" aria-hidden="true" />
+            <p>Letzter Spieltagssieger: <strong>{latestWinner.winners.map((row) => row.name).join(", ")}</strong> mit {latestWinner.bestPoints} Punkten an ST {latestWinner.matchday}.</p>
+          </div>
+        ) : (
+          <p>Spieltagssieger erscheinen, sobald Ergebnisse und Tipps gewertet sind.</p>
+        )}
+        <label>
+          Vergleich nach Anpfiff
+          <select value={compareParticipantId} onChange={(event) => setCompareParticipantId(event.target.value)}>
+            <option value="">Teilnehmer wählen</option>
+            {compareRows.map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}
+          </select>
+        </label>
+        {selectedCompare && (
+          <div className="bundesliga-v2-compare-list">
+            {ownLiveTips.slice(0, 5).map((ownTip) => {
+              const rivalTip = rivalLiveTips.find((tip) => tip.match.id === ownTip.match.id);
+              return (
+                <section key={ownTip.match.id}>
+                  <strong>{ownTip.match.teamA} - {ownTip.match.teamB}</strong>
+                  <span>Du: {ownTip.scoreA}:{ownTip.scoreB} · {Number.isInteger(ownTip.points) ? `${ownTip.points} P` : "offen"}</span>
+                  <span>{selectedCompare.name}: {rivalTip ? `${rivalTip.scoreA}:${rivalTip.scoreB}` : "versteckt/offen"} · {Number.isInteger(rivalTip?.points) ? `${rivalTip.points} P` : "offen"}</span>
+                </section>
+              );
+            })}
+          </div>
+        )}
+        {currentParticipantRank && (
+          <div className="bundesliga-v2-share-card">
+            <img src={BUNDESLIGA_BRAND_ASSETS.icon} alt="" aria-hidden="true" />
+            <span>Share-Karte</span>
+            <strong>{currentParticipantRank.name}</strong>
+            <b>{currentParticipantRank.points} Punkte · Platz {ranking.findIndex((row) => row.id === currentParticipantRank.id || row.name === currentParticipantRank.name) + 1}</b>
+          </div>
+        )}
+      </article>
     );
   }
 
@@ -5423,10 +5649,12 @@ function BundesligaParticipantApp({ isTestMode }) {
           <article><span>Offene Tipps</span><strong>{openTipCount}</strong><small>{savedTipCount}/{matches.length} gespeichert</small></article>
           <article><span>Bonus</span><strong>{bonusStatus.doneCount}/{bonusStatus.totalCount}</strong><small>{bonusStatus.complete ? "fertig" : "noch offen"}</small></article>
           <article><span>Nächster Fokus</span><strong>ST {nextOpenMatchday}</strong><small>{selectedMatchdayStatus.openTipCount} offen</small></article>
-          <article><span>Live</span><strong>{liveData?.standings?.[0]?.points ?? 0}</strong><small>aktueller Spieltag</small></article>
+          <article><span>Live</span><strong>{liveData?.standings?.length ? `${liveData.standings[0].points} P` : "bereit"}</strong><small>{liveData?.standings?.length ? "aktueller Spieltag" : "nach Anpfiff"}</small></article>
         </section>
         {renderV2LoginPanel()}
         <section className="bundesliga-v2-grid">
+          {renderV2OpenTasksCard()}
+          {renderV2PersonalStatsCard()}
           <article className="bundesliga-v2-panel bundesliga-v2-next">
             <div className="bundesliga-v2-panel-head">
               <span>Nächster Schritt</span>
@@ -5449,8 +5677,10 @@ function BundesligaParticipantApp({ isTestMode }) {
               <button type="button" className="ghost" onClick={() => setBundesligaV2Section("rangliste")}>Rangliste</button>
             </div>
           </article>
+          {renderV2BonusReminderCard()}
+          {renderV2TopThreeCard()}
           <article className="bundesliga-v2-panel">
-            <button type="button" className="bundesliga-v2-heading-link" onClick={() => setBundesligaV2Section("tabelle")}>Live-Tabelle</button>
+            {renderV2PanelHeading("Live-Tabelle", () => setBundesligaV2Section("tabelle"))}
             <div className="bundesliga-v2-mini-table">
               {displayTableRows.slice(0, 6).map((row, index) => (
                 <div key={row.teamId}>
@@ -5463,7 +5693,7 @@ function BundesligaParticipantApp({ isTestMode }) {
             </div>
           </article>
           <article className="bundesliga-v2-panel">
-            <button type="button" className="bundesliga-v2-heading-link" onClick={() => setBundesligaV2Section("live")}>Live-Spieltag</button>
+            {renderV2PanelHeading("Live-Spieltag", () => setBundesligaV2Section("live"))}
             <div className="bundesliga-v2-live-strip">
               {(liveData?.standings ?? topRankingRows).slice(0, 4).map((row, index) => (
                 <div key={row.participantId ?? row.id ?? row.name}>
@@ -5475,8 +5705,9 @@ function BundesligaParticipantApp({ isTestMode }) {
               {(liveData?.standings ?? topRankingRows).length === 0 && <p>Noch keine Live-Daten.</p>}
             </div>
           </article>
+          {renderV2CommunityCard()}
           <article className="bundesliga-v2-panel">
-            <button type="button" className="bundesliga-v2-heading-link" onClick={() => setBundesligaV2Section("spielplan")}>Nächste Spiele</button>
+            {renderV2PanelHeading("Nächste Spiele", () => setBundesligaV2Section("spielplan"))}
             <div className="bundesliga-v2-fixtures">
               {dashboardMatches.slice(0, 4).map((match) => (
                 <div key={match.id}>
@@ -5489,7 +5720,7 @@ function BundesligaParticipantApp({ isTestMode }) {
             </div>
           </article>
           <article className="bundesliga-v2-panel">
-            <button type="button" className="bundesliga-v2-heading-link" onClick={() => setBundesligaV2Section("torschuetzen")}>Torschützen</button>
+            {renderV2PanelHeading("Torschützen", () => setBundesligaV2Section("torschuetzen"))}
             <div className="bundesliga-v2-scorers">
               {topScorerPreview.map((row, index) => (
                 <div key={row.id ?? row.display_name}>
@@ -5500,6 +5731,8 @@ function BundesligaParticipantApp({ isTestMode }) {
               ))}
             </div>
           </article>
+          {renderV2RulesCard()}
+          {renderV2ImportStatusCard()}
         </section>
       </section>
     );
@@ -5518,9 +5751,9 @@ function BundesligaParticipantApp({ isTestMode }) {
           {renderV2TipRows()}
         </section>
         <aside className="bundesliga-v2-aside">
-          <section className="bundesliga-v2-panel">
-            <div className="bundesliga-v2-panel-head"><span>Fortschritt</span><strong>{visibleSavedTipCount}/{visibleMatches.length}</strong><p>{message}</p></div>
-          </section>
+          {renderV2OpenTasksCard()}
+          {renderV2BonusReminderCard()}
+          {renderV2PersonalStatsCard()}
           {renderV2LoginPanel()}
         </aside>
       </section>
@@ -5566,11 +5799,13 @@ function BundesligaParticipantApp({ isTestMode }) {
         </section>
         <aside className="bundesliga-v2-aside">
           <section className="bundesliga-v2-panel">
-            <button type="button" className="bundesliga-v2-heading-link" onClick={() => setBundesligaV2Section("rangliste")}>Gesamtrangliste</button>
+            {renderV2PanelHeading("Gesamtrangliste", () => setBundesligaV2Section("rangliste"))}
             <div className="bundesliga-v2-live-strip">
               {topRankingRows.map((row, index) => <div key={row.id ?? row.name}><span>{index + 1}</span><strong>{row.name}</strong><b>{row.points} P</b></div>)}
             </div>
           </section>
+          {renderV2CommunityCard()}
+          {renderV2RulesCard()}
         </aside>
       </section>
     );
@@ -5616,12 +5851,9 @@ function BundesligaParticipantApp({ isTestMode }) {
           </section>
         </section>
         <aside className="bundesliga-v2-aside">
-          <section className="bundesliga-v2-panel">
-            <div className="bundesliga-v2-panel-head">
-              <span>Status</span><strong>{bonusStatus.doneCount}/{bonusStatus.totalCount}</strong>
-              <p>{bonusStatus.complete ? "Bonus vollständig." : "Noch nicht alles erledigt."}</p>
-            </div>
-          </section>
+          {renderV2BonusReminderCard()}
+          {renderV2PersonalStatsCard()}
+          {renderV2RulesCard()}
         </aside>
       </section>
     );
@@ -5642,6 +5874,9 @@ function BundesligaParticipantApp({ isTestMode }) {
         </section>
         <aside className="bundesliga-v2-aside">
           <section className="bundesliga-v2-panel"><div className="bundesliga-v2-panel-head"><span>Dein Platz</span><strong>{currentParticipantRank ? `${ranking.findIndex((row) => row.id === currentParticipantRank.id || row.name === currentParticipantRank.name) + 1}.` : "-"}</strong><p>{currentParticipantRank ? `${currentParticipantRank.points} Punkte` : "Nach Login sichtbar."}</p></div></section>
+          {renderV2TopThreeCard()}
+          {renderV2CommunityCard()}
+          {renderV2PersonalStatsCard()}
         </aside>
       </section>
     );
@@ -7627,7 +7862,8 @@ function BundesligaAdminArea({
           <span><strong>{dataQuality.topScorerCount ?? topScorerRows.length}</strong> Torschützen</span>
           {dataQuality.lastTopScorerImportAt && <span><strong>{formatDateTime(dataQuality.lastTopScorerImportAt)}</strong> letzter Torschützen-Import</span>}
           <button type="button" onClick={onRefresh} disabled={loading}>Aktualisieren</button>
-          <button type="button" onClick={() => { window.location.hash = "bundesliga-start"; }}>Teilnehmeransicht öffnen</button>
+          <button type="button" onClick={() => { window.location.hash = "bundesliga-start"; }}>Version A öffnen</button>
+          <button type="button" onClick={() => { window.location.hash = "bundesliga-v2-start"; }}>Version B öffnen</button>
         </section>
 
         {message && <p className="bundesliga-lab-message">{message}</p>}
