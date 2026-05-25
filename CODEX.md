@@ -335,6 +335,8 @@ Release-Lücken:
 - football-data darf nur einen fehlenden laufenden Zwischenstand als vorläufige Anzeige füllen; Nutzer sehen dabei gegebenenfalls `Torereignisse folgen`, bis OpenLigaDB Ereignisse liefert.
 - Finale automatische Wertung erfolgt bei aktivem Vergleich erst, wenn OpenLigaDB und football-data dasselbe Endergebnis gespeichert haben; Abweichungen erscheinen im Admin unter `Diagnose & Freigabe`.
 - Torereignisse werden bei jedem OpenLigaDB-Refresh erneuert: `Unbekannt` wird ersetzt, sobald ein Name geliefert wird, ein bekannter Name wird durch spätere leere Daten nicht wieder verschlechtert.
+- Da der OpenLigaDB-Liga-Feed bei laufenden Spielen Torschützen leer liefern kann, lädt die Live-Synchronisierung für namenlose Goals automatisch den Einzelspiel-Endpunkt nach; bei der Relegationsprobe ergänzt dies Match `81659` um `Dženan Pejcinovic` und `Filip Bilbija`.
+- Der Nutzer-Button `Aktualisieren` auf der Live-Seite meldet Laden, Erfolg oder Fehler sichtbar zurück; er lädt die zuletzt importierten Live-Daten, während die Quellsynchronisierung automatisch beziehungsweise über den Admin erfolgt.
 
 ## CODEX.md Pflege-Regel
 

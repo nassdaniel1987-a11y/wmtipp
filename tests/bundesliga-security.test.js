@@ -14,6 +14,8 @@ import {
   normalizeOpenLigaMatch,
 } from "../netlify/functions/_shared/bundesliga.js";
 import {
+  mergeOpenLigaMatchDetail,
+  needsOpenLigaMatchDetail,
   preserveKnownGoalScorer,
   selectHybridLiveResult,
   summarizeHybridObservation,
@@ -76,6 +78,28 @@ test("goal refresh upgrades unknown scorers and never downgrades known names", (
   assert.equal(
     preserveKnownGoalScorer({ scorer_name: "Unbekannt", scorer_external_id: null }, { scorer_name: "Dženan Pejcinovic", scorer_external_id: "24380" }).scorer_name,
     "Dženan Pejcinovic",
+  );
+});
+
+test("live sync enriches unnamed league-feed goals from OpenLigaDB match detail", () => {
+  const leagueFeedMatch = {
+    matchID: 81659,
+    goals: [
+      { goalID: 143106, matchMinute: 3, goalGetterID: 24380, goalGetterName: "", scoreTeam1: 0, scoreTeam2: 1 },
+      { goalID: 143107, matchMinute: 39, goalGetterID: 20074, goalGetterName: "", scoreTeam1: 1, scoreTeam2: 1 },
+    ],
+  };
+  const matchDetail = {
+    ...leagueFeedMatch,
+    goals: [
+      { ...leagueFeedMatch.goals[0], goalGetterName: "Dženan Pejcinovic" },
+      { ...leagueFeedMatch.goals[1], goalGetterName: "Filip Bilbija" },
+    ],
+  };
+  assert.equal(needsOpenLigaMatchDetail(leagueFeedMatch), true);
+  assert.deepEqual(
+    mergeOpenLigaMatchDetail(leagueFeedMatch, matchDetail).goals.map((goal) => goal.goalGetterName),
+    ["Dženan Pejcinovic", "Filip Bilbija"],
   );
 });
 

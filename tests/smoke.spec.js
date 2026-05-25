@@ -291,6 +291,8 @@ test("Bundesliga live page shows provisional score updates and fits compact scor
   await expect(page.getByText("Live Torschütze")).toBeVisible();
   await expect(page.getByText(/Zuletzt aktualisiert:/)).toBeVisible();
   await expect(page.getByText(/Zwischenstand und Punkte sind vorläufig/)).toBeVisible();
+  await page.getByRole("button", { name: "Aktualisieren", exact: true }).click();
+  await expect(page.getByText("Live-Daten neu geladen.")).toBeVisible();
 
   for (const width of [390, 360, 320]) {
     await page.setViewportSize({ width, height: 900 });

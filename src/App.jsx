@@ -4561,6 +4561,7 @@ function BundesligaParticipantApp({ isTestMode }) {
   const [matchdayWinners, setMatchdayWinners] = useState([]);
   const [compareParticipantId, setCompareParticipantId] = useState("");
   const [liveRefreshKey, setLiveRefreshKey] = useState(0);
+  const [liveRefreshStatus, setLiveRefreshStatus] = useState({ state: "idle", message: "" });
   const [matchDetail, setMatchDetail] = useState(null);
   const [matchDetailLoading, setMatchDetailLoading] = useState(false);
   const [matchDetailError, setMatchDetailError] = useState("");
@@ -4570,6 +4571,7 @@ function BundesligaParticipantApp({ isTestMode }) {
   const [tipCountdownNow, setTipCountdownNow] = useState(() => Date.now());
   const tipsRef = useRef(tips);
   const bonusRef = useRef(bonusTip);
+  const manualLiveRefreshPendingRef = useRef(false);
 
   const matches = useMemo(() => (data?.matches ?? []).map(mapBundesligaMatch), [data]);
   const teams = data?.teams ?? [];
@@ -4718,10 +4720,13 @@ function BundesligaParticipantApp({ isTestMode }) {
       return undefined;
     }
     let cancelled = false;
+    const manualRefresh = manualLiveRefreshPendingRef.current;
+    manualLiveRefreshPendingRef.current = false;
     async function loadLiveData() {
       if (isTestMode) {
         setLiveData(buildBundesligaLiveFromData(data, participant, selectedMatchday));
         setLiveTrends(buildBundesligaTipTrendsFromData(data, selectedMatchday));
+        if (manualRefresh) setLiveRefreshStatus({ state: "success", message: "Live-Daten neu geladen." });
         return;
       }
       try {
@@ -4729,11 +4734,13 @@ function BundesligaParticipantApp({ isTestMode }) {
         if (!cancelled) {
           setLiveData(payload.live ?? null);
           setLiveTrends(payload.trends ?? []);
+          if (manualRefresh) setLiveRefreshStatus({ state: "success", message: "Live-Daten neu geladen." });
         }
-      } catch {
+      } catch (error) {
         if (!cancelled) {
           setLiveData(null);
           setLiveTrends([]);
+          if (manualRefresh) setLiveRefreshStatus({ state: "error", message: error.message || "Live-Daten konnten nicht geladen werden." });
         }
       }
     }
@@ -4742,6 +4749,12 @@ function BundesligaParticipantApp({ isTestMode }) {
       cancelled = true;
     };
   }, [participant?.id, selectedMatchday, data, isTestMode, liveRefreshKey, competitionId]);
+
+  function refreshLiveDataManually() {
+    manualLiveRefreshPendingRef.current = true;
+    setLiveRefreshStatus({ state: "loading", message: "Live-Daten werden geladen..." });
+    setLiveRefreshKey((current) => current + 1);
+  }
 
   useEffect(() => {
     if (!participant?.id || !["bundesliga-start", "bundesliga-live"].includes(activeTab)) return undefined;
@@ -5802,7 +5815,14 @@ function BundesligaParticipantApp({ isTestMode }) {
             </div>
             <div className="bundesliga-live-refresh">
               <small>Zuletzt aktualisiert: {latestLiveUpdatedAt ? formatDateTime(latestLiveUpdatedAt) : "noch keine Live-Daten"}</small>
-              <button type="button" onClick={() => setLiveRefreshKey((current) => current + 1)}>Aktualisieren</button>
+              <button type="button" onClick={refreshLiveDataManually} disabled={liveRefreshStatus.state === "loading"}>
+                {liveRefreshStatus.state === "loading" ? "Aktualisiere..." : "Aktualisieren"}
+              </button>
+              {liveRefreshStatus.message && (
+                <span className={`bundesliga-live-refresh-feedback is-${liveRefreshStatus.state}`} role="status" aria-live="polite">
+                  {liveRefreshStatus.message}
+                </span>
+              )}
             </div>
             <div className="bundesliga-matchday-switcher" aria-label="Spieltag wechseln">
               <button type="button" onClick={() => moveMatchday(-1)} disabled={selectedMatchdayIndex <= 0}>

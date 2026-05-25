@@ -127,10 +127,29 @@ export function preserveKnownGoalScorer(incomingGoal, existingGoal) {
   return incomingGoal;
 }
 
+export function needsOpenLigaMatchDetail(match) {
+  return (match?.goals ?? []).some((goal) => !String(goal.goalGetterName || "").trim());
+}
+
+export function mergeOpenLigaMatchDetail(match, detail) {
+  if (!detail || String(detail.matchID) !== String(match.matchID)) return match;
+  return {
+    ...match,
+    ...detail,
+    goals: detail.goals?.length ? detail.goals : match.goals,
+  };
+}
+
 export async function fetchOpenLigaCompetitionMatches(competition) {
   const response = await fetch(`https://api.openligadb.de/getmatchdata/${competition.source_league}/${competition.source_season}`);
   if (response.status === 404) return [];
   if (!response.ok) throw new Error(`OpenLigaDB ${competition.source_league}/${competition.source_season} konnte nicht geladen werden.`);
+  return response.json();
+}
+
+async function fetchOpenLigaMatchDetail(matchId) {
+  const response = await fetch(`https://api.openligadb.de/getmatchdata/${matchId}`);
+  if (!response.ok) throw new Error(`OpenLigaDB-Spiel ${matchId} konnte nicht geladen werden.`);
   return response.json();
 }
 
@@ -183,13 +202,19 @@ export async function syncLiveCompetition(supabase, competition, {
   const requestedExternalIds = new Set(
     relevantMatches.map(externalMatchId).filter(Boolean),
   );
-  const selectedSourceMatches = competition.id === BUNDESLIGA_LIVE_PROBE_COMPETITION_ID && setup
+  const selectedCompetitionMatches = competition.id === BUNDESLIGA_LIVE_PROBE_COMPETITION_ID && setup
     ? sourceMatches.filter((match) => String(match.matchID) === BUNDESLIGA_LIVE_PROBE_MATCH_ID)
     : sourceMatches.filter((match) => requestedExternalIds.has(String(match.matchID)));
 
-  if (selectedSourceMatches.length === 0) {
+  if (selectedCompetitionMatches.length === 0) {
     return { skipped: true, reason: "OpenLigaDB lieferte kein passendes Spiel.", matches: 0, results: 0, goals: 0 };
   }
+
+  const selectedSourceMatches = await Promise.all(selectedCompetitionMatches.map(async (match) => {
+    if (!needsOpenLigaMatchDetail(match)) return match;
+    const detail = await fetchOpenLigaMatchDetail(match.matchID).catch(() => null);
+    return mergeOpenLigaMatchDetail(match, detail);
+  }));
 
   const normalized = selectedSourceMatches.map((match, index) => normalizeOpenLigaMatch(
     match,

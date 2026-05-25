@@ -7126,6 +7126,27 @@ tbody tr:nth-child(1) td:first-child {
   background: linear-gradient(180deg, #d3473b, #a3322b);
 }
 
+.bundesliga-live-refresh button:disabled {
+  cursor: progress;
+  opacity: 0.72;
+}
+
+.bundesliga-live-refresh-feedback {
+  max-width: 240px;
+  color: var(--bl-muted);
+  font-size: 0.74rem;
+  font-weight: 800;
+  text-align: right;
+}
+
+.bundesliga-live-refresh-feedback.is-success {
+  color: #87c890;
+}
+
+.bundesliga-live-refresh-feedback.is-error {
+  color: #ff8d84;
+}
+
 .bundesliga-detail-head {
   display: flex;
   justify-content: space-between;
@@ -8996,6 +9017,11 @@ tbody tr:nth-child(1) td:first-child {
   .bundesliga-live-refresh {
     width: 100%;
     justify-items: start;
+  }
+
+  .bundesliga-live-refresh-feedback {
+    max-width: none;
+    text-align: left;
   }
 
   .bundesliga-source-rows article {
