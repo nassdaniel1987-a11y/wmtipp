@@ -20,7 +20,7 @@ export default async (req) => {
       supabase.from("competition_participant_bonus_tips").select("*").eq("competition_id", competitionId),
       supabase.from("competition_bonus_results").select("*").eq("competition_id", competitionId).maybeSingle(),
       supabase.from("competition_top_scorers").select("id, display_name").eq("competition_id", competitionId),
-      supabase.from("competition_matches").select("id, matchday").eq("competition_id", competitionId).eq("phase", "league"),
+      supabase.from("competition_matches").select("id, matchday").eq("competition_id", competitionId).in("phase", ["league", "relegation"]),
       loadCompetitionRuleSettings(supabase, competitionId),
     ]);
 

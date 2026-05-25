@@ -202,7 +202,7 @@ cd android-app
   - Tipp-Sperre ab Anpfiff, Bonusfrist und Sichtbarkeit fremder Tipps werden serverseitig erzwungen; verdeckte Live-Tipps verraten weder Ergebnis noch Existenz fremder Einträge.
   - Der Admin blockiert die öffentliche Freigabe, solange Release-Gates wie Saison, Bonusfrist, vollständiger Spielplan/Logos oder bereinigte Probe-Ergebnisse offen sind.
   - Push-Erinnerungen gehören bewusst nicht zum ersten Bundesliga-Livegang.
-  - Nutzer-Preview-Requests senden zusätzlich `X-Bundesliga-Competition`; erlaubt sind `bundesliga-2025`, `bundesliga-2026` und ausschließlich für die isolierte Generalprobe `bundesliga-liveprobe-rel-2026`. Standard und einzige Releasebasis bleibt `bundesliga-2026`.
+  - Nutzer-Preview-Requests senden zusätzlich `X-Bundesliga-Competition`; erlaubt sind nur `bundesliga-2025` und `bundesliga-2026`. Die abgeschlossene Generalprobe wird nicht mehr als Competition akzeptiert; Standard und einzige Releasebasis bleibt `bundesliga-2026`.
   - `bundesliga-2025` ist nur als interne Archivvorschau lesbar: vorhandene zugeordnete Codes können alte Stände prüfen, während Code-Aktivierung, Spieltipps und Bonusänderungen serverseitig blockiert werden.
 
 ## Zuletzt ausgeführte / benötigte SQL-Dateien
@@ -222,17 +222,20 @@ cd android-app
   - legt `bundesliga-2026` verborgen und leer an, schließt öffentliche Reads für verborgene Competitions und beansprucht freie Einladungscodes atomisch über einen Datenbank-Trigger.
   - wurde am 25. Mai 2026 vom Nutzer im SQL Editor des bestehenden WM-Supabase-Projekts ausgeführt.
   - `supabase/migrations/20260525161036_bundesliga_live_updates_probe.sql`
-  - ergänzt den Bundesliga-Not-Aus `live_updates_paused` und legt die verborgene, später vollständig löschbare Relegations-Liveprobe an; WM-Tabellen und WM-Flows werden nicht verändert.
+  - ergänzt den Bundesliga-Not-Aus `live_updates_paused` und legte die inzwischen abgeschlossene, mit Cleanup zu entfernende Relegations-Liveprobe an; WM-Tabellen und WM-Flows werden nicht verändert.
   - wurde am 25. Mai 2026 vom Nutzer im SQL Editor des bestehenden WM-Supabase-Projekts ausgeführt.
   - `supabase/migrations/20260525191145_bundesliga_free_live_hybrid.sql`
   - ergänzt interne Provider-Beobachtungen sowie die Herkunft/Bestätigung angezeigter Bundesliga-Livestände für den kostenlosen OpenLigaDB-/football-data-Hybrid; WM-Tabellen und WM-Flows bleiben unverändert.
+  - wurde am 25. Mai 2026 vom Nutzer im SQL Editor des bestehenden WM-Supabase-Projekts ausgeführt.
+  - `supabase/migrations/20260525212452_remove_bundesliga_live_probe.sql`
+  - entfernt nach der erfolgreichen Generalprobe ausschließlich Daten der Competition `bundesliga-liveprobe-rel-2026`; `bundesliga-2026`, `bundesliga-2025`, Live-Schema und WM bleiben erhalten.
   - wurde am 25. Mai 2026 vom Nutzer im SQL Editor des bestehenden WM-Supabase-Projekts ausgeführt.
 
 ## Nächste Schritte Bundesliga
 
 - Im Admin prüfen, dass `bundesliga-2026` als versteckte, leere Saison geladen wird; die SQL-Migration wurde am 25. Mai 2026 ausgeführt.
 - Sobald OpenLigaDB `bl1/2026` ausliefert, den Spielplan importieren, Logos kontrollieren und eine echte Bonusfrist in der Release-Konfiguration setzen.
-- Mit frischen Staging-Codes Login, Tipp-Sperre, Bonusfrist und Live-Sichtbarkeit prüfen; die Relegations-Generalprobe läuft getrennt in `bundesliga-liveprobe-rel-2026` und wird danach vollständig gelöscht.
+- Mit frischen Staging-Codes Login, Tipp-Sperre, Bonusfrist und Live-Sichtbarkeit in `bundesliga-2026` prüfen; die einmalige Relegations-Generalprobe ist abgeschlossen und ihre separate Competition wurde bereinigt.
 - `public_enabled` erst über die Admin-Freigabe aktivieren, wenn die Release-Gates vollständig grün sind; der Live-Updater ist für relevante importierte Spiele aktiv und kann nur im Notfall pausiert werden, Push bleibt vorerst aus.
 
 ## Bundesliga Release-Probelauf
@@ -284,7 +287,9 @@ Bonus prüfen:
 
 Rangliste prüfen:
 
-- Top 3, eigene Platzierung, Spieltagssiege und Spieltagssieger-Karte sind lesbar.
+- Die Hauptwertung `Gesamtpunkte` zeigt `Getippt`, `Spieltags-Siege`, `Spielpunkte`, `Bonus` und `Gesamt`; der Umschalter `Punkteschnitt` wertet ausschließlich Spielpunkte pro final gewertetem Tipp aus.
+- Vor der ersten gewerteten Partie erscheint eine neutrale Teilnehmerliste ohne behauptete Plätze oder Podium.
+- Top 3, eigene Platzierung, Spieltagssiege und Spieltagssieger-Karte sind nach der ersten Auswertung lesbar.
 - Mobile Rangliste bleibt als Kartenansicht ohne horizontales Quetschen nutzbar.
 
 Admin prüfen:
@@ -317,25 +322,25 @@ Release-Lücken:
 - `Diagnose & Freigabe` bündelt Release-Gates, Release-Konfiguration, Probelauf, öffentliche Freigabe und den geschützten Gefahrenbereich für Rücksetzungen beziehungsweise Teilnehmerlöschung.
 - Die Umordnung selbst verwendete bestehende Actions; der nachfolgende Echt-Livebetrieb ergänzt separat nur das Bundesliga-Feld `live_updates_paused` und die isolierte Probe-Competition.
 
-## Bundesliga Echt-Livebetrieb und Relegations-Generalprobe (25. Mai 2026)
+## Bundesliga Echt-Livebetrieb und abgeschlossene Relegations-Generalprobe (25. Mai 2026)
 
 - Laufende Spiele liefern in `Live` den aktuellen Stand, importierte Torereignisse, den Aktualisierungszeitpunkt und deutlich als `vorläufig` gekennzeichnete Spieltagspunkte; die dauerhafte Rangliste rechnet weiterhin ausschließlich finale Ergebnisse.
 - `Live` zeigt den letzten geladenen Datenstand neben der manuellen Aktualisierung; `Tippen` warnt in den letzten fünf Minuten vor der serverseitigen Anpfiff-Sperre mit Countdown und markiert ungespeicherte Tipps.
-- Die Scheduled Function aktualisiert im Zwei-Minuten-Takt nur `bundesliga-2026` und `bundesliga-liveprobe-rel-2026`, wenn dort ein importiertes Spiel im Live-Zeitfenster liegt. `bundesliga-2025` bleibt schreibgeschütztes Archiv.
-- Unter `Diagnose & Freigabe` steuert der Admin den Not-Aus und einen unmittelbaren Refresh für die reguläre Saison sowie die getrennte `Relegations-Liveprobe`.
-- Die Probe nutzt ausschließlich OpenLigaDB `rel/2025`, Match `81659`, `SC Paderborn 07 - VfL Wolfsburg` am 25. Mai 2026 um 20:30 Uhr (Europe/Berlin). Sie hat eigene Codes, Teilnehmer, Tipps, Ergebnisse und Tore.
-- Probe-Links enthalten `blCompetition=bundesliga-liveprobe-rel-2026`; die Teilnehmeransicht kennzeichnet sie als `Liveprobe Relegation - nicht Saisonbetrieb` und blendet Saisonbonus, Tabelle und Torschützen als reguläre Workflows aus.
-- Nach dem Test löscht `Liveprobe vollständig löschen` nur Probe-Daten. `bundesliga-2026` und WM bleiben unangetastet.
+- Die Scheduled Function aktualisiert im Zwei-Minuten-Takt relevante importierte Liga- und optionale Relegationsspiele innerhalb von `bundesliga-2026`. `bundesliga-2025` bleibt schreibgeschütztes Archiv.
+- Unter `Diagnose & Freigabe` steuert der Admin den Not-Aus und einen unmittelbaren Refresh für die aktive Saison.
+- Die einmalige Probe mit OpenLigaDB `rel/2025`, Match `81659`, `SC Paderborn 07 - VfL Wolfsburg` am 25. Mai 2026 um 20:30 Uhr (Europe/Berlin) war erfolgreich; ihre separate Competition wird vollständig bereinigt.
+- Alte Probe-Links werden abgewiesen beziehungsweise als abgeschlossen angezeigt und eröffnen keine Sitzung in `bundesliga-2026`.
+- Optional importierte echte Relegationsspiele der Saison `rel/2026` laufen künftig in `bundesliga-2026` über denselben OpenLigaDB-Live- und Torverlauf; sie fließen in Tipps und Rangliste, aber nicht in Ligatabelle oder Bonus-Teamwahl ein.
 - Die mobile Tippdarstellung fixiert überstehende Score-Buttons; das Statistiklabel `Gespeichert` bricht in schmalen Karten lesbar um.
 
 ## Bundesliga Gratis-Hybrid Livequellen (25. Mai 2026)
 
-- OpenLigaDB bleibt Hauptquelle für Spielplan, Live-Tore und Torschützennamen; die Relegations-Liveprobe bleibt ausschließlich OpenLigaDB-basiert.
+- OpenLigaDB bleibt Hauptquelle für Spielplan, Live-Tore und Torschützennamen; importierte Relegationsspiele bleiben ausschließlich OpenLigaDB-basiert.
 - Für reguläre Spiele von `bundesliga-2026` kann die bestehende Netlify-Variable `FOOTBALL_DATA_API_KEY` zusätzlich den kostenlosen football-data-Vergleich für `BL1`/Saison `2026` aktivieren.
 - football-data darf nur einen fehlenden laufenden Zwischenstand als vorläufige Anzeige füllen; Nutzer sehen dabei gegebenenfalls `Torereignisse folgen`, bis OpenLigaDB Ereignisse liefert.
 - Finale automatische Wertung erfolgt bei aktivem Vergleich erst, wenn OpenLigaDB und football-data dasselbe Endergebnis gespeichert haben; Abweichungen erscheinen im Admin unter `Diagnose & Freigabe`.
 - Torereignisse werden bei jedem OpenLigaDB-Refresh erneuert: `Unbekannt` wird ersetzt, sobald ein Name geliefert wird, ein bekannter Name wird durch spätere leere Daten nicht wieder verschlechtert.
-- Da der OpenLigaDB-Liga-Feed bei laufenden Spielen Torschützen leer liefern kann, lädt die Live-Synchronisierung für namenlose Goals automatisch den Einzelspiel-Endpunkt nach; bei der Relegationsprobe ergänzt dies Match `81659` um `Dženan Pejcinovic` und `Filip Bilbija`.
+- Da ein OpenLigaDB-Feed bei laufenden Spielen Torschützen leer liefern kann, lädt die Live-Synchronisierung für namenlose Goals automatisch den Einzelspiel-Endpunkt nach; bekannte Namen werden bei späteren leeren Antworten nicht überschrieben.
 - Der Nutzer-Button `Aktualisieren` auf der Live-Seite meldet Laden, Erfolg oder Fehler sichtbar zurück; er lädt die zuletzt importierten Live-Daten, während die Quellsynchronisierung automatisch beziehungsweise über den Admin erfolgt.
 
 ## CODEX.md Pflege-Regel

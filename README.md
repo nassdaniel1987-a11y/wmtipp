@@ -120,10 +120,13 @@ falls nur der Vite-Server läuft.
 - Laufende Bundesliga-Spiele werden nach dem Deploy automatisiert im kurzen
   Intervall aktualisiert; `Diagnose & Freigabe` bietet einen Not-Aus und eine
   manuelle Sofortaktualisierung.
-- Für die verborgene Relegations-Generalprobe muss vorab
-  `supabase/migrations/20260525161036_bundesliga_live_updates_probe.sql`
-  im bestehenden Supabase-Projekt ausgeführt werden. Die Probe läuft in
-  `bundesliga-liveprobe-rel-2026` getrennt von der späteren Saisonbasis.
+- Die Relegations-Generalprobe wurde erfolgreich abgeschlossen. Ihre getrennten
+  Testdaten werden mit
+  `supabase/migrations/20260525212452_remove_bundesliga_live_probe.sql`
+  ausschließlich aus der ehemaligen Probe-Competition entfernt.
+- Optional importierte echte Relegationsspiele laufen in `bundesliga-2026`
+  über denselben OpenLigaDB-Live-/Torverlauf wie Ligaspiele, ohne die
+  Ligatabelle oder Bonus-Teamwahl zu verändern.
 - Die reguläre Bundesliga kann über `FOOTBALL_DATA_API_KEY` einen kostenlosen
   Live-Vergleich nutzen: OpenLigaDB bleibt Quelle für Tore und Namen,
   football-data füllt nur fehlende vorläufige Zwischenstände. Dafür muss vor

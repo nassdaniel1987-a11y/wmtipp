@@ -18,7 +18,7 @@ export default async (req) => {
     const [competition, teams, matches, results, topScorers, bonusResults, ruleSettings] = await Promise.all([
       Promise.resolve({ data: activeCompetition, error: null }),
       supabase.from("competition_teams").select("*").eq("competition_id", competitionId).order("name"),
-      supabase.from("competition_matches").select("*").eq("competition_id", competitionId).eq("phase", "league").order("match_number"),
+      supabase.from("competition_matches").select("*").eq("competition_id", competitionId).in("phase", ["league", "relegation"]).order("matchday").order("match_number"),
       supabase.from("competition_results").select("*").eq("competition_id", competitionId),
       supabase.from("competition_top_scorers").select("*").eq("competition_id", competitionId).order("goals", { ascending: false }).order("display_name"),
       supabase.from("competition_bonus_results").select("*").eq("competition_id", competitionId).maybeSingle(),
@@ -33,26 +33,31 @@ export default async (req) => {
       ...team,
       logo_url: normalizeTeamLogoUrl(team.logo_url),
     }));
+    const visibleMatches = matches.data ?? [];
+    const leagueMatches = visibleMatches.filter((match) => match.phase === "league");
+    const leagueTeamIds = new Set(leagueMatches.flatMap((match) => [match.team_a_id, match.team_b_id]).filter(Boolean));
+    const leagueTeams = normalizedTeams.filter((team) => leagueTeamIds.has(team.id));
 
     return json({
       competition: competition.data,
       teams: normalizedTeams,
-      matches: matches.data ?? [],
+      bonusTeams: leagueTeams,
+      matches: visibleMatches,
       results: results.data ?? [],
       topScorers: topScorers.data ?? [],
       bonusResults: bonusResults.data ?? null,
       ruleSettings,
-      table: buildLeagueTable(matches.data ?? [], results.data ?? [], normalizedTeams),
-      matchdayStatus: buildMatchdayStatus(matches.data ?? [], [], results.data ?? []),
+      table: buildLeagueTable(leagueMatches, results.data ?? [], leagueTeams),
+      matchdayStatus: buildMatchdayStatus(visibleMatches, [], results.data ?? []),
       bonusStatus: buildBonusStatus(null),
       rulesSummary: buildBundesligaRulesSummary(ruleSettings, competition.data),
       importStatus: {
         source: "OpenLigaDB",
         teams: normalizedTeams.length,
-        matches: matches.data?.length ?? 0,
+        matches: visibleMatches.length,
         results: results.data?.length ?? 0,
         topScorers: topScorers.data?.length ?? 0,
-        lastMatchImportAt: (matches.data ?? []).reduce((latest, row) => {
+        lastMatchImportAt: visibleMatches.reduce((latest, row) => {
           if (!row.updated_at) return latest;
           return !latest || row.updated_at > latest ? row.updated_at : latest;
         }, null),

@@ -1,13 +1,12 @@
 import {
   BUNDESLIGA_COMPETITION_ID,
-  BUNDESLIGA_LIVE_PROBE_COMPETITION_ID,
-  BUNDESLIGA_LIVE_PROBE_MATCH_ID,
+  BUNDESLIGA_RELEGATION_LEAGUE,
+  BUNDESLIGA_SOURCE_LEAGUE,
   normalizeOpenLigaMatch,
 } from "./bundesliga.js";
 
 export const LIVE_UPDATE_COMPETITION_IDS = [
   BUNDESLIGA_COMPETITION_ID,
-  BUNDESLIGA_LIVE_PROBE_COMPETITION_ID,
 ];
 
 const LIVE_WINDOW_BEFORE_MS = 15 * 60 * 1000;
@@ -179,54 +178,64 @@ function normalizeFootballDataObservation(competitionId, localMatch, sourceMatch
   }, sourceMatch, sourceMatch.lastUpdated);
 }
 
-export async function syncLiveCompetition(supabase, competition, {
-  setup = false,
-  now = new Date(),
-} = {}) {
+export async function syncLiveCompetition(supabase, competition, { now = new Date() } = {}) {
   const { data: storedMatches, error: matchReadError } = await supabase
     .from("competition_matches")
     .select("*")
     .eq("competition_id", competition.id)
-    .eq("phase", "league")
+    .in("phase", ["league", "relegation"])
     .order("match_number");
   if (matchReadError) throw matchReadError;
 
   const existingMatches = storedMatches ?? [];
   const relevantMatches = existingMatches.filter((match) => isRelevantLiveFixture(match, now));
 
-  if (!setup && relevantMatches.length === 0) {
+  if (relevantMatches.length === 0) {
     return { skipped: true, reason: "Kein Live-Zeitfenster aktiv.", matches: 0, results: 0, goals: 0 };
   }
 
-  const sourceMatches = await fetchOpenLigaCompetitionMatches(competition);
-  const requestedExternalIds = new Set(
-    relevantMatches.map(externalMatchId).filter(Boolean),
-  );
-  const selectedCompetitionMatches = competition.id === BUNDESLIGA_LIVE_PROBE_COMPETITION_ID && setup
-    ? sourceMatches.filter((match) => String(match.matchID) === BUNDESLIGA_LIVE_PROBE_MATCH_ID)
-    : sourceMatches.filter((match) => requestedExternalIds.has(String(match.matchID)));
+  const phaseSources = [
+    { phase: "league", league: competition.source_league || BUNDESLIGA_SOURCE_LEAGUE },
+    { phase: "relegation", league: BUNDESLIGA_RELEGATION_LEAGUE },
+  ];
+  const selectedWithSource = [];
+  for (const { phase, league } of phaseSources) {
+    const phaseMatches = relevantMatches.filter((match) => match.phase === phase);
+    if (!phaseMatches.length) continue;
+    const sourceMatches = await fetchOpenLigaCompetitionMatches({ ...competition, source_league: league });
+    const localByExternalId = new Map(phaseMatches.map((match) => [externalMatchId(match), match]));
+    sourceMatches.forEach((match) => {
+      const localMatch = localByExternalId.get(String(match.matchID));
+      if (localMatch) selectedWithSource.push({ match, localMatch, phase, league });
+    });
+  }
 
-  if (selectedCompetitionMatches.length === 0) {
+  if (selectedWithSource.length === 0) {
     return { skipped: true, reason: "OpenLigaDB lieferte kein passendes Spiel.", matches: 0, results: 0, goals: 0 };
   }
 
-  const selectedSourceMatches = await Promise.all(selectedCompetitionMatches.map(async (match) => {
+  const selectedSourceMatches = await Promise.all(selectedWithSource.map(async ({ match }) => {
     if (!needsOpenLigaMatchDetail(match)) return match;
     const detail = await fetchOpenLigaMatchDetail(match.matchID).catch(() => null);
     return mergeOpenLigaMatchDetail(match, detail);
   }));
 
-  const normalized = selectedSourceMatches.map((match, index) => normalizeOpenLigaMatch(
-    match,
-    competition.source_league,
-    index,
-    {
+  const normalized = selectedSourceMatches.map((match, index) => {
+    const selected = selectedWithSource[index];
+    const item = normalizeOpenLigaMatch(match, selected.league, index, {
       competitionId: competition.id,
-      phaseOverride: competition.id === BUNDESLIGA_LIVE_PROBE_COMPETITION_ID ? "league" : undefined,
-      matchdayOverride: competition.id === BUNDESLIGA_LIVE_PROBE_COMPETITION_ID ? 1 : undefined,
+      matchdayOverride: selected.localMatch.matchday,
       now,
-    },
-  ));
+    });
+    return {
+      ...item,
+      matchRow: {
+        ...item.matchRow,
+        match_number: selected.localMatch.match_number,
+        matchday: selected.localMatch.matchday,
+      },
+    };
+  });
   const teamRows = Array.from(new Map(
     normalized
       .flatMap((item) => [item.homeTeam, item.awayTeam])
@@ -267,6 +276,7 @@ export async function syncLiveCompetition(supabase, competition, {
     : "";
   const footballMatches = footballDataKey ? await fetchFootballDataMatches(footballDataKey).catch(() => []) : [];
   const footballDataObservations = relevantMatches
+    .filter((localMatch) => localMatch.phase === "league")
     .map((localMatch) => {
       const sourceMatch = footballMatches.find((candidate) => sameFixture(localMatch, candidate));
       return sourceMatch ? normalizeFootballDataObservation(competition.id, localMatch, sourceMatch) : null;
@@ -296,7 +306,7 @@ export async function syncLiveCompetition(supabase, competition, {
     .map((item) => {
       const providers = observationByMatch.get(item.matchRow.id) ?? {};
       return selectHybridLiveResult(providers.openligadb, providers["football-data"], {
-        footballDataConfigured: Boolean(footballDataKey),
+        footballDataConfigured: Boolean(footballDataKey) && item.matchRow.phase === "league",
       });
     })
     .filter(Boolean);

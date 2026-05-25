@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   BUNDESLIGA_COMPETITION_ID,
-  BUNDESLIGA_LIVE_PROBE_COMPETITION_ID,
+  BUNDESLIGA_RETIRED_LIVE_PROBE_COMPETITION_ID,
   BUNDESLIGA_SEASON_LABEL,
   buildCompetitionRanking,
   buildBundesligaMatchDetail,
@@ -11,6 +11,7 @@ import {
   buildTipTrends,
   canViewMatchTips,
   isBundesligaTipLocked,
+  isBundesligaCompetitionId,
   normalizeOpenLigaMatch,
 } from "../netlify/functions/_shared/bundesliga.js";
 import {
@@ -48,8 +49,7 @@ test("live foundation targets a new 2026/27 competition", () => {
   assert.equal(BUNDESLIGA_SEASON_LABEL, "2026/2027");
 });
 
-test("relegation live probe is isolated from the season competition", () => {
-  assert.equal(BUNDESLIGA_LIVE_PROBE_COMPETITION_ID, "bundesliga-liveprobe-rel-2026");
+test("regular relegation matches use the active season live path", () => {
   const normalized = normalizeOpenLigaMatch({
     matchID: 81659,
     matchDateTimeUTC: "2026-05-25T18:30:00.000Z",
@@ -58,16 +58,21 @@ test("relegation live probe is isolated from the season competition", () => {
     team2: { teamId: 2, teamName: "VfL Wolfsburg" },
     goals: [{ goalID: 1, goalGetterName: "Dženan Pejcinovic", matchMinute: 3, scoreTeam1: 0, scoreTeam2: 1 }],
   }, "rel", 0, {
-    competitionId: BUNDESLIGA_LIVE_PROBE_COMPETITION_ID,
-    phaseOverride: "league",
-    matchdayOverride: 1,
+    competitionId: BUNDESLIGA_COMPETITION_ID,
+    matchdayOverride: 35,
     now: new Date("2026-05-25T18:45:00.000Z"),
   });
-  assert.equal(normalized.matchRow.competition_id, BUNDESLIGA_LIVE_PROBE_COMPETITION_ID);
-  assert.equal(normalized.matchRow.phase, "league");
+  assert.equal(normalized.matchRow.competition_id, BUNDESLIGA_COMPETITION_ID);
+  assert.equal(normalized.matchRow.phase, "relegation");
+  assert.equal(normalized.matchRow.matchday, 35);
   assert.equal(normalized.resultRow.status, "live");
   assert.deepEqual([normalized.resultRow.score_a, normalized.resultRow.score_b], [0, 1]);
   assert.equal(normalized.goals[0].scorer_name, "Dženan Pejcinovic");
+});
+
+test("completed live probe is no longer an accepted preview competition", () => {
+  assert.equal(BUNDESLIGA_RETIRED_LIVE_PROBE_COMPETITION_ID, "bundesliga-liveprobe-rel-2026");
+  assert.equal(isBundesligaCompetitionId(BUNDESLIGA_RETIRED_LIVE_PROBE_COMPETITION_ID), false);
 });
 
 test("goal refresh upgrades unknown scorers and never downgrades known names", () => {
@@ -267,9 +272,12 @@ test("preview access and personal requests require a validated code", async () =
     (error) => error.status === 409 && /Archivvorschau/.test(error.message),
   );
   assert.equal(requireBundesligaWriteCompetition(new Request("http://localhost")), BUNDESLIGA_COMPETITION_ID);
-  assert.equal(requireBundesligaWriteCompetition(new Request("http://localhost", {
-    headers: { "X-Bundesliga-Competition": BUNDESLIGA_LIVE_PROBE_COMPETITION_ID },
-  })), BUNDESLIGA_LIVE_PROBE_COMPETITION_ID);
+  assert.throws(
+    () => requireBundesligaWriteCompetition(new Request("http://localhost", {
+      headers: { "X-Bundesliga-Competition": BUNDESLIGA_RETIRED_LIVE_PROBE_COMPETITION_ID },
+    })),
+    (error) => error.status === 410 && /abgeschlossen/.test(error.message),
+  );
   const participant = { id: "self", competition_id: BUNDESLIGA_COMPETITION_ID, display_name: "Daniel", invite_code_id: "code-1" };
   const supabase = {
     from(table) {

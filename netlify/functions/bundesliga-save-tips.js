@@ -34,6 +34,7 @@ export default async (req) => {
       .from("competition_matches")
       .select("id, team_a_name, team_b_name, kickoff_at, status")
       .eq("competition_id", competitionId)
+      .in("phase", ["league", "relegation"])
       .in("id", rows.map((row) => row.match_id));
     if (matchError) throw matchError;
     if ((matches ?? []).length !== rows.length) {

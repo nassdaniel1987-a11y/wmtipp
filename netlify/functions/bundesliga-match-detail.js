@@ -18,7 +18,7 @@ export default async (req) => {
       .from("competition_matches")
       .select("id, matchday, kickoff_at, team_a_id, team_b_id, team_a_name, team_b_name, phase")
       .eq("competition_id", competitionId)
-      .eq("phase", "league")
+      .in("phase", ["league", "relegation"])
       .eq("id", matchId)
       .maybeSingle();
     if (matchError) throw matchError;

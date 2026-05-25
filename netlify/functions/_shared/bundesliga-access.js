@@ -1,6 +1,7 @@
 import {
   BUNDESLIGA_ARCHIVE_COMPETITION_ID,
   BUNDESLIGA_COMPETITION_ID,
+  BUNDESLIGA_RETIRED_LIVE_PROBE_COMPETITION_ID,
   getBundesligaSeasonLabel,
   isBundesligaCompetitionId,
 } from "./bundesliga.js";
@@ -22,6 +23,9 @@ export function bundesligaErrorResponse(error, fallbackMessage) {
 
 export function resolveRequestedBundesligaCompetition(req) {
   const requested = String(req.headers.get(BUNDESLIGA_COMPETITION_HEADER) || "").trim();
+  if (requested === BUNDESLIGA_RETIRED_LIVE_PROBE_COMPETITION_ID) {
+    throw new BundesligaHttpError("Die Relegations-Liveprobe ist abgeschlossen und nicht mehr verfügbar.", 410);
+  }
   return isBundesligaCompetitionId(requested) ? requested : BUNDESLIGA_COMPETITION_ID;
 }
 

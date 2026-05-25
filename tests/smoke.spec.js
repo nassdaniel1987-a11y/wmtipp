@@ -115,8 +115,12 @@ test("hidden Bundesliga test flow supports tips, bonus and ranking", async ({ pa
 
   await page.getByRole("button", { name: "Rangliste" }).click();
   await expect(page.getByRole("heading", { name: "Bundesliga Rangliste" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Gesamtpunkte" })).toHaveClass(/active/);
   await expect(page.locator(".bundesliga-public-ranking").getByText("Daniel BL", { exact: true })).toBeVisible();
-  await expect(page.locator(".bundesliga-public-ranking").getByText("Siege")).toBeVisible();
+  await expect(page.locator(".bundesliga-ranking-podium").getByText("1 Spieltags-Siege")).toBeVisible();
+  await page.getByRole("button", { name: "Punkteschnitt" }).click();
+  await expect(page.locator(".bundesliga-ranking-podium article").filter({ hasText: "Daniel BL" }).getByText("1 gewertete Tipps")).toBeVisible();
+  await expect(page.getByText("Bonuspunkte zählen nicht in den Schnitt.")).toBeVisible();
 });
 
 test("Bundesliga logout returns to the focused code login", async ({ page }) => {
@@ -171,6 +175,15 @@ test("Bundesliga archive preview is visibly read-only", async ({ page }) => {
   await page.getByRole("button", { name: "Auswertung ansehen" }).first().click();
   await expect(page.getByText("Archivvorschau · nur lesbar")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Torverlauf" })).toBeVisible();
+});
+
+test("retired Bundesliga live probe link no longer opens a participant session", async ({ page }) => {
+  await page.goto("/?test=1&blCompetition=bundesliga-liveprobe-rel-2026#bundesliga-start");
+
+  await expect(page.getByRole("heading", { name: "Liveprobe abgeschlossen" })).toBeVisible();
+  await expect(page.getByText("Die Relegations-Generalprobe wurde erfolgreich beendet und ihre Testdaten werden entfernt.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Zur Bundesliga 2026/2027" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Hallo Daniel BL" })).toHaveCount(0);
 });
 
 test("empty Bundesliga 2026 season shows a clear preseason state", async ({ page }) => {
@@ -426,6 +439,9 @@ test("Bundesliga community respects private visibility and mobile more navigatio
   await page.route("**/api/bundesliga-bonus-tips", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ bonusTip: null }) }));
 
   await page.goto("/#bundesliga-rangliste");
+  await expect(page.getByText("Noch keine Rangliste")).toBeVisible();
+  await expect(page.locator(".bundesliga-ranking-podium")).toHaveCount(0);
+  await expect(page.locator(".bundesliga-current-rank")).toHaveCount(0);
   await expect(page.getByText("Teilnehmervergleiche sind für diese Saison deaktiviert. Deine Tipps bleiben privat.")).toBeVisible();
   await expect(page.getByText("Vergleich ab Anpfiff")).toHaveCount(0);
   await expect(page.getByText("Fremde Tipps bleiben während der Saison verborgen.")).toBeVisible();

@@ -41,7 +41,7 @@ const STORAGE_KEY = "wm-tippspiel-participant";
 const BUNDESLIGA_STORAGE_KEY = "bundesliga-tippspiel-participant";
 const BUNDESLIGA_DEFAULT_COMPETITION_ID = "bundesliga-2026";
 const BUNDESLIGA_ARCHIVE_COMPETITION_ID = "bundesliga-2025";
-const BUNDESLIGA_LIVE_PROBE_COMPETITION_ID = "bundesliga-liveprobe-rel-2026";
+const BUNDESLIGA_RETIRED_LIVE_PROBE_ID = "bundesliga-liveprobe-rel-2026";
 const BUNDESLIGA_BRAND_ASSETS = {
   header: "/brand/bundesliga/logo-header.png",
   compact: "/brand/bundesliga/logo-compact.png",
@@ -198,9 +198,10 @@ function getBundesligaMatchDetailId(tabId) {
 
 function getBundesligaCompetitionFromUrl() {
   const requested = new URLSearchParams(window.location.search).get("blCompetition");
-  return [BUNDESLIGA_ARCHIVE_COMPETITION_ID, BUNDESLIGA_LIVE_PROBE_COMPETITION_ID].includes(requested)
-    ? requested
-    : BUNDESLIGA_DEFAULT_COMPETITION_ID;
+  if (requested === BUNDESLIGA_ARCHIVE_COMPETITION_ID || requested === BUNDESLIGA_RETIRED_LIVE_PROBE_ID) {
+    return requested;
+  }
+  return BUNDESLIGA_DEFAULT_COMPETITION_ID;
 }
 
 function isBundesligaRoute() {
@@ -3242,7 +3243,6 @@ function AdminPanel({
   const [playerDraft, setPlayerDraft] = useState({ displayName: "", teamName: "", aliases: "", active: true });
   const [adminCompetition, setAdminCompetition] = useState(competitions.wm2026.id);
   const [bundesligaData, setBundesligaData] = useState(null);
-  const [bundesligaLiveProbe, setBundesligaLiveProbe] = useState(null);
   const [bundesligaMessage, setBundesligaMessage] = useState("");
   const [bundesligaLoading, setBundesligaLoading] = useState(false);
   const activePlayers = players.filter((player) => player.active !== false);
@@ -3593,12 +3593,8 @@ function AdminPanel({
   async function loadBundesligaData() {
     setBundesligaLoading(true);
     try {
-      const [payload, probePayload] = await Promise.all([
-        apiGetWithAuth("/api/admin-bundesliga-data", session?.access_token),
-        apiGetWithAuth("/api/admin-bundesliga-live-probe", session?.access_token),
-      ]);
+      const payload = await apiGetWithAuth("/api/admin-bundesliga-data", session?.access_token);
       setBundesligaData(payload);
-      setBundesligaLiveProbe(probePayload.probe);
     } catch (error) {
       setBundesligaMessage(error.message);
     } finally {
@@ -3611,20 +3607,6 @@ function AdminPanel({
     try {
       const payload = await apiPost("/api/admin-bundesliga-test-actions", { action, ...body }, session?.access_token);
       await loadBundesligaData();
-      return payload;
-    } catch (error) {
-      setBundesligaMessage(error.message);
-      return null;
-    } finally {
-      setBundesligaLoading(false);
-    }
-  }
-
-  async function runBundesligaLiveProbeAction(action, body = {}) {
-    setBundesligaLoading(true);
-    try {
-      const payload = await apiPost("/api/admin-bundesliga-live-probe", { action, ...body }, session?.access_token);
-      setBundesligaLiveProbe(payload.probe ?? null);
       return payload;
     } catch (error) {
       setBundesligaMessage(error.message);
@@ -3713,7 +3695,6 @@ function AdminPanel({
       {isBundesligaAdmin && (
         <BundesligaAdminArea
           data={bundesligaData}
-          liveProbe={bundesligaLiveProbe}
           loading={bundesligaLoading}
           message={bundesligaMessage}
           onRefresh={loadBundesligaData}
@@ -3829,20 +3810,6 @@ function AdminPanel({
           onRefreshLiveNow={async () => {
             const payload = await runBundesligaAction("refresh-live-now");
             if (payload?.update) setBundesligaMessage(payload.update.skipped ? payload.update.reason : "Saison-Livestände aktualisiert.");
-          }}
-          onLiveProbeAction={async (action, body = {}) => {
-            if (action === "delete" && !window.confirm("Relegations-Liveprobe vollständig löschen? Entfernt ausschließlich Probe-Spiel, Probe-Tore, Probe-Tipps, Probe-Teilnehmer und Probe-Codes.")) return null;
-            const payload = await runBundesligaLiveProbeAction(action, body);
-            if (!payload) return null;
-            const messages = {
-              prepare: "Relegations-Liveprobe vorbereitet.",
-              refresh: "Liveprobe mit OpenLigaDB aktualisiert.",
-              "set-paused": body.paused ? "Live-Aktualisierung der Probe pausiert." : "Live-Aktualisierung der Probe fortgesetzt.",
-              delete: "Relegations-Liveprobe vollständig gelöscht.",
-            };
-            if (messages[action]) setBundesligaMessage(messages[action]);
-            if (action !== "delete") await loadBundesligaData();
-            return payload;
           }}
           onBackToWorldCup={() => setAdminCompetition(competitions.wm2026.id)}
         />
@@ -4557,6 +4524,7 @@ function BundesligaParticipantApp({ isTestMode }) {
   const [tipStatuses, setTipStatuses] = useState({});
   const [liveData, setLiveData] = useState(null);
   const [liveTrends, setLiveTrends] = useState([]);
+  const [rankingMode, setRankingMode] = useState("total");
   const [personalStats, setPersonalStats] = useState(null);
   const [matchdayWinners, setMatchdayWinners] = useState([]);
   const [compareParticipantId, setCompareParticipantId] = useState("");
@@ -4575,6 +4543,7 @@ function BundesligaParticipantApp({ isTestMode }) {
 
   const matches = useMemo(() => (data?.matches ?? []).map(mapBundesligaMatch), [data]);
   const teams = data?.teams ?? [];
+  const bonusTeams = data?.bonusTeams ?? teams;
   const teamsById = useMemo(() => new Map(teams.map((team) => [team.id, team])), [teams]);
   const topScorers = data?.topScorers ?? [];
   const resultsByMatch = useMemo(() => new Map((data?.results ?? []).map((result) => [result.match_id, result])), [data]);
@@ -4598,7 +4567,7 @@ function BundesligaParticipantApp({ isTestMode }) {
   const bonusStatus = buildBundesligaBonusStatus(bonusTip);
   const rulesSummary = data?.rulesSummary;
   const archivePreview = competitionId === BUNDESLIGA_ARCHIVE_COMPETITION_ID;
-  const liveProbePreview = competitionId === BUNDESLIGA_LIVE_PROBE_COMPETITION_ID;
+  const retiredLiveProbe = competitionId === BUNDESLIGA_RETIRED_LIVE_PROBE_ID;
   const communityVisibilityMode = rulesSummary?.visibilityMode ?? "kickoff";
   const bonusLocked = archivePreview || Boolean(rulesSummary?.bonusDeadlineAt && new Date(rulesSummary.bonusDeadlineAt) <= new Date());
 
@@ -4633,6 +4602,7 @@ function BundesligaParticipantApp({ isTestMode }) {
 
   useEffect(() => {
     async function loadData() {
+      if (retiredLiveProbe) return;
       if (isTestMode) {
         const testData = createTestBundesligaData();
         setData(testData);
@@ -4657,10 +4627,11 @@ function BundesligaParticipantApp({ isTestMode }) {
       }
     }
     loadData();
-  }, [isTestMode, participant?.code, competitionId]);
+  }, [isTestMode, participant?.code, competitionId, retiredLiveProbe]);
 
   useEffect(() => {
     async function resolveParticipant() {
+      if (retiredLiveProbe) return;
       if (isTestMode) return;
       if (!code || participant?.id) return;
       setLoginState("checking");
@@ -4693,11 +4664,11 @@ function BundesligaParticipantApp({ isTestMode }) {
       }
     }
     resolveParticipant();
-  }, [code, participant?.id, isTestMode, competitionId, archivePreview]);
+  }, [code, participant?.id, isTestMode, competitionId, archivePreview, retiredLiveProbe]);
 
   useEffect(() => {
     async function loadParticipantState() {
-      if (isTestMode || !participant?.id || !matches.length) return;
+      if (retiredLiveProbe || isTestMode || !participant?.id || !matches.length) return;
       try {
         const [tipPayload, bonusPayload] = await Promise.all([
           apiGet("/api/bundesliga-tips", accessHeaders()),
@@ -4712,10 +4683,10 @@ function BundesligaParticipantApp({ isTestMode }) {
       }
     }
     loadParticipantState();
-  }, [participant?.id, matches, isTestMode, competitionId]);
+  }, [participant?.id, matches, isTestMode, competitionId, retiredLiveProbe]);
 
   useEffect(() => {
-    if (!participant?.id) {
+    if (retiredLiveProbe || !participant?.id) {
       setLiveData(null);
       return undefined;
     }
@@ -4748,7 +4719,7 @@ function BundesligaParticipantApp({ isTestMode }) {
     return () => {
       cancelled = true;
     };
-  }, [participant?.id, selectedMatchday, data, isTestMode, liveRefreshKey, competitionId]);
+  }, [participant?.id, selectedMatchday, data, isTestMode, liveRefreshKey, competitionId, retiredLiveProbe]);
 
   function refreshLiveDataManually() {
     manualLiveRefreshPendingRef.current = true;
@@ -4794,7 +4765,7 @@ function BundesligaParticipantApp({ isTestMode }) {
 
   useEffect(() => {
     const matchId = getBundesligaMatchDetailId(activeTab);
-    if (!matchId || !participant?.id) return undefined;
+    if (retiredLiveProbe || !matchId || !participant?.id) return undefined;
     let cancelled = false;
     async function loadMatchDetail() {
       setMatchDetailLoading(true);
@@ -4824,7 +4795,7 @@ function BundesligaParticipantApp({ isTestMode }) {
     return () => {
       cancelled = true;
     };
-  }, [activeTab, participant?.id, data, isTestMode, competitionId]);
+  }, [activeTab, participant?.id, data, isTestMode, competitionId, retiredLiveProbe]);
 
   useEffect(() => {
     const pendingIds = Object.entries(tipStatuses)
@@ -5509,13 +5480,7 @@ function BundesligaParticipantApp({ isTestMode }) {
 
   function renderSeasonStatusCard() {
     const resultCount = data?.results?.length ?? 0;
-    const seasonState = liveProbePreview
-      ? {
-          label: "Liveprobe Relegation",
-          detail: "Dieser Test nutzt ausschließlich das Rückspiel Paderborn gegen Wolfsburg.",
-          meta: "Nicht Saisonbetrieb. Testdaten werden anschließend gelöscht.",
-        }
-      : archivePreview
+    const seasonState = archivePreview
       ? {
           label: "Archivstand verfügbar",
           detail: "Die Saison 2025/2026 bleibt als interne Vorschau lesbar.",
@@ -5864,21 +5829,70 @@ function BundesligaParticipantApp({ isTestMode }) {
     ? ranking.find((row) => row.id === participant.id || row.name === participant.name)
     : null;
   const topRankingRows = ranking.slice(0, 3);
+  const totalRankingReady = ranking.some((row) => (row.scoredTipCount ?? 0) > 0 || (row.points ?? 0) > 0);
+  const averageRankingReady = ranking.some((row) => (row.scoredTipCount ?? 0) > 0);
+  const selectedRankingReady = rankingMode === "average" ? averageRankingReady : totalRankingReady;
+  const displayedRanking = useMemo(() => {
+    const nextRows = [...ranking];
+    if (rankingMode === "average") {
+      return nextRows.sort((first, second) =>
+        (second.averagePoints ?? 0) - (first.averagePoints ?? 0) ||
+        (second.scoredTipCount ?? 0) - (first.scoredTipCount ?? 0) ||
+        (second.points ?? 0) - (first.points ?? 0) ||
+        first.name.localeCompare(second.name, "de"),
+      );
+    }
+    return nextRows.sort((first, second) =>
+      (second.points ?? 0) - (first.points ?? 0) ||
+      (second.matchdayWins ?? 0) - (first.matchdayWins ?? 0) ||
+      (second.matchPoints ?? 0) - (first.matchPoints ?? 0) ||
+      first.name.localeCompare(second.name, "de"),
+    );
+  }, [ranking, rankingMode]);
+  const displayedCurrentRank = participant
+    ? displayedRanking.find((row) => row.id === participant.id || row.name === participant.name)
+    : null;
+  const displayedTopRankingRows = selectedRankingReady ? displayedRanking.slice(0, 3) : [];
   const openTipCount = Math.max(0, matches.length - savedTipCount);
   const nextOpenMatchday = matchdayStatusRows.find((row) => row.openTipCount > 0)?.matchday ?? selectedMatchday;
-  const preseasonPending = Boolean(data) && !archivePreview && !liveProbePreview && matches.length === 0;
-  const bonusAvailable = !liveProbePreview && teams.length > 0;
+  const preseasonPending = Boolean(data) && !archivePreview && matches.length === 0;
+  const bonusAvailable = bonusTeams.length > 0;
   const displayedTab = participant ? activeTab : "bundesliga-start";
   const headerSeasonLabel = isTestMode
     ? "Testmodus"
-    : liveProbePreview
-      ? "Liveprobe Relegation"
     : archivePreview
       ? "Archivvorschau 2025/2026"
       : data?.competition?.public_enabled
         ? "Saison 2026/2027"
         : "Vorschau 2026/2027";
-  const moreNavigationActive = !liveProbePreview && ["bundesliga-tabelle", "bundesliga-torschuetzen", "bundesliga-spielplan"].includes(displayedTab);
+  const moreNavigationActive = ["bundesliga-tabelle", "bundesliga-torschuetzen", "bundesliga-spielplan"].includes(displayedTab);
+
+  if (retiredLiveProbe) {
+    return (
+      <div className="bundesliga-public-shell">
+        <main className="bundesliga-retired-probe">
+          <img src={BUNDESLIGA_BRAND_ASSETS.header} alt="Österfeld Tippspiel" />
+          <section className="bundesliga-public-card">
+            <h1>Liveprobe abgeschlossen</h1>
+            <p>Die Relegations-Generalprobe wurde erfolgreich beendet und ihre Testdaten werden entfernt.</p>
+            <button
+              type="button"
+              className="bundesliga-primary-action"
+              onClick={() => {
+                const url = new URL(window.location.href);
+                url.searchParams.delete("blCompetition");
+                url.searchParams.delete("blCode");
+                url.hash = "bundesliga-start";
+                window.location.assign(url.toString());
+              }}
+            >
+              Zur Bundesliga 2026/2027
+            </button>
+          </section>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="bundesliga-public-shell">
@@ -5895,14 +5909,14 @@ function BundesligaParticipantApp({ isTestMode }) {
             <button className={displayedTab === "bundesliga-start" ? "active" : ""} onClick={() => setBundesligaTab("bundesliga-start")}>Start</button>
             <button className={displayedTab === "bundesliga-tippen" ? "active" : ""} onClick={() => setBundesligaTab("bundesliga-tippen")}>Tippen</button>
             <button className={displayedTab === "bundesliga-live" ? "active" : ""} onClick={() => setBundesligaTab("bundesliga-live")}>Live</button>
-            {!liveProbePreview && <button className={displayedTab === "bundesliga-bonus" ? "active" : ""} onClick={() => setBundesligaTab("bundesliga-bonus")}>Bonus</button>}
+            <button className={displayedTab === "bundesliga-bonus" ? "active" : ""} onClick={() => setBundesligaTab("bundesliga-bonus")}>Bonus</button>
             <button className={displayedTab === "bundesliga-rangliste" ? "active" : ""} onClick={() => { setBundesligaTab("bundesliga-rangliste"); void refreshRanking(); }}>Rangliste</button>
-            {!liveProbePreview && <span className="bundesliga-secondary-nav">
+            <span className="bundesliga-secondary-nav">
               <button className={displayedTab === "bundesliga-tabelle" ? "active" : ""} onClick={() => setBundesligaTab("bundesliga-tabelle")}>Tabelle</button>
               <button className={displayedTab === "bundesliga-torschuetzen" ? "active" : ""} onClick={() => setBundesligaTab("bundesliga-torschuetzen")}>Torschützen</button>
               <button className={displayedTab === "bundesliga-spielplan" ? "active" : ""} onClick={() => setBundesligaTab("bundesliga-spielplan")}>Spielplan</button>
-            </span>}
-            {!liveProbePreview && <button
+            </span>
+            <button
               type="button"
               className={`bundesliga-more-toggle ${moreNavigationActive || mobileMoreOpen ? "active" : ""}`}
               aria-expanded={mobileMoreOpen}
@@ -5911,10 +5925,10 @@ function BundesligaParticipantApp({ isTestMode }) {
             >
               Mehr
               <ChevronDown size={16} />
-            </button>}
+            </button>
           </nav>
         )}
-        {participant && mobileMoreOpen && !liveProbePreview && (
+        {participant && mobileMoreOpen && (
           <div id="bundesliga-mobile-more-menu" className="bundesliga-mobile-more-menu" role="navigation" aria-label="Weitere Bundesliga-Bereiche">
             <button className={displayedTab === "bundesliga-tabelle" ? "active" : ""} onClick={() => setBundesligaTab("bundesliga-tabelle")}>Tabelle</button>
             <button className={displayedTab === "bundesliga-torschuetzen" ? "active" : ""} onClick={() => setBundesligaTab("bundesliga-torschuetzen")}>Torschützen</button>
@@ -5929,12 +5943,6 @@ function BundesligaParticipantApp({ isTestMode }) {
           <section className="bundesliga-archive-banner" aria-live="polite">
             <strong>Interne Archivvorschau 2025/2026</strong>
             <span>Nur lesbar. Neue Codes, Tipps und Bonusänderungen laufen ausschließlich in 2026/2027.</span>
-          </section>
-        )}
-        {liveProbePreview && (
-          <section className="bundesliga-archive-banner bundesliga-live-probe-banner" aria-live="polite">
-            <strong>Liveprobe Relegation - nicht Saisonbetrieb</strong>
-            <span>SC Paderborn 07 gegen VfL Wolfsburg · 25.05.2026, 20:30 Uhr. Deine Tipps gelten nur für diesen Test.</span>
           </section>
         )}
         {displayedTab !== "bundesliga-start" && (
@@ -6032,7 +6040,7 @@ function BundesligaParticipantApp({ isTestMode }) {
                   {topRankingRows.length === 0 && <p>Noch keine Rangliste vorhanden.</p>}
                 </div>
               </section>
-              {!liveProbePreview && displayTableRows.length > 0 && <section className="bundesliga-public-card">
+              {displayTableRows.length > 0 && <section className="bundesliga-public-card">
                 {renderCardHeading("Live-Tabelle", () => setBundesligaTab("bundesliga-tabelle"))}
                 <div className="bundesliga-mini-table">
                   {displayTableRows.slice(0, 8).map((row, index) => (
@@ -6046,7 +6054,7 @@ function BundesligaParticipantApp({ isTestMode }) {
                 </div>
               </section>}
               {renderCommunityCard()}
-              {!liveProbePreview && dashboardMatches.length > 0 && <section className="bundesliga-public-card">
+              {dashboardMatches.length > 0 && <section className="bundesliga-public-card">
                 {renderCardHeading("Nächste Spiele", () => setBundesligaTab("bundesliga-spielplan"))}
                 <div className="bundesliga-fixture-list">
                   {dashboardMatches.map((match) => (
@@ -6170,7 +6178,7 @@ function BundesligaParticipantApp({ isTestMode }) {
               {bonusAvailable && renderBonusReminder()}
               {renderPersonalStatsCard()}
               {renderLivePanel()}
-              {!liveProbePreview && <section className="bundesliga-public-card">
+              <section className="bundesliga-public-card">
                 {renderCardHeading("Live-Tabelle", () => setBundesligaTab("bundesliga-tabelle"))}
                 <div className="bundesliga-mini-table">
                   {displayTableRows.slice(0, 6).map((row, index) => (
@@ -6182,8 +6190,8 @@ function BundesligaParticipantApp({ isTestMode }) {
                     </div>
                   ))}
                 </div>
-              </section>}
-              {!liveProbePreview && <section className="bundesliga-public-card">
+              </section>
+              <section className="bundesliga-public-card">
                 {renderCardHeading("Torschützen", () => setBundesligaTab("bundesliga-torschuetzen"))}
                 <div className="bundesliga-scorer-mini-list">
                   {topScorerPreview.map((row, index) => (
@@ -6194,28 +6202,21 @@ function BundesligaParticipantApp({ isTestMode }) {
                     </div>
                   ))}
                 </div>
-              </section>}
+              </section>
               {renderRulesCard()}
               </aside>
             </details>
           </section>
         )}
 
-        {displayedTab === "bundesliga-bonus" && liveProbePreview && (
-          <section className="bundesliga-public-card bundesliga-preseason-empty">
-            <h2>Kein Saisonbonus in der Liveprobe</h2>
-            <p>Die Relegationsprobe prüft Tipps, Live-Spielstand und Auswertung für genau eine Partie.</p>
-          </section>
-        )}
-
-        {displayedTab === "bundesliga-bonus" && !liveProbePreview && !bonusAvailable && !archivePreview && (
+        {displayedTab === "bundesliga-bonus" && !bonusAvailable && !archivePreview && (
           <section className="bundesliga-public-card bundesliga-preseason-empty">
             <h2>Bonusfragen werden vorbereitet</h2>
             <p>Sobald die Teams der Saison 2026/2027 importiert sind, kannst du Meister, Torschützenkönig und Absteiger tippen.</p>
           </section>
         )}
 
-        {displayedTab === "bundesliga-bonus" && !liveProbePreview && (bonusAvailable || archivePreview) && (
+        {displayedTab === "bundesliga-bonus" && (bonusAvailable || archivePreview) && (
           <section className="bundesliga-stage-grid">
             <section className="bundesliga-public-card bundesliga-bonus-public">
               <div className="bundesliga-public-section-head">
@@ -6229,7 +6230,7 @@ function BundesligaParticipantApp({ isTestMode }) {
               <section className="bundesliga-choice-section">
                 <h3>Meister</h3>
                 <div className="bundesliga-choice-grid">
-                  {teams.map((team) => (
+                  {bonusTeams.map((team) => (
                     <button key={team.id} type="button" disabled={bonusLocked} className={bonusTip.championTeamId === team.id ? "selected" : ""} onClick={() => updateBonus({ championTeamId: team.id })}>
                       <BundesligaLogo src={team.logo_url} name={team.name} />
                       <strong>{team.name}</strong>
@@ -6262,7 +6263,7 @@ function BundesligaParticipantApp({ isTestMode }) {
               <section className="bundesliga-choice-section">
                 <h3>Absteiger <span>{bonusTip.relegatedTeamIds.length} / 3</span></h3>
                 <div className="bundesliga-choice-grid compact">
-                  {teams.map((team) => (
+                  {bonusTeams.map((team) => (
                     <button key={team.id} type="button" disabled={bonusLocked} className={bonusTip.relegatedTeamIds.includes(team.id) ? "selected" : ""} onClick={() => toggleRelegatedTeam(team.id)}>
                       <BundesligaLogo src={team.logo_url} name={team.name} />
                       <strong>{team.name}</strong>
@@ -6295,38 +6296,78 @@ function BundesligaParticipantApp({ isTestMode }) {
         {displayedTab === "bundesliga-rangliste" && (
           <section className="bundesliga-stage-grid">
             <section className="bundesliga-public-card">
-              <h2>Bundesliga Rangliste</h2>
-              <div className="bundesliga-ranking-podium">
-                {topRankingRows.map((row, index) => (
-                  <article key={row.id ?? row.name} className={participant?.id === row.id || participant?.name === row.name ? "current" : ""}>
-                    <span>#{index + 1}</span>
-                    <strong>{row.name}</strong>
-                    <b>{row.points} P</b>
-                    <small>{row.matchdayWins ?? 0} Spieltagssiege</small>
-                  </article>
-                ))}
-              </div>
-              {currentParticipantRank && (
-                <div className="bundesliga-current-rank">
-                  <span>Dein Platz</span>
-                  <strong>{ranking.findIndex((row) => row.id === currentParticipantRank.id || row.name === currentParticipantRank.name) + 1}. {currentParticipantRank.name}</strong>
-                  <b>{currentParticipantRank.points} Punkte</b>
+              <div className="bundesliga-ranking-header">
+                <h2>Bundesliga Rangliste</h2>
+                <div className="bundesliga-ranking-tabs" aria-label="Ranglistenwertung">
+                  <button type="button" className={rankingMode === "total" ? "active" : ""} onClick={() => setRankingMode("total")}>Gesamtpunkte</button>
+                  <button type="button" className={rankingMode === "average" ? "active" : ""} onClick={() => setRankingMode("average")}>Punkteschnitt</button>
                 </div>
-              )}
-              <div className="bundesliga-public-ranking">
-                <div className="head"><span>Pl.</span><strong>Name</strong><span>Tipps</span><span>Siege</span><span>Spiel</span><span>Bonus</span><b>Gesamt</b></div>
-                {ranking.map((row, index) => (
-                  <div key={row.id ?? row.name} className={participant?.id === row.id || participant?.name === row.name ? "current" : ""}>
-                    <span data-label="Platz">{index + 1}</span>
-                    <strong data-label="Name">{row.name}</strong>
-                    <span data-label="Tipps">{row.tipCount}</span>
-                    <span data-label="Siege">{row.matchdayWins ?? 0}</span>
-                    <span data-label="Spiel">{row.matchPoints}</span>
-                    <span data-label="Bonus">{row.bonusPoints}</span>
-                    <b data-label="Gesamt">{row.points}</b>
-                  </div>
-                ))}
               </div>
+              {!selectedRankingReady ? (
+                <section className="bundesliga-ranking-empty">
+                  <strong>Noch keine Rangliste</strong>
+                  <p>Die Platzierung entsteht nach den ersten ausgewerteten Spielen.</p>
+                  {ranking.length > 0 && (
+                    <div>
+                      <span>Teilnehmer</span>
+                      {ranking.map((row) => <b key={row.id ?? row.name}>{row.name}</b>)}
+                    </div>
+                  )}
+                </section>
+              ) : (
+                <>
+                  <div className="bundesliga-ranking-podium">
+                    {displayedTopRankingRows.map((row, index) => (
+                      <article key={row.id ?? row.name} className={participant?.id === row.id || participant?.name === row.name ? "current" : ""}>
+                        <span>#{index + 1}</span>
+                        <strong>{row.name}</strong>
+                        <b>{rankingMode === "average" ? `${(row.averagePoints ?? 0).toFixed(2)} P / Tipp` : `${row.points} P`}</b>
+                        <small>{rankingMode === "average" ? `${row.scoredTipCount ?? 0} gewertete Tipps` : `${row.matchdayWins ?? 0} Spieltags-Siege`}</small>
+                      </article>
+                    ))}
+                  </div>
+                  {displayedCurrentRank && (
+                    <div className="bundesliga-current-rank">
+                      <span>Dein Platz</span>
+                      <strong>{displayedRanking.findIndex((row) => row.id === displayedCurrentRank.id || row.name === displayedCurrentRank.name) + 1}. {displayedCurrentRank.name}</strong>
+                      <b>{rankingMode === "average" ? `${(displayedCurrentRank.averagePoints ?? 0).toFixed(2)} P / Tipp` : `${displayedCurrentRank.points} Punkte`}</b>
+                    </div>
+                  )}
+                  <div className={`bundesliga-public-ranking mode-${rankingMode}`}>
+                    {rankingMode === "total" ? (
+                      <div className="head"><span>Pl.</span><strong>Name</strong><span>Getippt</span><span>Spieltags-Siege</span><span>Spielpunkte</span><span>Bonus</span><b>Gesamt</b></div>
+                    ) : (
+                      <div className="head"><span>Pl.</span><strong>Name</strong><span>Gewertete Tipps</span><span>Punkte / Tipp</span><b>Spielpunkte</b></div>
+                    )}
+                    {displayedRanking.map((row, index) => (
+                      <div key={row.id ?? row.name} className={participant?.id === row.id || participant?.name === row.name ? "current" : ""}>
+                        <span data-label="Platz">{index + 1}</span>
+                        <strong data-label="Name">{row.name}</strong>
+                        {rankingMode === "total" ? (
+                          <>
+                            <span data-label="Getippt">{row.tipCount}</span>
+                            <span data-label="Spieltags-Siege">{row.matchdayWins ?? 0}</span>
+                            <span data-label="Spielpunkte">{row.matchPoints}</span>
+                            <span data-label="Bonus">{row.bonusPoints}</span>
+                            <b data-label="Gesamt">{row.points}</b>
+                          </>
+                        ) : (
+                          <>
+                            <span data-label="Gewertete Tipps">{row.scoredTipCount ?? 0}</span>
+                            <span data-label="Punkte / Tipp">{(row.averagePoints ?? 0).toFixed(2)}</span>
+                            <b data-label="Spielpunkte">{row.matchPoints}</b>
+                          </>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <p className="bundesliga-ranking-note">
+                    {rankingMode === "total"
+                      ? "Gesamt = Spielpunkte + Bonus. Bei Punktgleichstand entscheiden zuerst die Spieltags-Siege."
+                      : "Punkteschnitt = Spielpunkte pro gewertetem Tipp. Bonuspunkte zählen nicht in den Schnitt."}
+                  </p>
+                </>
+              )}
             </section>
             <aside className="bundesliga-side-stack">
               {renderCommunityCard()}
@@ -6361,7 +6402,6 @@ function BundesligaParticipantApp({ isTestMode }) {
 
 function BundesligaAdminArea({
   data,
-  liveProbe,
   loading,
   message,
   onRefresh,
@@ -6388,7 +6428,6 @@ function BundesligaAdminArea({
   onSaveReleaseSettings,
   onSetLiveUpdatesPaused,
   onRefreshLiveNow,
-  onLiveProbeAction,
   onBackToWorldCup,
 }) {
   const [includeRelegation, setIncludeRelegation] = useState(true);
@@ -6398,7 +6437,6 @@ function BundesligaAdminArea({
   const [activeAdminView, setActiveAdminView] = useState("overview");
   const [demoName, setDemoName] = useState("");
   const [newParticipantName, setNewParticipantName] = useState("");
-  const [liveProbeParticipantName, setLiveProbeParticipantName] = useState("");
   const [scorerDrafts, setScorerDrafts] = useState({});
   const [participantNameDrafts, setParticipantNameDrafts] = useState({});
   const [participantTipDrafts, setParticipantTipDrafts] = useState({});
@@ -6781,11 +6819,6 @@ function BundesligaAdminArea({
       setReleaseProbeReport(null);
       await onRefresh();
     }
-  }
-
-  async function createLiveProbeParticipant() {
-    const payload = await onLiveProbeAction("create-participant", { displayName: liveProbeParticipantName });
-    if (payload?.participant) setLiveProbeParticipantName("");
   }
 
   const adminNavGroups = [
@@ -8003,7 +8036,19 @@ function BundesligaAdminArea({
         {renderReleaseControl()}
         {renderReleaseSettings()}
         {renderReleaseProbe()}
-        {renderLiveProbeConsole()}
+        <section className="bundesliga-dark-panel bundesliga-live-update-control">
+          <header>
+            <h3>Live-Aktualisierung</h3>
+            <span>{data?.competition?.live_updates_paused ? "pausiert" : "aktiv"}</span>
+          </header>
+          <p>Automatische Zwischenstände und Torereignisse für importierte Liga- und Relegationsspiele der Saison 2026/2027.</p>
+          <div className="bundesliga-live-update-actions">
+            <button type="button" onClick={onRefreshLiveNow} disabled={loading}>Jetzt aktualisieren</button>
+            <button type="button" onClick={() => onSetLiveUpdatesPaused(!data?.competition?.live_updates_paused)} disabled={loading}>
+              {data?.competition?.live_updates_paused ? "Live-Aktualisierung fortsetzen" : "Live-Aktualisierung pausieren"}
+            </button>
+          </div>
+        </section>
         {renderLiveSourceCheck()}
         {renderTeamLogoQuality()}
         {renderQualityCheck()}
@@ -8034,74 +8079,6 @@ function BundesligaAdminArea({
         </section>
         {renderDangerZone()}
       </div>
-    );
-  }
-
-  function renderLiveProbeConsole() {
-    const probeMatch = liveProbe?.match;
-    const probeResult = liveProbe?.result;
-    const pauseActive = Boolean(liveProbe?.competition?.live_updates_paused);
-    const probeCodes = liveProbe?.inviteCodes ?? [];
-    return (
-      <section className="bundesliga-dark-panel bundesliga-live-probe-admin">
-        <header>
-          <div>
-            <h3>Relegations-Liveprobe</h3>
-            <p>Isolierter Praxistest - berührt weder Saison 2026/2027 noch WM-Daten.</p>
-          </div>
-          <span className={pauseActive ? "is-paused" : liveProbe?.prepared ? "is-active" : ""}>
-            {!liveProbe?.prepared ? "nicht vorbereitet" : pauseActive ? "pausiert" : "bereit"}
-          </span>
-        </header>
-        <div className="bundesliga-live-probe-match">
-          <strong>SC Paderborn 07 - VfL Wolfsburg</strong>
-          <small>25.05.2026, 20:30 Uhr · OpenLigaDB `rel/2025` · Match 81659</small>
-          <b>{probeResult ? `${probeResult.score_a}:${probeResult.score_b} · ${probeResult.status === "live" ? "LIVE" : "final"}` : "noch kein Spielstand"}</b>
-          {liveProbe?.goals?.length > 0 && <em>{liveProbe.goals.length} Torereignis{liveProbe.goals.length === 1 ? "" : "se"} importiert</em>}
-        </div>
-        <div className="bundesliga-live-probe-actions">
-          <button type="button" onClick={() => onLiveProbeAction("prepare")} disabled={loading}>Liveprobe vorbereiten</button>
-          <button type="button" onClick={() => onLiveProbeAction("refresh")} disabled={loading || !liveProbe?.prepared}>Jetzt aktualisieren</button>
-          <button type="button" onClick={() => onLiveProbeAction("set-paused", { paused: !pauseActive })} disabled={loading || !liveProbe?.prepared}>
-            {pauseActive ? "Live-Aktualisierung fortsetzen" : "Live-Aktualisierung pausieren"}
-          </button>
-        </div>
-        <div className="bundesliga-live-probe-season-toggle">
-          <div>
-            <strong>Reguläre Saison 2026/2027</strong>
-            <small>Automatische Live-Aktualisierung für spätere Saisonspiele.</small>
-          </div>
-          <div className="bundesliga-live-probe-season-actions">
-            <button type="button" onClick={onRefreshLiveNow} disabled={loading}>Jetzt aktualisieren</button>
-            <button type="button" onClick={() => onSetLiveUpdatesPaused(!data?.competition?.live_updates_paused)} disabled={loading}>
-              {data?.competition?.live_updates_paused ? "Live-Aktualisierung fortsetzen" : "Live-Aktualisierung pausieren"}
-            </button>
-          </div>
-        </div>
-        <section className="bundesliga-live-probe-access">
-          <label>
-            Testteilnehmer anlegen
-            <input value={liveProbeParticipantName} onChange={(event) => setLiveProbeParticipantName(event.target.value)} placeholder="Name für Liveprobe" />
-          </label>
-          <button type="button" onClick={createLiveProbeParticipant} disabled={loading || liveProbeParticipantName.trim().length < 2}>Teilnehmer + Code erzeugen</button>
-          <span>{liveProbe?.participants?.length ?? 0} Testteilnehmer · {probeCodes.length} Codes</span>
-        </section>
-        {probeCodes.length > 0 && (
-          <div className="bundesliga-live-probe-codes">
-            {probeCodes.map((code) => (
-              <article key={code.id}>
-                <QrCodeImage value={getBundesligaInviteUrl(code.code, BUNDESLIGA_LIVE_PROBE_COMPETITION_ID)} />
-                <strong>{code.code}</strong>
-                <a href={getBundesligaInviteUrl(code.code, BUNDESLIGA_LIVE_PROBE_COMPETITION_ID)} target="_blank" rel="noreferrer">Teilnehmeransicht öffnen</a>
-              </article>
-            ))}
-          </div>
-        )}
-        <div className="bundesliga-live-probe-delete">
-          <small>Löscht ausschließlich Daten dieser einmaligen Probe; die Vorbereitungssaison bleibt unberührt.</small>
-          <button type="button" className="danger-button" onClick={() => onLiveProbeAction("delete")} disabled={loading || !liveProbe?.competition}>Liveprobe vollständig löschen</button>
-        </div>
-      </section>
     );
   }
 

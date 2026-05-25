@@ -76,7 +76,7 @@ export default async (req) => {
     const goalgetters = await fetchOpenLigaGoalgetters().catch(() => []);
     const normalized = [
       ...leagueMatches.map((match, index) => normalizeOpenLigaMatch(match, BUNDESLIGA_SOURCE_LEAGUE, index)),
-      ...relegationMatches.map((match, index) => normalizeOpenLigaMatch(match, BUNDESLIGA_RELEGATION_LEAGUE, index)),
+      ...relegationMatches.map((match, index) => normalizeOpenLigaMatch(match, BUNDESLIGA_RELEGATION_LEAGUE, index, { matchdayOverride: 35 })),
     ];
 
     const teamRows = Array.from(
