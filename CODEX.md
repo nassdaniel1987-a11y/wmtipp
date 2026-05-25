@@ -317,6 +317,7 @@ Release-Lücken:
 ## Bundesliga Echt-Livebetrieb und Relegations-Generalprobe (25. Mai 2026)
 
 - Laufende Spiele liefern in `Live` den aktuellen Stand, importierte Torereignisse, den Aktualisierungszeitpunkt und deutlich als `vorläufig` gekennzeichnete Spieltagspunkte; die dauerhafte Rangliste rechnet weiterhin ausschließlich finale Ergebnisse.
+- `Live` zeigt den letzten geladenen Datenstand neben der manuellen Aktualisierung; `Tippen` warnt in den letzten fünf Minuten vor der serverseitigen Anpfiff-Sperre mit Countdown und markiert ungespeicherte Tipps.
 - Die Scheduled Function aktualisiert im Zwei-Minuten-Takt nur `bundesliga-2026` und `bundesliga-liveprobe-rel-2026`, wenn dort ein importiertes Spiel im Live-Zeitfenster liegt. `bundesliga-2025` bleibt schreibgeschütztes Archiv.
 - Unter `Diagnose & Freigabe` steuert der Admin den Not-Aus und einen unmittelbaren Refresh für die reguläre Saison sowie die getrennte `Relegations-Liveprobe`.
 - Die Probe nutzt ausschließlich OpenLigaDB `rel/2025`, Match `81659`, `SC Paderborn 07 - VfL Wolfsburg` am 25. Mai 2026 um 20:30 Uhr (Europe/Berlin). Sie hat eigene Codes, Teilnehmer, Tipps, Ergebnisse und Tore.

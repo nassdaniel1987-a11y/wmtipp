@@ -966,6 +966,18 @@ function formatDateTime(value) {
   }).format(new Date(value));
 }
 
+function getBundesligaTipCountdown(match, nowMs = Date.now()) {
+  const kickoffMs = new Date(match?.kickoffAt).getTime();
+  if (!Number.isFinite(kickoffMs)) return null;
+  const remainingMs = kickoffMs - nowMs;
+  if (remainingMs <= 0 || remainingMs > 5 * 60 * 1000) return null;
+  const seconds = Math.ceil(remainingMs / 1000);
+  return {
+    urgent: seconds <= 60,
+    label: `Schließt in ${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`,
+  };
+}
+
 function formatDateTimeInput(value) {
   if (!value) return "";
   const date = new Date(value);
@@ -4555,6 +4567,7 @@ function BundesligaParticipantApp({ isTestMode }) {
   const [matchDetailReturnTab, setMatchDetailReturnTab] = useState("bundesliga-spielplan");
   const [tipExtrasOpen, setTipExtrasOpen] = useState(() => !window.matchMedia("(max-width: 760px)").matches);
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
+  const [tipCountdownNow, setTipCountdownNow] = useState(() => Date.now());
   const tipsRef = useRef(tips);
   const bonusRef = useRef(bonusTip);
 
@@ -4738,6 +4751,33 @@ function BundesligaParticipantApp({ isTestMode }) {
     }, 60_000);
     return () => window.clearInterval(timer);
   }, [activeTab, participant?.id, liveData?.matches]);
+
+  useEffect(() => {
+    if (activeTab !== "bundesliga-tippen" || archivePreview) return undefined;
+    const now = Date.now();
+    const nextKickoff = visibleMatches
+      .filter((match) => getBundesligaMatchState(match, resultsByMatch.get(match.id)) === "open")
+      .map((match) => new Date(match.kickoffAt).getTime())
+      .filter((kickoffMs) => Number.isFinite(kickoffMs) && kickoffMs > now)
+      .sort((first, second) => first - second)[0];
+    if (!nextKickoff) return undefined;
+    const countdownDelay = nextKickoff - now - 5 * 60 * 1000;
+    let countdownTimer;
+    let countdownStartTimer;
+    const startCountdown = () => {
+      setTipCountdownNow(Date.now());
+      countdownTimer = window.setInterval(() => setTipCountdownNow(Date.now()), 1000);
+    };
+    if (countdownDelay <= 0) {
+      startCountdown();
+    } else if (countdownDelay < 2_147_000_000) {
+      countdownStartTimer = window.setTimeout(startCountdown, countdownDelay);
+    }
+    return () => {
+      window.clearTimeout(countdownStartTimer);
+      window.clearInterval(countdownTimer);
+    };
+  }, [activeTab, archivePreview, selectedMatchday, matches, resultsByMatch]);
 
   useEffect(() => {
     const matchId = getBundesligaMatchDetailId(activeTab);
@@ -5747,6 +5787,10 @@ function BundesligaParticipantApp({ isTestMode }) {
         </section>
       );
     }
+    const latestLiveUpdatedAt = (liveData?.matches ?? [])
+      .map((match) => match.updatedAt)
+      .filter(Boolean)
+      .sort((first, second) => new Date(second).getTime() - new Date(first).getTime())[0];
     return (
       <section className="bundesliga-stage-grid">
         <section className="bundesliga-live-page">
@@ -5755,7 +5799,10 @@ function BundesligaParticipantApp({ isTestMode }) {
               <h2>Live-Spieltag</h2>
               <p>Spieltag {selectedMatchday} mit Live-Rangliste, eigenen Tipps und sichtbaren Community-Tipps.</p>
             </div>
-            <button type="button" onClick={() => setLiveRefreshKey((current) => current + 1)}>Aktualisieren</button>
+            <div className="bundesliga-live-refresh">
+              <small>Zuletzt aktualisiert: {latestLiveUpdatedAt ? formatDateTime(latestLiveUpdatedAt) : "noch keine Live-Daten"}</small>
+              <button type="button" onClick={() => setLiveRefreshKey((current) => current + 1)}>Aktualisieren</button>
+            </div>
             <div className="bundesliga-matchday-switcher" aria-label="Spieltag wechseln">
               <button type="button" onClick={() => moveMatchday(-1)} disabled={selectedMatchdayIndex <= 0}>
                 <ChevronRight size={18} />
@@ -6043,6 +6090,9 @@ function BundesligaParticipantApp({ isTestMode }) {
                   const points = result?.status === "final" && tip.saved ? pointsFor(tip, result) : null;
                   const statusLabel = matchStatusLabel(match, result, tip);
                   const statusClass = result?.status === "live" ? "live" : result?.status === "final" ? "finished" : tip?.saved ? "saved" : matchState;
+                  const closingCountdown = !archivePreview && matchState === "open"
+                    ? getBundesligaTipCountdown(match, tipCountdownNow)
+                    : null;
                   return (
                     <article key={match.id} id={`bundesliga-match-${match.id}`} className={`bundesliga-user-match-card status-${matchState}${tip.saved ? " is-saved" : ""}`}>
                       <header>
@@ -6050,6 +6100,12 @@ function BundesligaParticipantApp({ isTestMode }) {
                         <b>{result ? `${result.score_a}:${result.score_b}` : "-:-"}</b>
                         <em className={`bundesliga-match-status status-${statusClass}`}>{statusLabel}</em>
                       </header>
+                      {closingCountdown && (
+                        <div className={`bundesliga-tip-countdown${closingCountdown.urgent ? " is-urgent" : ""}`} aria-live="polite">
+                          <strong>{closingCountdown.label}</strong>
+                          {!tip.saved && <span>Noch nicht gespeichert</span>}
+                        </div>
+                      )}
                       <div className="bundesliga-user-match-body">
                         {teamBadge(match.teamAId, match.teamA)}
                         {showTipControls ? (

@@ -289,6 +289,7 @@ test("Bundesliga live page shows provisional score updates and fits compact scor
   await page.goto("/#bundesliga-live");
   await expect(page.getByText("LIVE · Punkte vorläufig")).toBeVisible();
   await expect(page.getByText("Live Torschütze")).toBeVisible();
+  await expect(page.getByText(/Zuletzt aktualisiert:/)).toBeVisible();
   await expect(page.getByText(/Zwischenstand und Punkte sind vorläufig/)).toBeVisible();
 
   for (const width of [390, 360, 320]) {
@@ -307,6 +308,52 @@ test("Bundesliga live page shows provisional score updates and fits compact scor
     expect(mobileLayout.buttonsFit).toBe(true);
     expect(mobileLayout.bodyOverflows).toBe(false);
   }
+});
+
+test("Bundesliga tips warn before kickoff with an unsaved countdown", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem("bundesliga-tippspiel-participant", JSON.stringify({
+      id: "countdown-user",
+      name: "Daniel",
+      code: "BL-COUNTDOWN",
+      competitionId: "bundesliga-2026",
+    }));
+  });
+  const closingKickoff = new Date(Date.now() + 45_000).toISOString();
+  await page.route("**/api/bundesliga-public-data", (route) => route.fulfill({
+    contentType: "application/json",
+    body: JSON.stringify({
+      competition: { id: "bundesliga-2026", season_label: "2026/2027", public_enabled: false },
+      teams: [
+        { id: "home", name: "SC Paderborn 07", logo_url: "" },
+        { id: "away", name: "VfL Wolfsburg", logo_url: "" },
+      ],
+      matches: [{
+        id: "closing-match",
+        matchday: 1,
+        match_number: 1,
+        phase: "league",
+        kickoff_at: closingKickoff,
+        team_a_id: "home",
+        team_b_id: "away",
+        team_a_name: "SC Paderborn 07",
+        team_b_name: "VfL Wolfsburg",
+      }],
+      results: [],
+      topScorers: [],
+      table: [],
+      rulesSummary: { visibilityMode: "kickoff", visibility: "Fremde Tipps werden pro Spiel ab Anpfiff sichtbar." },
+    }),
+  }));
+  await page.route("**/api/bundesliga-tips", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ tips: [] }) }));
+  await page.route("**/api/bundesliga-bonus-tips", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ bonusTip: null }) }));
+  await page.route("**/api/bundesliga-ranking", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ ranking: [] }) }));
+  await page.route("**/api/bundesliga-matchday-live**", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ live: { standings: [], matches: [] }, trends: [] }) }));
+
+  await page.goto("/#bundesliga-tippen");
+  const countdown = page.locator(".bundesliga-tip-countdown.is-urgent");
+  await expect(countdown).toContainText("Schließt in 00:");
+  await expect(countdown).toContainText("Noch nicht gespeichert");
 });
 
 test("Bundesliga community respects private visibility and mobile more navigation", async ({ page }, testInfo) => {
