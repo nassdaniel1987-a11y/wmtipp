@@ -25,9 +25,11 @@ export default async (req) => {
       const { data: participant, error } = await supabase
         .from("competition_participants")
         .select("id, display_name, invite_code_id")
+        .eq("competition_id", BUNDESLIGA_COMPETITION_ID)
         .eq("id", invite.participant_id)
-        .single();
+        .maybeSingle();
       if (error) throw error;
+      if (!participant) return json({ error: "Dieser Bundesliga-Code ist nicht korrekt verknüpft." }, 409);
       return json({ participant, code: cleanCode, alreadyClaimed: true });
     }
 
@@ -36,13 +38,10 @@ export default async (req) => {
       .insert({ competition_id: BUNDESLIGA_COMPETITION_ID, display_name: displayName, invite_code_id: invite.id })
       .select("id, display_name, invite_code_id")
       .single();
+    if (createError?.code === "23505") {
+      return json({ error: "Dieser Bundesliga-Code wurde gerade bereits aktiviert." }, 409);
+    }
     if (createError) throw createError;
-
-    const { error: updateError } = await supabase
-      .from("competition_invite_codes")
-      .update({ status: "claimed", participant_id: participant.id, claimed_at: new Date().toISOString() })
-      .eq("id", invite.id);
-    if (updateError) throw updateError;
 
     return json({ participant, code: cleanCode, alreadyClaimed: false });
   } catch (error) {

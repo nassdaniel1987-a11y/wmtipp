@@ -1,5 +1,7 @@
-export const BUNDESLIGA_COMPETITION_ID = "bundesliga-2025";
-export const BUNDESLIGA_SOURCE_SEASON = 2025;
+export const BUNDESLIGA_COMPETITION_ID = "bundesliga-2026";
+export const BUNDESLIGA_SEASON_LABEL = "2026/2027";
+export const BUNDESLIGA_PUBLIC_SLUG = "bundesliga-2026";
+export const BUNDESLIGA_SOURCE_SEASON = 2026;
 export const BUNDESLIGA_SOURCE_LEAGUE = "bl1";
 export const BUNDESLIGA_RELEGATION_LEAGUE = "rel";
 
@@ -87,12 +89,13 @@ export function explainPointsFor(tip, result, ruleSettings = defaultBundesligaRu
     : { points, reason: `Tendenz richtig: ${points} Punkte` };
 }
 
-export function buildTipTrends(tips = [], matches = [], now = new Date()) {
+export function buildTipTrends(tips = [], matches = [], results = [], now = new Date(), ruleSettings = defaultBundesligaRuleSettings) {
   const matchesById = new Map((matches ?? []).map((match) => [match.id, match]));
+  const resultsByMatch = new Map((results ?? []).map((result) => [result.match_id, result]));
   const trendMap = new Map();
   (tips ?? []).forEach((tip) => {
     const match = matchesById.get(tip.match_id);
-    if (!match || !canViewMatchTips(match, now)) return;
+    if (!match || !canViewMatchTips(match, resultsByMatch.get(tip.match_id), now, ruleSettings)) return;
     const row = trendMap.get(tip.match_id) ?? {
       matchId: tip.match_id,
       total: 0,
@@ -217,15 +220,25 @@ export function buildBundesligaRulesSummary(ruleSettings = defaultBundesligaRule
   };
 }
 
-export function canViewMatchTips(match, now = new Date()) {
+export function isBundesligaTipLocked(match, result = null, now = new Date(), tipLockMode = "kickoff") {
+  if (result?.status === "final") return true;
+  if (tipLockMode === "disabled" || tipLockMode === "manual") return false;
   if (!match?.kickoff_at) return false;
   const kickoff = new Date(match.kickoff_at);
   return !Number.isNaN(kickoff.getTime()) && kickoff <= now;
 }
 
-export function getBundesligaMatchStatus(match, result = null, now = new Date()) {
+export function canViewMatchTips(match, result = null, now = new Date(), ruleSettings = defaultBundesligaRuleSettings) {
+  if (ruleSettings.foreign_tips_visible_from === "never") return false;
+  if (ruleSettings.foreign_tips_visible_from === "match_finished") return result?.status === "final";
+  if (!match?.kickoff_at) return false;
+  const kickoff = new Date(match.kickoff_at);
+  return !Number.isNaN(kickoff.getTime()) && kickoff <= now;
+}
+
+export function getBundesligaMatchStatus(match, result = null, now = new Date(), tipLockMode = "kickoff") {
   if (result?.status === "final") return "finished";
-  return canViewMatchTips(match, now) ? "locked" : "open";
+  return isBundesligaTipLocked(match, result, now, tipLockMode) ? "locked" : "open";
 }
 
 export function buildBonusStatus(bonusTip = null) {
@@ -536,15 +549,22 @@ export function buildMatchdayLive(matches = [], participants = [], tips = [], re
   const visibleMatches = (matches ?? []).filter((match) => Number(match.matchday) === Number(matchday));
   const resultsByMatch = new Map((results ?? []).map((result) => [result.match_id, result]));
   const participantsById = new Map((participants ?? []).map((participant) => [participant.id, participant]));
-  const pointRows = buildMatchdayPointRows(participants, tips, visibleMatches, results, ruleSettings);
+  const visibleMatchIds = new Set(visibleMatches.map((match) => match.id));
+  const authorizedTips = (tips ?? []).filter((tip) => {
+    if (!visibleMatchIds.has(tip.match_id)) return false;
+    if (tip.participant_id === participantId) return true;
+    const match = visibleMatches.find((row) => row.id === tip.match_id);
+    return canViewMatchTips(match, resultsByMatch.get(tip.match_id) ?? null, now, ruleSettings);
+  });
+  const pointRows = buildMatchdayPointRows(participants, authorizedTips, visibleMatches, results, ruleSettings);
 
   return {
     matchday: Number(matchday),
     standings: pointRows.filter((row) => row.tipCount > 0 || row.scoredTipCount > 0),
     matches: visibleMatches.map((match) => {
       const result = resultsByMatch.get(match.id) ?? null;
-      const visible = canViewMatchTips(match, now);
-      const matchTips = (tips ?? [])
+      const visible = canViewMatchTips(match, result, now, ruleSettings);
+      const matchTips = authorizedTips
         .filter((tip) => tip.match_id === match.id)
         .map((tip) => {
           const isOwnTip = tip.participant_id === participantId;

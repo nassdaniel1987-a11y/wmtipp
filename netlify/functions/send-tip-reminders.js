@@ -51,7 +51,7 @@ export default async () => {
         }
       }
 
-      if (process.env.BUNDESLIGA_PUSH_REMINDERS_ENABLED === "true") {
+      if (Netlify.env.get("BUNDESLIGA_PUSH_REMINDERS_ENABLED") === "true") {
         const { data: bundesligaMatches, error: bundesligaMatchError } = await supabase
           .from("competition_matches")
           .select("id, match_number, kickoff_at, team_a_name, team_b_name")

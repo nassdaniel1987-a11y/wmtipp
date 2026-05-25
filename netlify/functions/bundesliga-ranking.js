@@ -1,4 +1,5 @@
 import { getServiceClient, json } from "./_shared/supabase.js";
+import { bundesligaErrorResponse, requireBundesligaViewAccess } from "./_shared/bundesliga-access.js";
 import {
   BUNDESLIGA_COMPETITION_ID,
   buildCompetitionRanking,
@@ -12,7 +13,7 @@ export default async (req) => {
 
   try {
     const supabase = getServiceClient();
-    const participantId = String(new URL(req.url).searchParams.get("participantId") || "").trim();
+    const { participant } = await requireBundesligaViewAccess(req, supabase);
     const [participants, tips, results, bonusTips, bonusResults, topScorers, matches, ruleSettings] = await Promise.all([
       supabase.from("competition_participants").select("id, display_name").eq("competition_id", BUNDESLIGA_COMPETITION_ID),
       supabase.from("competition_tips").select("participant_id, match_id, score_a, score_b").eq("competition_id", BUNDESLIGA_COMPETITION_ID),
@@ -62,12 +63,12 @@ export default async (req) => {
     return json({
       ranking,
       matchdayWinners,
-      personalStats: participantId
-        ? buildParticipantComfortStats(participantId, tipRows, matchRows, resultRows, ruleSettings)
+      personalStats: participant
+        ? buildParticipantComfortStats(participant.id, tipRows, matchRows, resultRows, ruleSettings)
         : null,
     });
   } catch (error) {
-    return json({ error: error.message || "Bundesliga-Rangliste konnte nicht geladen werden." }, 500);
+    return bundesligaErrorResponse(error, "Bundesliga-Rangliste konnte nicht geladen werden.");
   }
 };
 

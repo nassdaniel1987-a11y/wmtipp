@@ -9,7 +9,8 @@
     "sync:android-update-manifest": "node scripts/sync-android-update-manifest.mjs",
     "preview": "vite preview --host 127.0.0.1",
     "test:e2e": "playwright test",
-    "test:smoke": "playwright test tests/smoke.spec.js"
+    "test:smoke": "playwright test tests/smoke.spec.js",
+    "test:bundesliga-security": "node --test tests/bundesliga-security.test.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.4",

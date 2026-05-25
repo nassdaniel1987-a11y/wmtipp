@@ -149,12 +149,13 @@ cd android-app
 - Echte Bundesliga-Teilnehmer können im Bundesliga-Admin direkt mit verknüpftem Code angelegt werden.
 - Bundesliga-Teilnehmer sind im Admin standardmäßig eingeklappt; pro Teilnehmer öffnet sich ein Detailbereich für Name, Spieltag-Tipps, Bonus und QR-Code.
 - Im Bundesliga-Teilnehmerbereich kann der Admin per Zurück/Weiter oder Auswahl durch alle Spieltage wechseln und Tipps je Spieltag nachtragen.
-- Bundesliga-Grunddaten 2025/2026 können im Datenimport gelöscht werden: Spielplan, Teams/Logos, Ergebnisse, Goals, Torschützen sowie alte Tipps/Bonuswerte werden entfernt; echte Teilnehmer und Codes bleiben erhalten.
+- Bundesliga-Grunddaten 2026/2027 können im Datenimport gelöscht werden: Spielplan, Teams/Logos, Ergebnisse, Goals, Torschützen sowie alte Tipps/Bonuswerte werden entfernt; echte Teilnehmer und Codes bleiben erhalten.
 - Bundesliga-Nutzeransicht hat einen Code-first Login: bestehende Teilnehmer-Codes melden direkt an, freie Codes fragen danach den Namen ab.
 - Bundesliga-Nutzer sehen vor der Anmeldung einen fokussierten Code-Login ohne persönliche Bereichsnavigation; nach erfolgreicher Anmeldung erscheint nur die persönliche Zentrale mit Abmelden, nächstem Schritt, Fortschritt, Bonusstatus, Punkten und Direktaktionen.
 - Bundesliga-Nutzeransicht hat zusätzliche In-App-Detailseiten für Live-Spieltag, volle Tabelle, volle Torschützenliste und Spielplan.
 - Bundesliga-Variante A wurde über alle Nutzerbereiche geglättet: kompakter App-Rahmen, sichtbares Arbeitsfeedback, eindeutig lesbare offene/gesperrte/ausgewertete Tippzustände und reduzierte Doppel-Navigation in Live, Bonus und Spielplan.
 - Bundesliga-Bonus-Autosave meldet Speichern erst nach einer tatsächlichen Nutzerauswahl; ein leer geladener Bonus erzeugt kein irreführendes Erfolgsfeedback mehr.
+- Bundesliga-Bonus erlaubt vor der ersten OpenLigaDB-Torschützenliste eine freie Spielereingabe, damit der echte Saisonstart nicht auf bereits erzielte Tore warten muss.
 
 ## Bundesliga Stand
 
@@ -162,9 +163,9 @@ cd android-app
 - Die zuvor erprobte Bundesliga Variante B wurde wieder entfernt; die bestehenden `#bundesliga-*` Routen sind die einzige Bundesliga-Nutzeransicht.
 - Der Bundesliga-Admin öffnet über einen einzelnen Einstieg die Teilnehmeransicht unter `#bundesliga-start`.
 - Bundesliga-Admin ist über den Adminbereich erreichbar und bleibt nicht öffentlich.
-- Datenbasis nutzt `competition_*` Tabellen mit `competition_id = 'bundesliga-2025'`.
+- Liveziel ist die frische Saison `2026/2027` mit `competition_id = 'bundesliga-2026'`; `bundesliga-2025` bleibt als interne, nicht veröffentlichte Testbasis erhalten.
 - OpenLigaDB ist als Hauptquelle vorbereitet: Teams, Logos, Spielplan, Ergebnisse und Torschützen.
-- Torschützen werden über `getgoalgetters/bl1/2025` importiert und im Admin korrigierbar gemacht.
+- Spielplan und Torschützen werden für den Livebetrieb über `bl1/2026` importiert, sobald OpenLigaDB diese Saison bereitstellt; am 25. Mai 2026 ist der Spielplan dort noch nicht verfügbar.
 - Bundesliga-Teilnehmer, Codes, Tipps und Bonus-Tipps sind von WM-Teilnehmern getrennt.
 - Echte Bundesliga-Teilnehmer können per Bundesliga-Code beitreten oder im Admin direkt mit Code angelegt werden; freie Bundesliga-Codes lassen sich im Admin löschen.
 - Verknüpfte Teilnehmer-Codes zeigen im Admin einen QR-Code; die Daten-API lädt dafür alle Bundesliga-Codes statt nur eines kleinen Ausschnitts.
@@ -175,7 +176,7 @@ cd android-app
 - Der Release-Probelauf kann im Diagnose-Bereich per Button vorbereitet werden; er schreibt nur `Release Test 1-3`, Spieltag-1-Tipps, Bonus-Tipps, Spieltag-1-Ergebnisse und hält `public_enabled = false`.
 - Release-Probelauf-Testdaten können gezielt wieder gelöscht werden; entfernt werden nur `Release Test 1-3` samt deren Tipps, Bonus-Tipps und Codes. Spielplan, Ergebnisse, Torschützen und echte Teilnehmer bleiben erhalten.
 - Der Diagnose-Bereich hat zusätzlich einen großen Bereinigungsbutton für Demo-/Diagnose-Daten: Demo-Tipper, Demo-Tipps, Demo-Bonus, Release-Testdaten, Ergebnisse, Goal-Events und offizielle Bundesliga-Bonus-Ergebnisse werden gelöscht. Spielplan, Teams/Logos, Torschützenliste, echte Teilnehmer und echte Codes bleiben erhalten.
-- Im Bereich `Datenimport` gibt es zusätzlich einen Reset für die importierten 2025/2026-Grunddaten, damit Test-Spielplan, Teams/Logos und Torschützen vor dem Livegang komplett entfernt werden können. Echte Teilnehmer und Codes bleiben stehen.
+- Im Bereich `Datenimport` gibt es zusätzlich einen Reset für die importierten 2026/2027-Grunddaten, damit Staging-Spielplan, Teams/Logos und Torschützen vor dem Livegang komplett entfernt werden können. Echte Teilnehmer und Codes bleiben stehen.
 - Nutzer-Komfort ist erweitert:
   - Karten „Was fehlt noch?“ und „Meine Statistik“ in Start/Tippen/Rangliste.
   - Live-Auswertung erklärt pro Tipp den Punktegrund.
@@ -188,6 +189,12 @@ cd android-app
   - `netlify/functions/bundesliga-auto-import.js` importiert Ergebnisse/Torschützen nur mit `BUNDESLIGA_AUTO_IMPORT_ENABLED=true`.
   - Bundesliga-Push-Erinnerungen in `send-tip-reminders.js` laufen nur mit `BUNDESLIGA_PUSH_REMINDERS_ENABLED=true`.
   - Bundesliga-Admin zeigt Datenstatus, letzte Imports und ob Automatik/Push aktiv sind.
+- Release-Hardening:
+  - Persönliche Bundesliga-APIs leiten den Teilnehmer nur noch aus dem validierten Request-Header `X-Bundesliga-Code` ab; eine mitgesendete `participantId` berechtigt nicht zum Lesen oder Schreiben.
+  - Versteckte Bundesliga-Daten sind anonym nicht abrufbar; ein gültiger Bundesliga-Code erlaubt Preview-Prüfungen, bis `public_enabled = true` gesetzt wird.
+  - Tipp-Sperre ab Anpfiff, Bonusfrist und Sichtbarkeit fremder Tipps werden serverseitig erzwungen; verdeckte Live-Tipps verraten weder Ergebnis noch Existenz fremder Einträge.
+  - Der Admin blockiert die öffentliche Freigabe, solange Release-Gates wie Saison, Bonusfrist, vollständiger Spielplan/Logos oder bereinigte Probe-Ergebnisse offen sind.
+  - Push-Erinnerungen gehören bewusst nicht zum ersten Bundesliga-Livegang.
 
 ## Zuletzt ausgeführte / benötigte SQL-Dateien
 
@@ -202,15 +209,16 @@ cd android-app
 - Bundesliga Release-Konfiguration:
   - `supabase/bundesliga_release_settings.sql`
   - bleibt idempotent und lässt `bundesliga-2025` weiterhin versteckt: `status = 'admin_test'`, `public_enabled = false`.
+  - `supabase/migrations/20260525012138_bundesliga_2026_release_hardening.sql`
+  - legt `bundesliga-2026` verborgen und leer an, schließt öffentliche Reads für verborgene Competitions und beansprucht freie Einladungscodes atomisch über einen Datenbank-Trigger.
+  - wurde am 25. Mai 2026 vom Nutzer im SQL Editor des bestehenden WM-Supabase-Projekts ausgeführt.
 
 ## Nächste Schritte Bundesliga
 
-- Komfort-/Community-Runde im Browser visuell prüfen, sobald lokaler Browserzugriff nicht blockiert ist:
-  - Start: „Was fehlt noch?“, „Meine Statistik“, Community, Datenstatus.
-  - Tippen: Live-Auswertung mit Punktegrund und Trends.
-  - Rangliste: Spieltagssieger, Teilnehmervergleich, Share-Karte.
-- Push/Auto-Import erst aktivieren, wenn Firebase/Env und echter Bundesliga-Betrieb bewusst freigegeben sind.
-- Vor öffentlicher Freigabe später Saison/Deadline auf die echte Bundesliga-Saison umstellen und bewusst `public_enabled` aktivieren.
+- Im Admin prüfen, dass `bundesliga-2026` als versteckte, leere Saison geladen wird; die SQL-Migration wurde am 25. Mai 2026 ausgeführt.
+- Sobald OpenLigaDB `bl1/2026` ausliefert, den Spielplan importieren, Logos kontrollieren und eine echte Bonusfrist in der Release-Konfiguration setzen.
+- Mit frischen Staging-Codes Login, Tipp-Sperre, Bonusfrist und Live-Sichtbarkeit prüfen; danach alle Probe-/Diagnosedaten aus `bundesliga-2026` entfernen.
+- `public_enabled` erst über die Admin-Freigabe aktivieren, wenn die Release-Gates vollständig grün sind; Auto-Import anschließend bewusst aktivieren, Push vorerst auslassen.
 
 ## Bundesliga Release-Probelauf
 
@@ -234,7 +242,7 @@ cd android-app
     - richtige Differenz: 3 Punkte
     - richtige Tendenz: 2 Punkte
     - falsch oder offen: 0 Punkte
-11. Freigabe nur simulieren: `status`, `public_enabled`, Bonusfrist und Regeln prüfen, aber Bundesliga nicht öffentlich aktivieren.
+11. Freigabe nur simulieren: `status`, `public_enabled`, Bonusfrist und Regeln prüfen. Die öffentliche Aktion bleibt durch die Release-Gates blockiert, solange Probe- oder Importpunkte offen sind.
 12. Bei Bedarf „Release-Testdaten löschen“ klicken. Das entfernt nur die drei Release-Testteilnehmer samt Tipps, Bonus-Tipps und Codes; importierte Daten und echte Teilnehmer bleiben bestehen.
 13. Für einen kompletten Diagnose-Neustart „Diagnose-Daten löschen“ klicken. Das entfernt Demo- und Auswertungsdaten, lässt aber die importierte Grundlage für Teams, Logos, Spielplan und Torschützen stehen.
 
@@ -270,11 +278,12 @@ Admin prüfen:
 - Release-Testdaten löschen.
 - Diagnose-Daten löschen und prüfen, dass Teams, Spielplan, Torschützen, echte Teilnehmer und echte Codes erhalten bleiben.
 - Release-Checkliste, Datenqualität, Teilnehmer, Tipp-Auswertung, Datenimport und Regeln kontrollieren.
-- Bei Bedarf im Bereich `Datenimport` „25/26-Grunddaten löschen“ nutzen und prüfen, dass echte Teilnehmer und Codes erhalten bleiben.
+- Bei Bedarf im Bereich `Datenimport` „26/27-Grunddaten löschen“ nutzen und prüfen, dass echte Teilnehmer und Codes erhalten bleiben.
 
 Release-Lücken:
 
-- Noch keine offenen Lücken aus dem Probelauf notiert.
+- OpenLigaDB liefert `bl1/2026` am 25. Mai 2026 noch nicht; der Admin zeigt diesen wartenden Zustand und lässt die Freigabe geschlossen.
+- Eine echte Bonusfrist muss vor dem öffentlichen Start in der Admin-Release-Konfiguration gesetzt werden.
 
 ## CODEX.md Pflege-Regel
 

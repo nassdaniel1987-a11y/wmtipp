@@ -1,6 +1,7 @@
 import { requireAdmin } from "./_shared/admin.js";
 import { fetchAllPages, fetchExactCount } from "./_shared/pagination.js";
 import { json } from "./_shared/supabase.js";
+import { buildBundesligaReleaseGates } from "./_shared/bundesliga-release.js";
 import {
   BUNDESLIGA_COMPETITION_ID,
   buildBundesligaRulesSummary,
@@ -54,6 +55,7 @@ export default async (req) => {
       participantBonusTips,
       participantBonusTipCount,
       ruleSettings,
+      releaseGates,
     ] = await Promise.all([
       supabase.from("competitions").select("*").eq("id", BUNDESLIGA_COMPETITION_ID).maybeSingle(),
       supabase.from("competition_teams").select("*").eq("competition_id", BUNDESLIGA_COMPETITION_ID).order("name"),
@@ -71,6 +73,7 @@ export default async (req) => {
       fetchAllPages(() => supabase.from("competition_participant_bonus_tips").select("*").eq("competition_id", BUNDESLIGA_COMPETITION_ID)),
       fetchExactCount(supabase.from("competition_participant_bonus_tips").select("participant_id", { count: "exact", head: true }).eq("competition_id", BUNDESLIGA_COMPETITION_ID)),
       loadCompetitionRuleSettings(supabase),
+      buildBundesligaReleaseGates(supabase),
     ]);
 
     for (const response of [competition, teams, matches, results, goals, demoParticipants, bonusResults, inviteCodes, participants]) {
@@ -160,6 +163,7 @@ export default async (req) => {
       topScorers,
       leagueMatches,
       ruleSettings,
+      releaseGates,
     );
     const participantMatchdayStatus = buildMatchdayStatus(leagueMatches, participantTips, results.data ?? []);
     const demoMatchdayStatus = buildMatchdayStatus(leagueMatches, demoTips, results.data ?? []);
@@ -196,12 +200,13 @@ export default async (req) => {
       participantMatchdayStatus,
       demoMatchdayStatus,
       activeLive,
+      releaseGates,
       topScorers: topScorerRows,
       inviteCodes: inviteCodes.data ?? [],
       dataQuality: {
         source: "OpenLigaDB",
-        autoImportEnabled: process.env.BUNDESLIGA_AUTO_IMPORT_ENABLED === "true",
-        pushRemindersEnabled: process.env.BUNDESLIGA_PUSH_REMINDERS_ENABLED === "true",
+        autoImportEnabled: Netlify.env.get("BUNDESLIGA_AUTO_IMPORT_ENABLED") === "true",
+        pushRemindersEnabled: Netlify.env.get("BUNDESLIGA_PUSH_REMINDERS_ENABLED") === "true",
         topScorerSource: topScorers.length ? "goalgetters" : "match_goals_fallback",
         topScorerCount: topScorerRows.length,
         incompleteTopScorers,

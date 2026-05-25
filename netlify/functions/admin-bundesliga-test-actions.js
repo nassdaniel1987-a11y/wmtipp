@@ -1,5 +1,6 @@
 import { makeInviteCode, requireAdmin } from "./_shared/admin.js";
 import { json } from "./_shared/supabase.js";
+import { buildBundesligaReleaseGates } from "./_shared/bundesliga-release.js";
 import {
   BUNDESLIGA_COMPETITION_ID,
   BUNDESLIGA_SOURCE_LEAGUE,
@@ -868,10 +869,55 @@ export default async (req) => {
       return json({ bonusResults: data });
     }
 
+    if (action === "save-release-settings") {
+      const bonusDeadlineAt = new Date(String(body.bonusDeadlineAt || ""));
+      const foreignTipsVisibleFrom = String(body.foreignTipsVisibleFrom || "kickoff");
+      if (Number.isNaN(bonusDeadlineAt.getTime())) {
+        return json({ error: "Bitte eine gültige Bonusfrist setzen." }, 400);
+      }
+      if (!["kickoff", "match_finished", "never"].includes(foreignTipsVisibleFrom)) {
+        return json({ error: "Ungültige Sichtbarkeitsregel." }, 400);
+      }
+
+      const { data: competition, error: competitionError } = await supabase
+        .from("competitions")
+        .update({
+          bonus_deadline_at: bonusDeadlineAt.toISOString(),
+          tip_lock_mode: "kickoff",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", BUNDESLIGA_COMPETITION_ID)
+        .select("*")
+        .single();
+      if (competitionError) throw competitionError;
+
+      const { data: ruleSettings, error: ruleError } = await supabase
+        .from("competition_rule_settings")
+        .update({
+          foreign_tips_visible_from: foreignTipsVisibleFrom,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("competition_id", BUNDESLIGA_COMPETITION_ID)
+        .select("*")
+        .single();
+      if (ruleError) throw ruleError;
+      return json({ competition, ruleSettings });
+    }
+
     if (action === "set-competition-status") {
       const status = String(body.status || "admin_test");
       const publicEnabled = Boolean(body.publicEnabled);
       if (!["admin_test", "public", "archived"].includes(status)) return json({ error: "Ungültiger Status." }, 400);
+      if (status === "public" || publicEnabled) {
+        const releaseGates = await buildBundesligaReleaseGates(supabase);
+        if (!releaseGates.ready) {
+          const openGates = releaseGates.checks.filter((check) => !check.passed).map((check) => check.label).join(", ");
+          return json({
+            error: `Freigabe blockiert: ${openGates}`,
+            releaseGates,
+          }, 409);
+        }
+      }
       const { data, error } = await supabase
         .from("competitions")
         .update({ status, public_enabled: publicEnabled, updated_at: new Date().toISOString() })

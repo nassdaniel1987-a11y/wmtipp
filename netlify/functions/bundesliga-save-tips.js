@@ -1,15 +1,18 @@
 import { getServiceClient, json } from "./_shared/supabase.js";
-import { BUNDESLIGA_COMPETITION_ID } from "./_shared/bundesliga.js";
+import { BUNDESLIGA_COMPETITION_ID, isBundesligaTipLocked } from "./_shared/bundesliga.js";
+import { BundesligaHttpError, bundesligaErrorResponse, resolveBundesligaParticipant } from "./_shared/bundesliga-access.js";
 
 export default async (req) => {
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
   try {
-    const { participantId, tips } = await req.json();
-    if (!participantId || !Array.isArray(tips)) return json({ error: "Teilnehmer und Tipps sind erforderlich." }, 400);
+    const { tips } = await req.json();
+    if (!Array.isArray(tips)) return json({ error: "Tipps sind erforderlich." }, 400);
+    const supabase = getServiceClient();
+    const participant = await resolveBundesligaParticipant(req, supabase, { required: true });
     const rows = tips.map((tip) => ({
       competition_id: BUNDESLIGA_COMPETITION_ID,
-      participant_id: participantId,
+      participant_id: participant.id,
       match_id: tip.matchId,
       score_a: Number(tip.scoreA),
       score_b: Number(tip.scoreB),
@@ -19,26 +22,28 @@ export default async (req) => {
       return json({ error: "Mindestens ein Bundesliga-Tipp ist ungültig." }, 400);
     }
 
-    const supabase = getServiceClient();
     const { data: competition, error: competitionError } = await supabase
       .from("competitions")
-      .select("status, public_enabled")
+      .select("status, public_enabled, tip_lock_mode")
       .eq("id", BUNDESLIGA_COMPETITION_ID)
       .maybeSingle();
     if (competitionError) throw competitionError;
 
-    if (competition?.status === "public" && competition.public_enabled) {
-      const { data: lockedMatches, error: lockError } = await supabase
-        .from("competition_matches")
-        .select("id, team_a_name, team_b_name, kickoff_at")
-        .in("id", rows.map((row) => row.match_id))
-        .not("kickoff_at", "is", null)
-        .lte("kickoff_at", new Date().toISOString());
-      if (lockError) throw lockError;
-      if ((lockedMatches ?? []).length > 0) {
-        const locked = lockedMatches[0];
-        return json({ error: `Tipp gesperrt: ${locked.team_a_name} - ${locked.team_b_name} hat bereits begonnen.` }, 409);
-      }
+    const { data: matches, error: matchError } = await supabase
+      .from("competition_matches")
+      .select("id, team_a_name, team_b_name, kickoff_at, status")
+      .eq("competition_id", BUNDESLIGA_COMPETITION_ID)
+      .in("id", rows.map((row) => row.match_id));
+    if (matchError) throw matchError;
+    if ((matches ?? []).length !== rows.length) {
+      throw new BundesligaHttpError("Mindestens ein Spiel gehoert nicht zur aktuellen Bundesliga-Saison.", 400);
+    }
+
+    const locked = (matches ?? []).find((match) =>
+      isBundesligaTipLocked(match, match.status === "final" ? { status: "final" } : null, new Date(), competition?.tip_lock_mode ?? "kickoff"),
+    );
+    if (locked) {
+      return json({ error: `Tipp gesperrt: ${locked.team_a_name} - ${locked.team_b_name} kann nicht mehr geaendert werden.` }, 409);
     }
 
     const { data, error } = await supabase
@@ -48,7 +53,7 @@ export default async (req) => {
     if (error) throw error;
     return json({ tips: data ?? [] });
   } catch (error) {
-    return json({ error: error.message || "Bundesliga-Tipps konnten nicht gespeichert werden." }, 500);
+    return bundesligaErrorResponse(error, "Bundesliga-Tipps konnten nicht gespeichert werden.");
   }
 };
 

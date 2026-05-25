@@ -9,6 +9,7 @@ import {
 
 async function fetchOpenLigaMatches() {
   const response = await fetch(`https://api.openligadb.de/getmatchdata/${BUNDESLIGA_SOURCE_LEAGUE}/${BUNDESLIGA_SOURCE_SEASON}`);
+  if (response.status === 404) return [];
   if (!response.ok) throw new Error("OpenLigaDB-Spielplan konnte nicht geladen werden.");
   return response.json();
 }
@@ -20,7 +21,7 @@ async function fetchOpenLigaGoalgetters() {
 }
 
 export default async () => {
-  if (process.env.BUNDESLIGA_AUTO_IMPORT_ENABLED !== "true") {
+  if (Netlify.env.get("BUNDESLIGA_AUTO_IMPORT_ENABLED") !== "true") {
     return json({ ok: true, skipped: true, reason: "BUNDESLIGA_AUTO_IMPORT_ENABLED ist nicht aktiv." });
   }
 
@@ -31,6 +32,9 @@ export default async () => {
       fetchOpenLigaGoalgetters().catch(() => []),
     ]);
     const normalized = openLigaMatches.map((match, index) => normalizeOpenLigaMatch(match, BUNDESLIGA_SOURCE_LEAGUE, index));
+    if (normalized.length === 0) {
+      return json({ ok: true, skipped: true, reason: "Spielplan für 2026/27 ist bei OpenLigaDB noch nicht verfügbar." });
+    }
     const resultRows = normalized
       .map((item) => item.resultRow)
       .filter(Boolean);

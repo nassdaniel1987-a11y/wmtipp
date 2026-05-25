@@ -1,18 +1,19 @@
 import { supabase } from "./supabaseClient.js";
 
-export async function apiGet(path) {
-  const response = await fetch(path);
+export async function apiGet(path, extraHeaders = {}) {
+  const response = await fetch(path, { headers: extraHeaders });
   const payload = await response.json();
   if (!response.ok) throw new Error(payload.error || "Serverfehler");
   return payload;
 }
 
-export async function apiPost(path, body, token) {
+export async function apiPost(path, body, token, extraHeaders = {}) {
   const response = await fetch(path, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...extraHeaders,
     },
     body: JSON.stringify(body),
   });

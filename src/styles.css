@@ -3218,6 +3218,18 @@ tbody tr:nth-child(1) td:first-child {
   color: #df2f28;
 }
 
+.bundesliga-release-hint {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid #333c44;
+  border-radius: 6px;
+  color: #b7c0c9;
+  background: #11161a;
+  font-size: 0.9rem;
+  font-weight: 750;
+  line-height: 1.45;
+}
+
 .bundesliga-release-grid {
   display: grid;
   gap: 14px;
@@ -3775,6 +3787,31 @@ tbody tr:nth-child(1) td:first-child {
 .bundesliga-scorer-choice-list button b {
   grid-row: span 2;
   color: #f23a32;
+}
+
+.bundesliga-scorer-manual-input {
+  display: grid;
+  gap: 6px;
+  color: #b4bec6;
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.bundesliga-scorer-manual-input input {
+  min-height: 48px;
+  border: 1px solid #343c43;
+  border-radius: 8px;
+  padding: 0 12px;
+  color: #ffffff;
+  background: #11161a;
+  font: inherit;
+}
+
+.bundesliga-field-note {
+  margin: 0;
+  color: #b4bec6;
+  font-size: 0.88rem;
+  line-height: 1.45;
 }
 
 .bundesliga-demo-create {
@@ -7146,6 +7183,41 @@ tbody tr:nth-child(1) td:first-child {
   overflow-wrap: anywhere;
 }
 
+.bundesliga-release-editor {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(170px, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.bundesliga-release-editor label {
+  display: grid;
+  gap: 6px;
+  color: #b7c0c9;
+  font-size: 0.9rem;
+  font-weight: 850;
+}
+
+.bundesliga-release-editor input,
+.bundesliga-release-editor select {
+  min-height: 42px;
+  border: 1px solid #333c44;
+  border-radius: 6px;
+  padding: 0 10px;
+  color: #ffffff;
+  background: #11161a;
+  font: inherit;
+}
+
+.bundesliga-release-editor button {
+  min-height: 42px;
+}
+
+.bundesliga-release-editor small {
+  grid-column: 1 / -1;
+  color: #b7c0c9;
+}
+
 @media (max-width: 1100px) {
   .bundesliga-home-grid,
   .bundesliga-stage-grid {
@@ -7160,6 +7232,12 @@ tbody tr:nth-child(1) td:first-child {
   .bundesliga-quality-grid,
   .bundesliga-release-settings-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .bundesliga-release-editor {
+    grid-template-columns: 1fr;
   }
 }
 

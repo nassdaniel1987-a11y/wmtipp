@@ -1,4 +1,5 @@
 import { getServiceClient, json } from "./_shared/supabase.js";
+import { bundesligaErrorResponse, requireBundesligaViewAccess } from "./_shared/bundesliga-access.js";
 import {
   BUNDESLIGA_COMPETITION_ID,
   buildBonusStatus,
@@ -14,6 +15,7 @@ export default async (req) => {
 
   try {
     const supabase = getServiceClient();
+    await requireBundesligaViewAccess(req, supabase);
     const [competition, teams, matches, results, topScorers, bonusResults, ruleSettings] = await Promise.all([
       supabase.from("competitions").select("*").eq("id", BUNDESLIGA_COMPETITION_ID).maybeSingle(),
       supabase.from("competition_teams").select("*").eq("competition_id", BUNDESLIGA_COMPETITION_ID).order("name"),
@@ -66,7 +68,7 @@ export default async (req) => {
       },
     });
   } catch (error) {
-    return json({ error: error.message || "Bundesliga-Daten konnten nicht geladen werden." }, 500);
+    return bundesligaErrorResponse(error, "Bundesliga-Daten konnten nicht geladen werden.");
   }
 };
 

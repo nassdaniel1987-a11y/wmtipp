@@ -307,7 +307,7 @@ function createTestBundesligaData() {
     { participant_id: "bl-rival", match_id: "bl-test-2", score_a: 2, score_b: 0 },
   ];
   return {
-    competition: { id: "bundesliga-2025", status: "admin_test", public_enabled: false },
+    competition: { id: "bundesliga-2026", season_label: "2026/2027", status: "admin_test", public_enabled: false },
     teams,
     matches,
     results: [{ match_id: "bl-test-1", score_a: 2, score_b: 1, status: "final" }],
@@ -860,6 +860,14 @@ function formatDateTime(value) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(value));
+}
+
+function formatDateTimeInput(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return localDate.toISOString().slice(0, 16);
 }
 
 function isLockedForUsers(match) {
@@ -3623,7 +3631,7 @@ function AdminPanel({
             return payload;
           }}
           onResetSeasonFoundation={async () => {
-            if (!window.confirm("Bundesliga-Grunddaten 2025/2026 wirklich löschen? Entfernt Spielplan, Teams/Logos, Ergebnisse, Goals, Torschützen und alle daran hängenden Bundesliga-Tipps/Bonuswerte. Echte Teilnehmer und Codes bleiben erhalten.")) return null;
+            if (!window.confirm("Bundesliga-Grunddaten 2026/2027 wirklich löschen? Entfernt Spielplan, Teams/Logos, Ergebnisse, Goals, Torschützen und alle daran hängenden Bundesliga-Tipps/Bonuswerte. Echte Teilnehmer und Codes bleiben erhalten.")) return null;
             const payload = await runBundesligaAction("reset-season-foundation");
             if (payload?.resetSeasonFoundation) {
               const reset = payload.resetSeasonFoundation;
@@ -3671,6 +3679,10 @@ function AdminPanel({
           onSetCompetitionStatus={async (status, publicEnabled) => {
             const payload = await runBundesligaAction("set-competition-status", { status, publicEnabled });
             if (payload?.competition) setBundesligaMessage("Bundesliga-Status gespeichert.");
+          }}
+          onSaveReleaseSettings={async (settings) => {
+            const payload = await runBundesligaAction("save-release-settings", settings);
+            if (payload?.competition) setBundesligaMessage("Release-Konfiguration gespeichert.");
           }}
           onBackToWorldCup={() => setAdminCompetition(competitions.wm2026.id)}
         />
@@ -4409,6 +4421,11 @@ function BundesligaParticipantApp({ isTestMode }) {
   };
   const bonusStatus = buildBundesligaBonusStatus(bonusTip);
   const rulesSummary = data?.rulesSummary;
+  const bonusLocked = Boolean(rulesSummary?.bonusDeadlineAt && new Date(rulesSummary.bonusDeadlineAt) <= new Date());
+
+  function accessHeaders(activeCode = participant?.code) {
+    return activeCode ? { "X-Bundesliga-Code": activeCode } : {};
+  }
 
   useEffect(() => {
     tipsRef.current = tips;
@@ -4446,7 +4463,7 @@ function BundesligaParticipantApp({ isTestMode }) {
         return;
       }
       try {
-        const payload = await apiGet("/api/bundesliga-public-data");
+        const payload = await apiGet("/api/bundesliga-public-data", accessHeaders());
         setData(payload);
         const mappedMatches = (payload.matches ?? []).map(mapBundesligaMatch);
         setTips(createInitialTips(mappedMatches));
@@ -4458,7 +4475,7 @@ function BundesligaParticipantApp({ isTestMode }) {
       }
     }
     loadData();
-  }, [isTestMode]);
+  }, [isTestMode, participant?.code]);
 
   useEffect(() => {
     async function resolveParticipant() {
@@ -4498,8 +4515,8 @@ function BundesligaParticipantApp({ isTestMode }) {
       if (isTestMode || !participant?.id || !matches.length) return;
       try {
         const [tipPayload, bonusPayload] = await Promise.all([
-          apiGet(`/api/bundesliga-tips?participantId=${encodeURIComponent(participant.id)}`),
-          apiGet(`/api/bundesliga-bonus-tips?participantId=${encodeURIComponent(participant.id)}`).catch(() => ({ bonusTip: null })),
+          apiGet("/api/bundesliga-tips", accessHeaders()),
+          apiGet("/api/bundesliga-bonus-tips", accessHeaders()).catch(() => ({ bonusTip: null })),
         ]);
         setTips(createInitialTips(matches, tipPayload.tips ?? []));
         setBonusTip(createBundesligaBonusTip(bonusPayload.bonusTip));
@@ -4525,7 +4542,7 @@ function BundesligaParticipantApp({ isTestMode }) {
         return;
       }
       try {
-        const payload = await apiGet(`/api/bundesliga-matchday-live?matchday=${encodeURIComponent(selectedMatchday)}&participantId=${encodeURIComponent(participant.id)}`);
+        const payload = await apiGet(`/api/bundesliga-matchday-live?matchday=${encodeURIComponent(selectedMatchday)}`, accessHeaders());
         if (!cancelled) {
           setLiveData(payload.live ?? null);
           setLiveTrends(payload.trends ?? []);
@@ -4578,10 +4595,7 @@ function BundesligaParticipantApp({ isTestMode }) {
       setPersonalStats({ savedTipCount: 1, scoredTipCount: 1, exactHits: 1, goalDiffHits: 0, tendencyHits: 0, wrongTips: 0, bestMatchdays: [{ matchday: 1, points: 4 }] });
       return;
     }
-    const rankingUrl = participant?.id
-      ? `/api/bundesliga-ranking?participantId=${encodeURIComponent(participant.id)}`
-      : "/api/bundesliga-ranking";
-    const payload = await apiGet(rankingUrl).catch(() => ({ ranking: [] }));
+    const payload = await apiGet("/api/bundesliga-ranking", accessHeaders()).catch(() => ({ ranking: [] }));
     setRanking(payload.ranking ?? []);
     setMatchdayWinners(payload.matchdayWinners ?? []);
     setPersonalStats(payload.personalStats ?? null);
@@ -4701,13 +4715,12 @@ function BundesligaParticipantApp({ isTestMode }) {
     }
     try {
       const payload = await apiPost("/api/bundesliga-save-tips", {
-        participantId: participant.id,
         tips: completeIds.map((matchId) => ({
           matchId,
           scoreA: sourceTips[matchId].scoreA,
           scoreB: sourceTips[matchId].scoreB,
         })),
-      });
+      }, undefined, accessHeaders());
       const savedIds = new Set((payload.tips ?? []).map((tip) => tip.match_id));
       setTips((current) => {
         const next = { ...current };
@@ -4738,6 +4751,10 @@ function BundesligaParticipantApp({ isTestMode }) {
   }
 
   function updateBonus(patch) {
+    if (bonusLocked) {
+      setMessage("Die Bundesliga-Bonusfrist ist abgelaufen.");
+      return;
+    }
     setBonusTip((current) => ({ ...current, ...patch, saved: false }));
     setBonusDirty(true);
   }
@@ -4785,15 +4802,18 @@ function BundesligaParticipantApp({ isTestMode }) {
       setMessage(auto ? "Bundesliga-Bonus automatisch gespeichert." : "Bundesliga-Bonus gespeichert.");
       return;
     }
+    if (bonusLocked) {
+      setMessage("Die Bundesliga-Bonusfrist ist abgelaufen.");
+      return;
+    }
     try {
       const scorer = topScorers.find((row) => row.id === source.topScorerId);
       const payload = await apiPost("/api/bundesliga-save-bonus-tips", {
-        participantId: participant.id,
         championTeamId: source.championTeamId,
         topScorerId: source.topScorerId,
         topScorer: scorer?.display_name ?? source.topScorer,
         relegatedTeamIds: source.relegatedTeamIds,
-      });
+      }, undefined, accessHeaders());
       setBonusTip(createBundesligaBonusTip(payload.bonusTip));
       setBonusDirty(false);
       setMessage(auto ? "Bundesliga-Bonus automatisch gespeichert." : "Bundesliga-Bonus gespeichert.");
@@ -5596,14 +5616,14 @@ function BundesligaParticipantApp({ isTestMode }) {
                   <h2>Bonus tippen</h2>
                   <p>Meister, Torschützenkönig und drei Absteiger wählen.</p>
                 </div>
-                <button type="button" onClick={() => saveBonus()}>Bonus speichern</button>
+                <button type="button" onClick={() => saveBonus()} disabled={bonusLocked}>{bonusLocked ? "Bonusfrist abgelaufen" : "Bonus speichern"}</button>
               </div>
               {renderBonusProgress()}
               <section className="bundesliga-choice-section">
                 <h3>Meister</h3>
                 <div className="bundesliga-choice-grid">
                   {teams.map((team) => (
-                    <button key={team.id} type="button" className={bonusTip.championTeamId === team.id ? "selected" : ""} onClick={() => updateBonus({ championTeamId: team.id })}>
+                    <button key={team.id} type="button" disabled={bonusLocked} className={bonusTip.championTeamId === team.id ? "selected" : ""} onClick={() => updateBonus({ championTeamId: team.id })}>
                       <BundesligaLogo src={team.logo_url} name={team.name} />
                       <strong>{team.name}</strong>
                     </button>
@@ -5612,21 +5632,31 @@ function BundesligaParticipantApp({ isTestMode }) {
               </section>
               <section className="bundesliga-choice-section">
                 <h3>Torschützenkönig</h3>
+                <label className="bundesliga-scorer-manual-input">
+                  Spielername
+                  <input
+                    value={bonusTip.topScorer ?? ""}
+                    disabled={bonusLocked}
+                    placeholder="z. B. Harry Kane"
+                    onChange={(event) => updateBonus({ topScorer: event.target.value, topScorerId: "" })}
+                  />
+                </label>
                 <div className="bundesliga-scorer-choice-list">
                   {topScorers.slice(0, 12).map((row) => (
-                    <button key={row.id} type="button" className={bonusTip.topScorerId === row.id ? "selected" : ""} onClick={() => updateBonus({ topScorerId: row.id })}>
+                    <button key={row.id} type="button" disabled={bonusLocked} className={bonusTip.topScorerId === row.id ? "selected" : ""} onClick={() => updateBonus({ topScorerId: row.id, topScorer: row.display_name })}>
                       <strong>{row.display_name}</strong>
                       <span>{row.team_name || "OpenLigaDB"}</span>
                       <b>{row.goals} Tore</b>
                     </button>
                   ))}
                 </div>
+                {topScorers.length === 0 && <p className="bundesliga-field-note">Die Vorschlagsliste erscheint nach dem ersten OpenLigaDB-Torschützenimport. Dein eingetragener Name wird bereits gespeichert.</p>}
               </section>
               <section className="bundesliga-choice-section">
                 <h3>Absteiger <span>{bonusTip.relegatedTeamIds.length} / 3</span></h3>
                 <div className="bundesliga-choice-grid compact">
                   {teams.map((team) => (
-                    <button key={team.id} type="button" className={bonusTip.relegatedTeamIds.includes(team.id) ? "selected" : ""} onClick={() => toggleRelegatedTeam(team.id)}>
+                    <button key={team.id} type="button" disabled={bonusLocked} className={bonusTip.relegatedTeamIds.includes(team.id) ? "selected" : ""} onClick={() => toggleRelegatedTeam(team.id)}>
                       <BundesligaLogo src={team.logo_url} name={team.name} />
                       <strong>{team.name}</strong>
                     </button>
@@ -5746,6 +5776,7 @@ function BundesligaAdminArea({
   onSaveParticipantBonus,
   onSaveBonusResults,
   onSetCompetitionStatus,
+  onSaveReleaseSettings,
   onBackToWorldCup,
 }) {
   const [includeRelegation, setIncludeRelegation] = useState(true);
@@ -5760,6 +5791,10 @@ function BundesligaAdminArea({
   const [participantTipDrafts, setParticipantTipDrafts] = useState({});
   const [participantBonusDrafts, setParticipantBonusDrafts] = useState({});
   const [releaseProbeReport, setReleaseProbeReport] = useState(null);
+  const [releaseSettingsDraft, setReleaseSettingsDraft] = useState({
+    bonusDeadlineAt: "",
+    foreignTipsVisibleFrom: "kickoff",
+  });
   const [bonusResultDraft, setBonusResultDraft] = useState({
     championTeamId: "",
     topScorers: [],
@@ -5834,7 +5869,7 @@ function BundesligaAdminArea({
     (tip.top_scorer_id || tip.top_scorer) &&
     (tip.relegated_team_ids ?? []).length >= 3
   ).length;
-  const releaseChecks = [
+  const fallbackReleaseChecks = [
     {
       label: "Spielplan importiert",
       done: leagueMatches.length >= 306,
@@ -5921,6 +5956,14 @@ function BundesligaAdminArea({
       detail: dataQuality.autoImportEnabled ? "Auto-Import per Env aktiv" : "Auto-Import bleibt ohne Env-Flag inaktiv",
     },
   ];
+  const releaseChecks = data?.releaseGates?.checks?.length
+    ? data.releaseGates.checks.map((check) => ({
+        label: check.label,
+        done: check.passed,
+        detail: check.detail,
+      }))
+    : fallbackReleaseChecks;
+  const releaseReady = Boolean(data?.releaseGates?.ready);
   const importedThrough = leagueMatches.reduce((max, match) => {
     if (!match.result) return max;
     return Math.max(max, Number(match.matchday) || 0);
@@ -5980,6 +6023,13 @@ function BundesligaAdminArea({
       relegatedTeamIds: bonusResults?.relegated_team_ids ?? [],
     });
   }, [bonusResults?.champion_team_id, bonusResults?.top_scorers, bonusResults?.relegated_team_ids]);
+
+  useEffect(() => {
+    setReleaseSettingsDraft({
+      bonusDeadlineAt: formatDateTimeInput(data?.competition?.bonus_deadline_at),
+      foreignTipsVisibleFrom: ruleSettings?.foreign_tips_visible_from ?? "kickoff",
+    });
+  }, [data?.competition?.bonus_deadline_at, ruleSettings?.foreign_tips_visible_from]);
 
   async function createDemoParticipant() {
     await onCreateDemoParticipant(demoName);
@@ -6266,7 +6316,7 @@ function BundesligaAdminArea({
           </article>
           <article>
             <span>Slug</span>
-            <strong>{data?.competition?.public_slug ?? "bundesliga-2025"}</strong>
+            <strong>{data?.competition?.public_slug ?? "bundesliga-2026"}</strong>
           </article>
           <article>
             <span>Tipp-Sperre</span>
@@ -6300,6 +6350,40 @@ function BundesligaAdminArea({
           <div><span>Meister</span><b>{ruleSettings?.champion_bonus_points ?? 6} Punkte</b></div>
           <div><span>Torschützenkönig</span><b>{ruleSettings?.top_scorer_bonus_points ?? 6} Punkte</b></div>
           <div><span>Absteiger</span><b>{ruleSettings?.relegated_team_bonus_points ?? 4} je Verein</b></div>
+        </div>
+        <div className="bundesliga-release-editor">
+          <label>
+            Bonusfrist
+            <input
+              type="datetime-local"
+              value={releaseSettingsDraft.bonusDeadlineAt}
+              onChange={(event) => setReleaseSettingsDraft((current) => ({ ...current, bonusDeadlineAt: event.target.value }))}
+            />
+          </label>
+          <label>
+            Fremde Tipps sichtbar
+            <select
+              value={releaseSettingsDraft.foreignTipsVisibleFrom}
+              onChange={(event) => setReleaseSettingsDraft((current) => ({ ...current, foreignTipsVisibleFrom: event.target.value }))}
+            >
+              <option value="kickoff">ab Anpfiff</option>
+              <option value="match_finished">nach Abpfiff</option>
+              <option value="never">nie</option>
+            </select>
+          </label>
+          <button
+            type="button"
+            onClick={() => onSaveReleaseSettings({
+              bonusDeadlineAt: releaseSettingsDraft.bonusDeadlineAt
+                ? new Date(releaseSettingsDraft.bonusDeadlineAt).toISOString()
+                : "",
+              foreignTipsVisibleFrom: releaseSettingsDraft.foreignTipsVisibleFrom,
+            })}
+            disabled={loading || !releaseSettingsDraft.bonusDeadlineAt}
+          >
+            Release-Regeln speichern
+          </button>
+          <small>Die Tipp-Sperre bleibt für den Livegang fest auf Anpfiff.</small>
         </div>
       </section>
     );
@@ -6809,7 +6893,19 @@ function BundesligaAdminArea({
         <div className="bundesliga-status-editor">
           <span>Status: {data?.competition?.status ?? "admin_test"} · öffentlich: {data?.competition?.public_enabled ? "ja" : "nein"}</span>
           <button type="button" onClick={() => onSetCompetitionStatus("admin_test", false)}>Versteckt lassen</button>
+          {!data?.competition?.public_enabled && (
+            <button type="button" onClick={() => onSetCompetitionStatus("public", true)} disabled={loading}>
+              Öffentlich freigeben
+            </button>
+          )}
         </div>
+        {!data?.competition?.public_enabled && (
+          <p className="bundesliga-release-hint">
+            {releaseReady
+              ? "Alle Freigabeprüfungen sind erfüllt. Die Veröffentlichung kann bewusst gestartet werden."
+              : "Freigabe blockiert, bis alle Punkte in der Diagnose-Checkliste erfüllt sind."}
+          </p>
+        )}
       </section>
     );
   }
@@ -7040,8 +7136,13 @@ function BundesligaAdminArea({
         <section className="bundesliga-dark-panel bundesliga-import-panel">
           <header>
             <h3>Datenimport</h3>
-            <span>OpenLigaDB · bl1/2025</span>
+            <span>OpenLigaDB · bl1/2026</span>
           </header>
+          {leagueMatches.length === 0 && (
+            <p className="bundesliga-lab-message">
+              Spielplan für 2026/27 noch nicht verfügbar. Die Live-Freigabe bleibt bis zum echten Import gesperrt.
+            </p>
+          )}
           <div className="bundesliga-command-grid">
             <button type="button" onClick={() => onImport(includeRelegation)} disabled={loading}>
               <Download size={23} />
@@ -7081,7 +7182,7 @@ function BundesligaAdminArea({
             </label>
             <button type="button" onClick={onResetResults} disabled={loading || resultCount === 0}>Ergebnisse zurücksetzen</button>
             <button type="button" className="danger-button" onClick={onResetSeasonFoundation} disabled={loading}>
-              25/26-Grunddaten löschen
+              26/27-Grunddaten löschen
             </button>
             <button type="button" onClick={onRefresh} disabled={loading}>Daten aktualisieren</button>
           </div>
@@ -7160,10 +7261,10 @@ function BundesligaAdminArea({
         <div className="bundesliga-rail-meta">
           <small>Wettbewerb</small>
           <strong>Bundesliga</strong>
-          <span>2025/2026</span>
+          <span>2026/2027</span>
           <small>Status</small>
           <b>{data?.competition?.public_enabled ? "öffentlich" : "versteckt"}</b>
-          <em>OpenLigaDB · bl1/2025</em>
+          <em>OpenLigaDB · bl1/2026</em>
         </div>
       </aside>
 
@@ -7171,7 +7272,7 @@ function BundesligaAdminArea({
         <header className="bundesliga-lab-header">
           <div>
             <h2>Bundesliga Admin</h2>
-            <p>Saison 2025/2026 · OpenLigaDB · {data?.competition?.public_enabled ? "öffentlich" : "versteckt"}</p>
+          <p>Saison 2026/2027 · OpenLigaDB · {data?.competition?.public_enabled ? "öffentlich" : "versteckt"}</p>
           </div>
           <span>Status: <strong>{data?.competition?.public_enabled ? "Öffentlich" : "Versteckt"}</strong></span>
           <button type="button" onClick={onBackToWorldCup}>Zur WM-2026 Version</button>

@@ -2,7 +2,9 @@ import { requireAdmin } from "./_shared/admin.js";
 import { json } from "./_shared/supabase.js";
 import {
   BUNDESLIGA_COMPETITION_ID,
+  BUNDESLIGA_PUBLIC_SLUG,
   BUNDESLIGA_RELEGATION_LEAGUE,
+  BUNDESLIGA_SEASON_LABEL,
   BUNDESLIGA_SOURCE_LEAGUE,
   BUNDESLIGA_SOURCE_SEASON,
   normalizeGoalgetter,
@@ -12,6 +14,7 @@ import {
 async function fetchOpenLigaMatches(leagueShortcut) {
   const response = await fetch(`https://api.openligadb.de/getmatchdata/${leagueShortcut}/${BUNDESLIGA_SOURCE_SEASON}`);
   if (!response.ok) {
+    if (leagueShortcut === BUNDESLIGA_SOURCE_LEAGUE && response.status === 404) return [];
     throw new Error(`OpenLigaDB ${leagueShortcut}/${BUNDESLIGA_SOURCE_SEASON} konnte nicht geladen werden.`);
   }
   return response.json();
@@ -26,17 +29,32 @@ async function fetchOpenLigaGoalgetters() {
 }
 
 async function ensureCompetition(supabase) {
-  const { error } = await supabase.from("competitions").upsert({
-    id: BUNDESLIGA_COMPETITION_ID,
+  const { data: existing, error: readError } = await supabase
+    .from("competitions")
+    .select("id")
+    .eq("id", BUNDESLIGA_COMPETITION_ID)
+    .maybeSingle();
+  if (readError) throw readError;
+
+  const values = {
     name: "Bundesliga",
-    season_label: "2025/2026",
-    status: "admin_test",
+    season_label: BUNDESLIGA_SEASON_LABEL,
     source_provider: "openligadb",
     source_league: BUNDESLIGA_SOURCE_LEAGUE,
     source_season: BUNDESLIGA_SOURCE_SEASON,
-    public_enabled: false,
+    public_slug: BUNDESLIGA_PUBLIC_SLUG,
+    tip_lock_mode: "kickoff",
     updated_at: new Date().toISOString(),
-  });
+  };
+  const request = existing
+    ? supabase.from("competitions").update(values).eq("id", BUNDESLIGA_COMPETITION_ID)
+    : supabase.from("competitions").insert({
+        id: BUNDESLIGA_COMPETITION_ID,
+        ...values,
+        status: "admin_test",
+        public_enabled: false,
+      });
+  const { error } = await request;
   if (error) throw error;
 }
 
@@ -51,6 +69,9 @@ export default async (req) => {
     await ensureCompetition(supabase);
 
     const leagueMatches = await fetchOpenLigaMatches(BUNDESLIGA_SOURCE_LEAGUE);
+    if (!Array.isArray(leagueMatches) || leagueMatches.length === 0) {
+      return json({ error: `Spielplan für ${BUNDESLIGA_SEASON_LABEL} ist bei OpenLigaDB noch nicht verfügbar.` }, 409);
+    }
     const relegationMatches = includeRelegation ? await fetchOpenLigaMatches(BUNDESLIGA_RELEGATION_LEAGUE).catch(() => []) : [];
     const goalgetters = await fetchOpenLigaGoalgetters().catch(() => []);
     const normalized = [
