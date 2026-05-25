@@ -206,6 +206,7 @@ export const bundesligaRulesSummary = {
     ["Absteiger", "4 Punkte je Verein"],
   ],
   visibility: "Fremde Tipps werden pro Spiel ab Anpfiff sichtbar.",
+  visibilityMode: "kickoff",
   tieBreaker: "Bei Punktgleichstand zählen zuerst die Spieltagssiege.",
 };
 
@@ -227,6 +228,7 @@ export function buildBundesligaRulesSummary(ruleSettings = defaultBundesligaRule
       : ruleSettings.foreign_tips_visible_from === "never"
         ? "Fremde Tipps bleiben während der Saison verborgen."
         : "Fremde Tipps werden pro Spiel ab Anpfiff sichtbar.",
+    visibilityMode: ruleSettings.foreign_tips_visible_from ?? "kickoff",
     tieBreaker: "Bei Punktgleichstand zählen zuerst die Spieltagssiege.",
     bonusDeadlineAt: competition?.bonus_deadline_at ?? null,
     tipLockMode: competition?.tip_lock_mode ?? "kickoff",

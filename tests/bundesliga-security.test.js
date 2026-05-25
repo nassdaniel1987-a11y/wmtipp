@@ -4,6 +4,7 @@ import {
   BUNDESLIGA_COMPETITION_ID,
   BUNDESLIGA_SEASON_LABEL,
   buildBundesligaMatchDetail,
+  buildBundesligaRulesSummary,
   buildMatchdayLive,
   buildTipTrends,
   canViewMatchTips,
@@ -49,6 +50,19 @@ test("foreign tip visibility follows the configured server rule", () => {
   assert.equal(canViewMatchTips(match, null, afterKickoff, { foreign_tips_visible_from: "match_finished" }), false);
   assert.equal(canViewMatchTips(match, finalResult, afterKickoff, { foreign_tips_visible_from: "match_finished" }), true);
   assert.equal(canViewMatchTips(match, finalResult, afterKickoff, { foreign_tips_visible_from: "never" }), false);
+});
+
+test("rules summary exposes the configured community visibility", () => {
+  const kickoffRules = buildBundesligaRulesSummary({ foreign_tips_visible_from: "kickoff" });
+  const finishedRules = buildBundesligaRulesSummary({ foreign_tips_visible_from: "match_finished" });
+  const privateRules = buildBundesligaRulesSummary({ foreign_tips_visible_from: "never" });
+
+  assert.equal(kickoffRules.visibilityMode, "kickoff");
+  assert.match(kickoffRules.visibility, /ab Anpfiff/);
+  assert.equal(finishedRules.visibilityMode, "match_finished");
+  assert.match(finishedRules.visibility, /nach Abpfiff/);
+  assert.equal(privateRules.visibilityMode, "never");
+  assert.match(privateRules.visibility, /verborgen/);
 });
 
 test("live payload hides foreign tip existence until visibility opens", () => {

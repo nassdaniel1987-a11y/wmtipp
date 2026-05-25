@@ -1,8 +1,19 @@
 import { supabase } from "./supabaseClient.js";
 
+export async function readApiPayload(response) {
+  const contentType = response.headers.get("content-type") ?? "";
+  if (!contentType.toLowerCase().includes("application/json")) {
+    if (import.meta.env.DEV && response.url.includes("/api/")) {
+      throw new Error("Lokales Backend nicht erreichbar - für Admin- und API-Prüfungen `npm run dev:netlify` starten.");
+    }
+    throw new Error("Serverantwort konnte nicht verarbeitet werden.");
+  }
+  return response.json();
+}
+
 export async function apiGet(path, extraHeaders = {}) {
   const response = await fetch(path, { headers: extraHeaders });
-  const payload = await response.json();
+  const payload = await readApiPayload(response);
   if (!response.ok) throw new Error(payload.error || "Serverfehler");
   return payload;
 }
@@ -17,7 +28,7 @@ export async function apiPost(path, body, token, extraHeaders = {}) {
     },
     body: JSON.stringify(body),
   });
-  const payload = await response.json();
+  const payload = await readApiPayload(response);
   if (!response.ok) throw new Error(payload.error || "Serverfehler");
   return payload;
 }

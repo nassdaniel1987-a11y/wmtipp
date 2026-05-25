@@ -82,13 +82,15 @@ test("hidden Bundesliga test flow supports tips, bonus and ranking", async ({ pa
   await expect(page).toHaveURL(/#bundesliga-tippen$/);
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
   await expect(page.getByRole("heading", { name: "Spieltag tippen" })).toBeVisible();
+  const mobileInfoToggle = page.getByText("Infos & Statistik", { exact: true });
+  if (await mobileInfoToggle.isVisible()) await mobileInfoToggle.click();
   await expect(page.getByRole("heading", { name: "Was fehlt noch?" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Meine Statistik" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Alle Tipps dieses Spieltags speichern" })).toBeVisible();
   await expect(page.getByText("Zum nächsten offenen Tipp")).toBeVisible();
   await expect(page.getByText("Live-Spieltag")).toBeVisible();
   await expect(page.getByText("versteckt bis Anpfiff").first()).toBeVisible();
-  await expect(page.getByText("Fremde Tipps sind pro Spiel ab Anpfiff sichtbar.")).toBeVisible();
+  await expect(page.getByText("Fremde Tipps werden pro Spiel ab Anpfiff sichtbar.")).toBeVisible();
   await expect(page.getByText("Exaktes Ergebnis")).toBeVisible();
   await expect(page.locator(".bundesliga-rule-list").getByText("4 Punkte")).toBeVisible();
   await page.waitForTimeout(750);
@@ -107,7 +109,8 @@ test("hidden Bundesliga test flow supports tips, bonus and ranking", async ({ pa
   await expect(page.getByRole("heading", { name: "Bonus tippen" })).toBeVisible();
   await expect(page.getByText("0/5 Bonus-Tipps erledigt")).toBeVisible();
   await page.getByRole("button", { name: /FC Bayern München/ }).first().click();
-  await page.getByRole("button", { name: /Harry Kane/ }).click();
+  await page.getByLabel("Spielername").fill("Freitext Stürmer");
+  await expect(page.getByText("Freitext Stürmer")).toBeVisible();
   await expect(page.getByRole("button", { name: "Bonus speichern" })).toBeVisible();
 
   await page.getByRole("button", { name: "Rangliste" }).click();
@@ -163,6 +166,7 @@ test("Bundesliga archive preview is visibly read-only", async ({ page }) => {
   await page.getByRole("button", { name: "Bonus", exact: true }).click();
   await expect(page.getByRole("button", { name: "Nur lesbar" })).toBeDisabled();
 
+  if (await page.getByText("Mehr", { exact: true }).isVisible()) await page.getByText("Mehr", { exact: true }).click();
   await page.getByRole("button", { name: "Spielplan", exact: true }).click();
   await page.getByRole("button", { name: "Auswertung ansehen" }).first().click();
   await expect(page.getByText("Archivvorschau · nur lesbar")).toBeVisible();
@@ -215,10 +219,62 @@ test("empty Bundesliga 2026 season shows a clear preseason state", async ({ page
   await expect(page.getByRole("heading", { name: "Noch keine Spiele zum Tippen" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Alle Tipps dieses Spieltags speichern" })).toHaveCount(0);
 
+  if (await page.getByText("Mehr", { exact: true }).isVisible()) await page.getByText("Mehr", { exact: true }).click();
   await page.getByRole("button", { name: "Spielplan", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Spielplan noch nicht verfügbar" })).toBeVisible();
 
   await page.getByRole("button", { name: "Bonus", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Bonusfragen werden vorbereitet" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Bonus speichern" })).toHaveCount(0);
+});
+
+test("Bundesliga community respects private visibility and mobile more navigation", async ({ page }, testInfo) => {
+  let visibilityMode = "never";
+  await page.addInitScript(() => {
+    window.localStorage.setItem("bundesliga-tippspiel-participant", JSON.stringify({
+      id: "privacy-user",
+      name: "Daniel",
+      code: "BL-PRIVACY",
+      competitionId: "bundesliga-2026",
+    }));
+  });
+  await page.route("**/api/bundesliga-public-data", (route) => route.fulfill({
+    contentType: "application/json",
+    body: JSON.stringify({
+      competition: { id: "bundesliga-2026", season_label: "2026/2027", public_enabled: false },
+      teams: [{ id: "team-1", name: "Team Eins", short_name: "Eins" }],
+      matches: [],
+      results: [],
+      topScorers: [],
+      table: [],
+      rulesSummary: {
+        matchPoints: [["Exaktes Ergebnis", "4 Punkte"]],
+        visibility: visibilityMode === "never"
+          ? "Fremde Tipps bleiben während der Saison verborgen."
+          : "Fremde Tipps werden pro Spiel nach Abpfiff sichtbar.",
+        visibilityMode,
+        tieBreaker: "Bei Punktgleichstand zählen zuerst die Spieltagssiege.",
+      },
+    }),
+  }));
+  await page.route("**/api/bundesliga-ranking", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ ranking: [] }) }));
+  await page.route("**/api/bundesliga-tips", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ tips: [] }) }));
+  await page.route("**/api/bundesliga-bonus-tips", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ bonusTip: null }) }));
+
+  await page.goto("/#bundesliga-rangliste");
+  await expect(page.getByText("Teilnehmervergleiche sind für diese Saison deaktiviert. Deine Tipps bleiben privat.")).toBeVisible();
+  await expect(page.getByText("Vergleich ab Anpfiff")).toHaveCount(0);
+  await expect(page.getByText("Fremde Tipps bleiben während der Saison verborgen.")).toBeVisible();
+
+  visibilityMode = "match_finished";
+  await page.reload();
+  await expect(page.getByText("Vergleich nach Abpfiff")).toBeVisible();
+  await expect(page.getByText("Fremde Tipps werden pro Spiel nach Abpfiff sichtbar.")).toBeVisible();
+
+  if (testInfo.project.name === "mobile") {
+    await expect(page.getByText("Mehr", { exact: true })).toBeVisible();
+    await page.getByText("Mehr", { exact: true }).click();
+    await page.getByRole("button", { name: "Torschützen", exact: true }).click();
+    await expect(page).toHaveURL(/#bundesliga-torschuetzen$/);
+  }
 });

@@ -23,6 +23,8 @@ http://127.0.0.1:5173/?test=1#start
 
 Der Testmodus legt lokal einen Beispielteilnehmer an und prüft sichtbar:
 Spielpunkte, Bonuspunkte, Gesamtpunkte, Schnitt und Rangliste.
+Er ist ausschließlich in der lokalen Entwicklungs-/Testumgebung aktiv; ein
+Produktions-Build ignoriert `?test=1` beziehungsweise `?mode=test`.
 
 Automatischer Smoke-Test:
 
@@ -98,5 +100,20 @@ Vollständiger lokaler Backend-Test geht über Netlify Functions, also nicht
 über `npm run dev`, sondern mit Netlify CLI:
 
 ```bash
-netlify dev
+npm run dev:netlify
 ```
+
+`npm run dev` ist für schnelle UI-Arbeit und den lokalen Testmodus gedacht.
+Adminabläufe, Supabase-Daten und `/api/*`-Prüfungen benötigen
+`npm run dev:netlify`; die Oberfläche weist lokal verständlich darauf hin,
+falls nur der Vite-Server läuft.
+
+## Bundesliga Vorschau
+
+- Die Nutzeroberfläche verwendet ausschließlich Variante A.
+- `bundesliga-2026` ist die versteckte Vorbereitungsbasis für `2026/2027`;
+  ohne importierten Spielplan zeigt sie einen ruhigen Vorsaisonstatus.
+- Regeln und Community-Vergleich zeigen die konfigurierte Sichtbarkeit
+  (`ab Anpfiff`, `nach Abpfiff` oder `privat`) statt eines festen Texts.
+- Technische Imports, Freigabeprüfungen und destruktive Aktionen bleiben im
+  Bundesliga-Admin; die Veröffentlichung bleibt blockiert, solange Gates offen sind.

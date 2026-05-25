@@ -294,6 +294,14 @@ Release-Lücken:
 - OpenLigaDB liefert `bl1/2026` am 25. Mai 2026 noch nicht; der Admin zeigt diesen wartenden Zustand und lässt die Freigabe geschlossen.
 - Eine echte Bonusfrist muss vor dem öffentlichen Start in der Admin-Release-Konfiguration gesetzt werden.
 
+## Bundesliga Release-Finish (25. Mai 2026)
+
+- Variante A bleibt die einzige Bundesliga-Nutzeransicht; der gemeinsame Rahmen ist für Desktop und Mobil verdichtet.
+- Regeln und Community-Vergleich folgen `rulesSummary.visibility` beziehungsweise der serverseitigen Sichtbarkeit (`kickoff`, `match_finished`, `never`); frei eingetragene Torschützen-Tipps bleiben in der Zusammenfassung lesbar.
+- Die leere aktive Saison `bundesliga-2026` erscheint im Admin als erwartete Vorsaison: Zugänge können vorbereitet sein, während Import-, Bonus- und Freigabeprüfungen auf den offiziellen Spielplan warten.
+- Destruktives Zurücksetzen von Ergebnissen verlangt eine Bestätigung; die öffentliche Freigabe bleibt zusätzlich in der UI deaktiviert, solange Release-Gates offen sind.
+- Für reine UI- und Testmodusarbeit genügt `npm run dev`. Echte Functions-, Supabase- und Adminprüfungen laufen lokal über `npm run dev:netlify`; HTML-Antworten vom reinen Vite-Server werden als hilfreicher Backend-Hinweis angezeigt.
+
 ## CODEX.md Pflege-Regel
 
 - Nach größeren Arbeitsblöcken kurz aktualisieren:
