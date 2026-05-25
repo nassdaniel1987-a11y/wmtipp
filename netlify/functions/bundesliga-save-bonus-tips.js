@@ -1,6 +1,5 @@
 import { getServiceClient, json } from "./_shared/supabase.js";
-import { BUNDESLIGA_COMPETITION_ID } from "./_shared/bundesliga.js";
-import { bundesligaErrorResponse, resolveBundesligaParticipant } from "./_shared/bundesliga-access.js";
+import { bundesligaErrorResponse, resolveBundesligaParticipant, resolveRequestedBundesligaCompetition } from "./_shared/bundesliga-access.js";
 
 export default async (req) => {
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -8,11 +7,12 @@ export default async (req) => {
   try {
     const { championTeamId, topScorerId, topScorer, relegatedTeamIds } = await req.json();
     const supabase = getServiceClient();
-    const participant = await resolveBundesligaParticipant(req, supabase, { required: true });
+    const competitionId = resolveRequestedBundesligaCompetition(req);
+    const participant = await resolveBundesligaParticipant(req, supabase, { required: true, competitionId });
     const { data: competition, error: competitionError } = await supabase
       .from("competitions")
       .select("bonus_deadline_at")
-      .eq("id", BUNDESLIGA_COMPETITION_ID)
+      .eq("id", competitionId)
       .single();
     if (competitionError) throw competitionError;
     if (competition.bonus_deadline_at && new Date(competition.bonus_deadline_at) <= new Date()) {
@@ -30,7 +30,7 @@ export default async (req) => {
       const { data: selectedTeams, error: teamError } = await supabase
         .from("competition_teams")
         .select("id")
-        .eq("competition_id", BUNDESLIGA_COMPETITION_ID)
+        .eq("competition_id", competitionId)
         .in("id", selectedTeamIds);
       if (teamError) throw teamError;
       if ((selectedTeams ?? []).length !== selectedTeamIds.length) {
@@ -41,7 +41,7 @@ export default async (req) => {
       const { data: selectedScorer, error: scorerError } = await supabase
         .from("competition_top_scorers")
         .select("id")
-        .eq("competition_id", BUNDESLIGA_COMPETITION_ID)
+        .eq("competition_id", competitionId)
         .eq("id", topScorerId)
         .maybeSingle();
       if (scorerError) throw scorerError;
@@ -51,7 +51,7 @@ export default async (req) => {
     }
     const row = {
       participant_id: participant.id,
-      competition_id: BUNDESLIGA_COMPETITION_ID,
+      competition_id: competitionId,
       champion_team_id: championTeamId || null,
       top_scorer_id: topScorerId || null,
       top_scorer: topScorerText || null,

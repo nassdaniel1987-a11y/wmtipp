@@ -1,5 +1,5 @@
 import { getServiceClient, json, normalizeCode } from "./_shared/supabase.js";
-import { BUNDESLIGA_COMPETITION_ID } from "./_shared/bundesliga.js";
+import { resolveRequestedBundesligaCompetition } from "./_shared/bundesliga-access.js";
 
 export default async (req) => {
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -11,10 +11,11 @@ export default async (req) => {
     if (!cleanCode || displayName.length < 2) return json({ error: "Code und Name sind erforderlich." }, 400);
 
     const supabase = getServiceClient();
+    const competitionId = resolveRequestedBundesligaCompetition(req);
     const { data: invite, error: inviteError } = await supabase
       .from("competition_invite_codes")
       .select("id, code, status, participant_id")
-      .eq("competition_id", BUNDESLIGA_COMPETITION_ID)
+      .eq("competition_id", competitionId)
       .eq("code", cleanCode)
       .maybeSingle();
     if (inviteError) throw inviteError;
@@ -25,7 +26,7 @@ export default async (req) => {
       const { data: participant, error } = await supabase
         .from("competition_participants")
         .select("id, display_name, invite_code_id")
-        .eq("competition_id", BUNDESLIGA_COMPETITION_ID)
+        .eq("competition_id", competitionId)
         .eq("id", invite.participant_id)
         .maybeSingle();
       if (error) throw error;
@@ -35,7 +36,7 @@ export default async (req) => {
 
     const { data: participant, error: createError } = await supabase
       .from("competition_participants")
-      .insert({ competition_id: BUNDESLIGA_COMPETITION_ID, display_name: displayName, invite_code_id: invite.id })
+      .insert({ competition_id: competitionId, display_name: displayName, invite_code_id: invite.id })
       .select("id, display_name, invite_code_id")
       .single();
     if (createError?.code === "23505") {

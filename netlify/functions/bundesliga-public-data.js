@@ -1,7 +1,6 @@
 import { getServiceClient, json } from "./_shared/supabase.js";
 import { bundesligaErrorResponse, requireBundesligaViewAccess } from "./_shared/bundesliga-access.js";
 import {
-  BUNDESLIGA_COMPETITION_ID,
   buildBonusStatus,
   buildBundesligaRulesSummary,
   buildLeagueTable,
@@ -15,15 +14,15 @@ export default async (req) => {
 
   try {
     const supabase = getServiceClient();
-    await requireBundesligaViewAccess(req, supabase);
+    const { competition: activeCompetition, competitionId } = await requireBundesligaViewAccess(req, supabase);
     const [competition, teams, matches, results, topScorers, bonusResults, ruleSettings] = await Promise.all([
-      supabase.from("competitions").select("*").eq("id", BUNDESLIGA_COMPETITION_ID).maybeSingle(),
-      supabase.from("competition_teams").select("*").eq("competition_id", BUNDESLIGA_COMPETITION_ID).order("name"),
-      supabase.from("competition_matches").select("*").eq("competition_id", BUNDESLIGA_COMPETITION_ID).eq("phase", "league").order("match_number"),
-      supabase.from("competition_results").select("*").eq("competition_id", BUNDESLIGA_COMPETITION_ID),
-      supabase.from("competition_top_scorers").select("*").eq("competition_id", BUNDESLIGA_COMPETITION_ID).order("goals", { ascending: false }).order("display_name"),
-      supabase.from("competition_bonus_results").select("*").eq("competition_id", BUNDESLIGA_COMPETITION_ID).maybeSingle(),
-      loadCompetitionRuleSettings(supabase),
+      Promise.resolve({ data: activeCompetition, error: null }),
+      supabase.from("competition_teams").select("*").eq("competition_id", competitionId).order("name"),
+      supabase.from("competition_matches").select("*").eq("competition_id", competitionId).eq("phase", "league").order("match_number"),
+      supabase.from("competition_results").select("*").eq("competition_id", competitionId),
+      supabase.from("competition_top_scorers").select("*").eq("competition_id", competitionId).order("goals", { ascending: false }).order("display_name"),
+      supabase.from("competition_bonus_results").select("*").eq("competition_id", competitionId).maybeSingle(),
+      loadCompetitionRuleSettings(supabase, competitionId),
     ]);
 
     for (const response of [competition, teams, matches, results, topScorers, bonusResults]) {

@@ -156,12 +156,13 @@ cd android-app
 - Bundesliga-Variante A wurde über alle Nutzerbereiche geglättet: kompakter App-Rahmen, sichtbares Arbeitsfeedback, eindeutig lesbare offene/gesperrte/ausgewertete Tippzustände und reduzierte Doppel-Navigation in Live, Bonus und Spielplan.
 - Bundesliga-Bonus-Autosave meldet Speichern erst nach einer tatsächlichen Nutzerauswahl; ein leer geladener Bonus erzeugt kein irreführendes Erfolgsfeedback mehr.
 - Bundesliga-Bonus erlaubt vor der ersten OpenLigaDB-Torschützenliste eine freie Spielereingabe, damit der echte Saisonstart nicht auf bereits erzielte Tore warten muss.
+- Die Bundesliga-Teilnehmeransicht bietet im versteckten Previewbetrieb einen Datenbasis-Umschalter zwischen `2025/2026` Testdaten und `2026/2027` Releasevorbereitung; ein Wechsel meldet den Teilnehmer ab, damit Codes und Tipps nicht zwischen Saisons vermischt werden.
 
 ## Bundesliga Stand
 
 - Versteckte Bundesliga-Version läuft getrennt von der WM unter den Hash-Routen `#bundesliga-start`, `#bundesliga-tippen`, `#bundesliga-bonus`, `#bundesliga-rangliste`, `#bundesliga-live`, `#bundesliga-tabelle`, `#bundesliga-torschuetzen` und `#bundesliga-spielplan`.
 - Die zuvor erprobte Bundesliga Variante B wurde wieder entfernt; die bestehenden `#bundesliga-*` Routen sind die einzige Bundesliga-Nutzeransicht.
-- Der Bundesliga-Admin öffnet über einen einzelnen Einstieg die Teilnehmeransicht unter `#bundesliga-start`.
+- Der Bundesliga-Admin öffnet die Teilnehmeransicht getrennt als Testvorschau `2025/2026` oder Livevorbereitung `2026/2027`; Admin-Import, Release-Probelauf und Freigabegates bleiben fest an `bundesliga-2026` gebunden.
 - Bundesliga-Admin ist über den Adminbereich erreichbar und bleibt nicht öffentlich.
 - Liveziel ist die frische Saison `2026/2027` mit `competition_id = 'bundesliga-2026'`; `bundesliga-2025` bleibt als interne, nicht veröffentlichte Testbasis erhalten.
 - OpenLigaDB ist als Hauptquelle vorbereitet: Teams, Logos, Spielplan, Ergebnisse und Torschützen.
@@ -195,6 +196,7 @@ cd android-app
   - Tipp-Sperre ab Anpfiff, Bonusfrist und Sichtbarkeit fremder Tipps werden serverseitig erzwungen; verdeckte Live-Tipps verraten weder Ergebnis noch Existenz fremder Einträge.
   - Der Admin blockiert die öffentliche Freigabe, solange Release-Gates wie Saison, Bonusfrist, vollständiger Spielplan/Logos oder bereinigte Probe-Ergebnisse offen sind.
   - Push-Erinnerungen gehören bewusst nicht zum ersten Bundesliga-Livegang.
+  - Nutzer-Preview-Requests senden zusätzlich `X-Bundesliga-Competition`; erlaubt sind ausschließlich `bundesliga-2025` und `bundesliga-2026`, Standard und einzige Releasebasis bleibt `bundesliga-2026`.
 
 ## Zuletzt ausgeführte / benötigte SQL-Dateien
 

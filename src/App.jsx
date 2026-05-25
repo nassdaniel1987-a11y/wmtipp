@@ -38,6 +38,11 @@ import { displayTeamName } from "./teamNames.js";
 
 const STORAGE_KEY = "wm-tippspiel-participant";
 const BUNDESLIGA_STORAGE_KEY = "bundesliga-tippspiel-participant";
+const BUNDESLIGA_DEFAULT_COMPETITION_ID = "bundesliga-2026";
+const BUNDESLIGA_PREVIEW_OPTIONS = [
+  { id: "bundesliga-2025", label: "Testdaten 25/26", season: "2025/2026", purpose: "bestehende Testbasis" },
+  { id: BUNDESLIGA_DEFAULT_COMPETITION_ID, label: "Live-Vorbereitung 26/27", season: "2026/2027", purpose: "frische Releasebasis" },
+];
 const BUNDESLIGA_BRAND_ASSETS = {
   header: "/brand/bundesliga/logo-header.png",
   compact: "/brand/bundesliga/logo-compact.png",
@@ -182,6 +187,13 @@ function getBundesligaTabFromHash() {
   return bundesligaTabIds.has(tabId) ? tabId : "bundesliga-start";
 }
 
+function getBundesligaCompetitionFromUrl() {
+  const requested = new URLSearchParams(window.location.search).get("blCompetition");
+  return BUNDESLIGA_PREVIEW_OPTIONS.some((option) => option.id === requested)
+    ? requested
+    : BUNDESLIGA_DEFAULT_COMPETITION_ID;
+}
+
 function isBundesligaRoute() {
   return window.location.hash.replace("#", "").startsWith("bundesliga-");
 }
@@ -196,8 +208,18 @@ function getInviteUrl(code) {
 function getBundesligaInviteUrl(code) {
   const url = new URL(window.location.origin);
   url.searchParams.set("blCode", code);
+  url.searchParams.set("blCompetition", BUNDESLIGA_DEFAULT_COMPETITION_ID);
   url.hash = "bundesliga-start";
   return url.toString();
+}
+
+function openBundesligaPreview(competitionId) {
+  const url = new URL(window.location.href);
+  url.searchParams.delete("test");
+  url.searchParams.delete("blCode");
+  url.searchParams.set("blCompetition", competitionId);
+  url.hash = "bundesliga-start";
+  window.location.href = url.toString();
 }
 
 function getBundesligaLogoFallback(name) {
@@ -4368,7 +4390,14 @@ function AdminPanel({
 }
 
 function BundesligaParticipantApp({ isTestMode }) {
-  const savedParticipant = useMemo(() => loadSavedBundesligaParticipant(), []);
+  const selectedCompetitionAtLoad = useMemo(() => getBundesligaCompetitionFromUrl(), []);
+  const savedParticipant = useMemo(() => {
+    const saved = loadSavedBundesligaParticipant();
+    if (!saved) return null;
+    const savedCompetitionId = saved.competitionId ?? BUNDESLIGA_DEFAULT_COMPETITION_ID;
+    return savedCompetitionId === selectedCompetitionAtLoad ? { ...saved, competitionId: savedCompetitionId } : null;
+  }, [selectedCompetitionAtLoad]);
+  const [competitionId, setCompetitionId] = useState(selectedCompetitionAtLoad);
   const [activeTab, setActiveTab] = useState(getBundesligaTabFromHash);
   const [data, setData] = useState(() => (isTestMode ? createTestBundesligaData() : null));
   const [participant, setParticipant] = useState(() => (isTestMode ? { id: "bl-test", name: "Daniel BL", code: "BL-TEST" } : savedParticipant));
@@ -4422,9 +4451,13 @@ function BundesligaParticipantApp({ isTestMode }) {
   const bonusStatus = buildBundesligaBonusStatus(bonusTip);
   const rulesSummary = data?.rulesSummary;
   const bonusLocked = Boolean(rulesSummary?.bonusDeadlineAt && new Date(rulesSummary.bonusDeadlineAt) <= new Date());
+  const selectedCompetition = BUNDESLIGA_PREVIEW_OPTIONS.find((option) => option.id === competitionId) ?? BUNDESLIGA_PREVIEW_OPTIONS[1];
 
   function accessHeaders(activeCode = participant?.code) {
-    return activeCode ? { "X-Bundesliga-Code": activeCode } : {};
+    return {
+      "X-Bundesliga-Competition": competitionId,
+      ...(activeCode ? { "X-Bundesliga-Code": activeCode } : {}),
+    };
   }
 
   useEffect(() => {
@@ -4475,7 +4508,7 @@ function BundesligaParticipantApp({ isTestMode }) {
       }
     }
     loadData();
-  }, [isTestMode, participant?.code]);
+  }, [isTestMode, participant?.code, competitionId]);
 
   useEffect(() => {
     async function resolveParticipant() {
@@ -4484,10 +4517,10 @@ function BundesligaParticipantApp({ isTestMode }) {
       setLoginState("checking");
       setLoginFeedback("Code wird geprüft...");
       try {
-        const payload = await apiGet(`/api/bundesliga-participant?code=${encodeURIComponent(code)}`);
+        const payload = await apiGet(`/api/bundesliga-participant?code=${encodeURIComponent(code)}`, accessHeaders(""));
         setCodeStatus(payload.codeStatus);
         if (payload.participant) {
-          const saved = { id: payload.participant.id, name: payload.participant.display_name, code };
+          const saved = { id: payload.participant.id, name: payload.participant.display_name, code, competitionId };
           setParticipant(saved);
           setName(saved.name);
           window.localStorage.setItem(BUNDESLIGA_STORAGE_KEY, JSON.stringify(saved));
@@ -4508,7 +4541,7 @@ function BundesligaParticipantApp({ isTestMode }) {
       }
     }
     resolveParticipant();
-  }, [code, participant?.id, isTestMode]);
+  }, [code, participant?.id, isTestMode, competitionId]);
 
   useEffect(() => {
     async function loadParticipantState() {
@@ -4527,7 +4560,7 @@ function BundesligaParticipantApp({ isTestMode }) {
       }
     }
     loadParticipantState();
-  }, [participant?.id, matches, isTestMode]);
+  }, [participant?.id, matches, isTestMode, competitionId]);
 
   useEffect(() => {
     if (!participant?.id) {
@@ -4558,7 +4591,7 @@ function BundesligaParticipantApp({ isTestMode }) {
     return () => {
       cancelled = true;
     };
-  }, [participant?.id, selectedMatchday, data, isTestMode, liveRefreshKey]);
+  }, [participant?.id, selectedMatchday, data, isTestMode, liveRefreshKey, competitionId]);
 
   useEffect(() => {
     const pendingIds = Object.entries(tipStatuses)
@@ -4614,10 +4647,10 @@ function BundesligaParticipantApp({ isTestMode }) {
     setLoginFeedback("Code wird geprüft...");
     setCodeStatus("checking");
     try {
-      const payload = await apiGet(`/api/bundesliga-participant?code=${encodeURIComponent(cleanCode)}`);
+      const payload = await apiGet(`/api/bundesliga-participant?code=${encodeURIComponent(cleanCode)}`, accessHeaders(""));
       setCodeStatus(payload.codeStatus);
       if (payload.participant) {
-        const saved = { id: payload.participant.id, name: payload.participant.display_name, code: cleanCode };
+        const saved = { id: payload.participant.id, name: payload.participant.display_name, code: cleanCode, competitionId };
         setParticipant(saved);
         setName(saved.name);
         window.localStorage.setItem(BUNDESLIGA_STORAGE_KEY, JSON.stringify(saved));
@@ -4648,8 +4681,8 @@ function BundesligaParticipantApp({ isTestMode }) {
     setLoginState("submitting");
     setLoginFeedback("Dein Bundesliga-Zugang wird angelegt...");
     try {
-      const payload = await apiPost("/api/bundesliga-claim-code", { code, name });
-      const saved = { id: payload.participant.id, name: payload.participant.display_name, code };
+      const payload = await apiPost("/api/bundesliga-claim-code", { code, name }, undefined, accessHeaders(""));
+      const saved = { id: payload.participant.id, name: payload.participant.display_name, code, competitionId };
       setParticipant(saved);
       setName(saved.name);
       setCodeStatus("claimed");
@@ -4682,6 +4715,36 @@ function BundesligaParticipantApp({ isTestMode }) {
     setLiveTrends([]);
     setMessage("Bundesliga-Code erforderlich.");
     setBundesligaTab("bundesliga-start");
+  }
+
+  function switchBundesligaCompetition(nextCompetitionId) {
+    if (nextCompetitionId === competitionId) return;
+    const target = BUNDESLIGA_PREVIEW_OPTIONS.find((option) => option.id === nextCompetitionId);
+    if (!target) return;
+    const url = new URL(window.location.href);
+    url.searchParams.set("blCompetition", nextCompetitionId);
+    url.searchParams.delete("blCode");
+    window.history.replaceState({}, "", `${url.pathname}${url.search}#bundesliga-start`);
+    window.localStorage.removeItem(BUNDESLIGA_STORAGE_KEY);
+    setCompetitionId(nextCompetitionId);
+    setParticipant(null);
+    setCode("");
+    setName("");
+    setCodeStatus("missing");
+    setLoginState("idle");
+    setLoginFeedback(`Datenbasis ${target.season} gewählt. Bitte mit einem Code dieser Saison einloggen.`);
+    setData(null);
+    setTips({});
+    setBonusTip(createBundesligaBonusTip());
+    setBonusDirty(false);
+    setRanking([]);
+    setPersonalStats(null);
+    setMatchdayWinners([]);
+    setLiveData(null);
+    setLiveTrends([]);
+    setMessage(`${target.label} ausgewählt.`);
+    setActiveTab("bundesliga-start");
+    window.scrollTo(0, 0);
   }
 
   function changeScore(matchId, side, delta) {
@@ -5373,6 +5436,28 @@ function BundesligaParticipantApp({ isTestMode }) {
       </header>
 
       <main className="bundesliga-public-main">
+        {!isTestMode && (
+          <section className="bundesliga-preview-season-bar" aria-label="Bundesliga Datenbasis">
+            <div>
+              <span>Datenbasis</span>
+              <strong>{selectedCompetition.season}</strong>
+              <small>{selectedCompetition.purpose}</small>
+            </div>
+            <div role="group" aria-label="Saison zum Testen wählen">
+              {BUNDESLIGA_PREVIEW_OPTIONS.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  className={option.id === competitionId ? "active" : ""}
+                  aria-pressed={option.id === competitionId}
+                  onClick={() => switchBundesligaCompetition(option.id)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
         {displayedTab !== "bundesliga-start" && (
           <section className="bundesliga-public-status" aria-live="polite">
             <span>{participant ? `Angemeldet als ${participant.name}` : "Bundesliga-Code erforderlich"}</span>
@@ -7286,7 +7371,8 @@ function BundesligaAdminArea({
           <span><strong>{dataQuality.topScorerCount ?? topScorerRows.length}</strong> Torschützen</span>
           {dataQuality.lastTopScorerImportAt && <span><strong>{formatDateTime(dataQuality.lastTopScorerImportAt)}</strong> letzter Torschützen-Import</span>}
           <button type="button" onClick={onRefresh} disabled={loading}>Aktualisieren</button>
-          <button type="button" onClick={() => { window.location.hash = "bundesliga-start"; }}>Teilnehmeransicht öffnen</button>
+          <button type="button" onClick={() => openBundesligaPreview("bundesliga-2025")}>Testansicht 25/26 öffnen</button>
+          <button type="button" onClick={() => openBundesligaPreview(BUNDESLIGA_DEFAULT_COMPETITION_ID)}>Teilnehmeransicht 26/27 öffnen</button>
         </section>
 
         {message && <p className="bundesliga-lab-message">{message}</p>}

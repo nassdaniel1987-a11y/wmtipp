@@ -75,7 +75,14 @@ test("preview access and personal requests require a validated code", async () =
   const {
     requireBundesligaViewAccess,
     resolveBundesligaParticipant,
+    resolveRequestedBundesligaCompetition,
   } = await import("../netlify/functions/_shared/bundesliga-access.js");
+  assert.equal(resolveRequestedBundesligaCompetition(new Request("http://localhost", {
+    headers: { "X-Bundesliga-Competition": "bundesliga-2025" },
+  })), "bundesliga-2025");
+  assert.equal(resolveRequestedBundesligaCompetition(new Request("http://localhost", {
+    headers: { "X-Bundesliga-Competition": "bundesliga-other" },
+  })), BUNDESLIGA_COMPETITION_ID);
   const participant = { id: "self", competition_id: BUNDESLIGA_COMPETITION_ID, display_name: "Daniel", invite_code_id: "code-1" };
   const supabase = {
     from(table) {

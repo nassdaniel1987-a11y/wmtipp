@@ -1,6 +1,6 @@
 import { getServiceClient, json } from "./_shared/supabase.js";
-import { BUNDESLIGA_COMPETITION_ID, isBundesligaTipLocked } from "./_shared/bundesliga.js";
-import { BundesligaHttpError, bundesligaErrorResponse, resolveBundesligaParticipant } from "./_shared/bundesliga-access.js";
+import { isBundesligaTipLocked } from "./_shared/bundesliga.js";
+import { BundesligaHttpError, bundesligaErrorResponse, resolveBundesligaParticipant, resolveRequestedBundesligaCompetition } from "./_shared/bundesliga-access.js";
 
 export default async (req) => {
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -9,9 +9,10 @@ export default async (req) => {
     const { tips } = await req.json();
     if (!Array.isArray(tips)) return json({ error: "Tipps sind erforderlich." }, 400);
     const supabase = getServiceClient();
-    const participant = await resolveBundesligaParticipant(req, supabase, { required: true });
+    const competitionId = resolveRequestedBundesligaCompetition(req);
+    const participant = await resolveBundesligaParticipant(req, supabase, { required: true, competitionId });
     const rows = tips.map((tip) => ({
-      competition_id: BUNDESLIGA_COMPETITION_ID,
+      competition_id: competitionId,
       participant_id: participant.id,
       match_id: tip.matchId,
       score_a: Number(tip.scoreA),
@@ -25,14 +26,14 @@ export default async (req) => {
     const { data: competition, error: competitionError } = await supabase
       .from("competitions")
       .select("status, public_enabled, tip_lock_mode")
-      .eq("id", BUNDESLIGA_COMPETITION_ID)
+      .eq("id", competitionId)
       .maybeSingle();
     if (competitionError) throw competitionError;
 
     const { data: matches, error: matchError } = await supabase
       .from("competition_matches")
       .select("id, team_a_name, team_b_name, kickoff_at, status")
-      .eq("competition_id", BUNDESLIGA_COMPETITION_ID)
+      .eq("competition_id", competitionId)
       .in("id", rows.map((row) => row.match_id));
     if (matchError) throw matchError;
     if ((matches ?? []).length !== rows.length) {

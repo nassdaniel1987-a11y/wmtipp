@@ -1,7 +1,6 @@
 import { getServiceClient, json } from "./_shared/supabase.js";
 import { bundesligaErrorResponse, requireBundesligaViewAccess } from "./_shared/bundesliga-access.js";
 import {
-  BUNDESLIGA_COMPETITION_ID,
   buildMatchdayLive,
   buildTipTrends,
   loadCompetitionRuleSettings,
@@ -14,13 +13,13 @@ export default async (req) => {
     const url = new URL(req.url);
     const matchday = Math.max(1, Number(url.searchParams.get("matchday")) || 1);
     const supabase = getServiceClient();
-    const { participant } = await requireBundesligaViewAccess(req, supabase);
+    const { participant, competitionId } = await requireBundesligaViewAccess(req, supabase);
     const [participants, matches, tips, results, ruleSettings] = await Promise.all([
-      supabase.from("competition_participants").select("id, display_name").eq("competition_id", BUNDESLIGA_COMPETITION_ID),
-      supabase.from("competition_matches").select("id, matchday, kickoff_at, team_a_name, team_b_name").eq("competition_id", BUNDESLIGA_COMPETITION_ID).eq("phase", "league").eq("matchday", matchday).order("match_number"),
-      supabase.from("competition_tips").select("participant_id, match_id, score_a, score_b").eq("competition_id", BUNDESLIGA_COMPETITION_ID),
-      supabase.from("competition_results").select("match_id, score_a, score_b, status").eq("competition_id", BUNDESLIGA_COMPETITION_ID),
-      loadCompetitionRuleSettings(supabase),
+      supabase.from("competition_participants").select("id, display_name").eq("competition_id", competitionId),
+      supabase.from("competition_matches").select("id, matchday, kickoff_at, team_a_name, team_b_name").eq("competition_id", competitionId).eq("phase", "league").eq("matchday", matchday).order("match_number"),
+      supabase.from("competition_tips").select("participant_id, match_id, score_a, score_b").eq("competition_id", competitionId),
+      supabase.from("competition_results").select("match_id, score_a, score_b, status").eq("competition_id", competitionId),
+      loadCompetitionRuleSettings(supabase, competitionId),
     ]);
 
     for (const response of [participants, matches, tips, results]) {

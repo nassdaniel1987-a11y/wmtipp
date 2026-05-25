@@ -1,6 +1,10 @@
 export const BUNDESLIGA_COMPETITION_ID = "bundesliga-2026";
 export const BUNDESLIGA_SEASON_LABEL = "2026/2027";
 export const BUNDESLIGA_PUBLIC_SLUG = "bundesliga-2026";
+export const BUNDESLIGA_PREVIEW_COMPETITIONS = Object.freeze({
+  "bundesliga-2025": { id: "bundesliga-2025", seasonLabel: "2025/2026" },
+  [BUNDESLIGA_COMPETITION_ID]: { id: BUNDESLIGA_COMPETITION_ID, seasonLabel: BUNDESLIGA_SEASON_LABEL },
+});
 export const BUNDESLIGA_SOURCE_SEASON = 2026;
 export const BUNDESLIGA_SOURCE_LEAGUE = "bl1";
 export const BUNDESLIGA_RELEGATION_LEAGUE = "rel";
@@ -24,16 +28,25 @@ function isOptionalSchemaMissing(error) {
   return MISSING_OPTIONAL_SCHEMA_CODES.has(error?.code) || /does not exist|schema cache|column/i.test(error?.message || "");
 }
 
-export async function loadCompetitionRuleSettings(supabase) {
+export function isBundesligaCompetitionId(competitionId) {
+  return Object.prototype.hasOwnProperty.call(BUNDESLIGA_PREVIEW_COMPETITIONS, competitionId);
+}
+
+export function getBundesligaSeasonLabel(competitionId = BUNDESLIGA_COMPETITION_ID) {
+  return BUNDESLIGA_PREVIEW_COMPETITIONS[competitionId]?.seasonLabel ?? BUNDESLIGA_SEASON_LABEL;
+}
+
+export async function loadCompetitionRuleSettings(supabase, competitionId = BUNDESLIGA_COMPETITION_ID) {
   const { data, error } = await supabase
     .from("competition_rule_settings")
     .select("*")
-    .eq("competition_id", BUNDESLIGA_COMPETITION_ID)
+    .eq("competition_id", competitionId)
     .maybeSingle();
-  if (error && isOptionalSchemaMissing(error)) return defaultBundesligaRuleSettings;
+  if (error && isOptionalSchemaMissing(error)) return { ...defaultBundesligaRuleSettings, competition_id: competitionId };
   if (error) throw error;
   return {
     ...defaultBundesligaRuleSettings,
+    competition_id: competitionId,
     ...(data ?? {}),
     tie_breakers: Array.isArray(data?.tie_breakers) ? data.tie_breakers : defaultBundesligaRuleSettings.tie_breakers,
   };
