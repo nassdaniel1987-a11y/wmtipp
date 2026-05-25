@@ -274,6 +274,7 @@ test("Bundesliga community respects private visibility and mobile more navigatio
   if (testInfo.project.name === "mobile") {
     await expect(page.getByText("Mehr", { exact: true })).toBeVisible();
     await page.getByText("Mehr", { exact: true }).click();
+    await expect(page.getByRole("navigation", { name: "Weitere Bundesliga-Bereiche" })).toBeVisible();
     await page.getByRole("button", { name: "Torschützen", exact: true }).click();
     await expect(page).toHaveURL(/#bundesliga-torschuetzen$/);
   }

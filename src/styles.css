@@ -5985,7 +5985,8 @@ tbody tr:nth-child(1) td:first-child {
   display: contents;
 }
 
-.bundesliga-more-nav {
+.bundesliga-more-toggle,
+.bundesliga-mobile-more-menu {
   display: none;
 }
 
@@ -8252,49 +8253,43 @@ tbody tr:nth-child(1) td:first-child {
     display: none;
   }
 
-  .bundesliga-more-nav {
-    display: block;
-    flex: 0 0 auto;
-    position: relative;
-  }
-
-  .bundesliga-more-nav summary {
-    display: flex;
+  .bundesliga-more-toggle {
+    display: inline-flex;
     align-items: center;
-    min-height: 40px;
-    border: 1px solid var(--bl-line);
-    border-radius: 7px;
-    padding: 0 14px;
-    color: var(--bl-muted);
-    font-weight: 950;
-    list-style: none;
-    cursor: pointer;
-  }
-
-  .bundesliga-more-nav summary::-webkit-details-marker {
-    display: none;
-  }
-
-  .bundesliga-more-nav summary.active,
-  .bundesliga-more-nav[open] summary {
-    color: #ffffff;
-    border-color: var(--bl-red);
-    background: rgba(223, 47, 40, 0.16);
-  }
-
-  .bundesliga-more-nav div {
-    display: grid;
     gap: 6px;
-    position: absolute;
-    right: 0;
-    top: calc(100% + 6px);
-    z-index: 10;
-    min-width: 172px;
+    flex: 0 0 auto;
+  }
+
+  .bundesliga-more-toggle svg {
+    transition: transform 160ms ease;
+  }
+
+  .bundesliga-more-toggle[aria-expanded="true"] svg {
+    transform: rotate(180deg);
+  }
+
+  .bundesliga-mobile-more-menu {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
     padding: 7px;
     border: 1px solid var(--bl-line);
     border-radius: 8px;
     background: #13191e;
-    box-shadow: 0 18px 36px rgba(0, 0, 0, 0.38);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+  }
+
+  .bundesliga-mobile-more-menu button {
+    min-height: 40px;
+    border-color: var(--bl-line);
+    border-radius: 7px;
+    background: #10161b;
+  }
+
+  .bundesliga-mobile-more-menu button.active {
+    border-color: var(--bl-red);
+    background: rgba(223, 47, 40, 0.16);
   }
 
   .bundesliga-public-header > button:last-child {

@@ -4508,6 +4508,7 @@ function BundesligaParticipantApp({ isTestMode }) {
   const [matchDetailError, setMatchDetailError] = useState("");
   const [matchDetailReturnTab, setMatchDetailReturnTab] = useState("bundesliga-spielplan");
   const [tipExtrasOpen, setTipExtrasOpen] = useState(() => !window.matchMedia("(max-width: 760px)").matches);
+  const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
   const tipsRef = useRef(tips);
   const bonusRef = useRef(bonusTip);
 
@@ -4738,6 +4739,7 @@ function BundesligaParticipantApp({ isTestMode }) {
 
   function setBundesligaTab(tabId) {
     if (!bundesligaTabIds.has(tabId)) return;
+    setMobileMoreOpen(false);
     window.location.hash = tabId;
     setActiveTab(tabId);
     window.scrollTo(0, 0);
@@ -5753,15 +5755,24 @@ function BundesligaParticipantApp({ isTestMode }) {
               <button className={displayedTab === "bundesliga-torschuetzen" ? "active" : ""} onClick={() => setBundesligaTab("bundesliga-torschuetzen")}>Torschützen</button>
               <button className={displayedTab === "bundesliga-spielplan" ? "active" : ""} onClick={() => setBundesligaTab("bundesliga-spielplan")}>Spielplan</button>
             </span>
-            <details className="bundesliga-more-nav">
-              <summary className={moreNavigationActive ? "active" : ""}>Mehr</summary>
-              <div>
-                <button className={displayedTab === "bundesliga-tabelle" ? "active" : ""} onClick={() => setBundesligaTab("bundesliga-tabelle")}>Tabelle</button>
-                <button className={displayedTab === "bundesliga-torschuetzen" ? "active" : ""} onClick={() => setBundesligaTab("bundesliga-torschuetzen")}>Torschützen</button>
-                <button className={displayedTab === "bundesliga-spielplan" ? "active" : ""} onClick={() => setBundesligaTab("bundesliga-spielplan")}>Spielplan</button>
-              </div>
-            </details>
+            <button
+              type="button"
+              className={`bundesliga-more-toggle ${moreNavigationActive || mobileMoreOpen ? "active" : ""}`}
+              aria-expanded={mobileMoreOpen}
+              aria-controls="bundesliga-mobile-more-menu"
+              onClick={() => setMobileMoreOpen((current) => !current)}
+            >
+              Mehr
+              <ChevronDown size={16} />
+            </button>
           </nav>
+        )}
+        {participant && mobileMoreOpen && (
+          <div id="bundesliga-mobile-more-menu" className="bundesliga-mobile-more-menu" role="navigation" aria-label="Weitere Bundesliga-Bereiche">
+            <button className={displayedTab === "bundesliga-tabelle" ? "active" : ""} onClick={() => setBundesligaTab("bundesliga-tabelle")}>Tabelle</button>
+            <button className={displayedTab === "bundesliga-torschuetzen" ? "active" : ""} onClick={() => setBundesligaTab("bundesliga-torschuetzen")}>Torschützen</button>
+            <button className={displayedTab === "bundesliga-spielplan" ? "active" : ""} onClick={() => setBundesligaTab("bundesliga-spielplan")}>Spielplan</button>
+          </div>
         )}
         <button type="button" onClick={() => { window.location.hash = "start"; }}>Zur WM</button>
       </header>
