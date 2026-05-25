@@ -144,12 +144,12 @@ cd android-app
 - Teilnehmernamen können direkt in der Teilnehmerliste bearbeitet werden.
 - Personalisierte Offline-Tippbögen enthalten einen scannbaren QR-Code je Teilnehmer.
 - Admin-Daten laden Spieltipps und Bonus-Tipps paginiert, damit Counter und Nachträge auch über dem Supabase-Standardlimit von 1000 Zeilen stimmen.
-- Bundesliga-Admin ist jetzt als Betriebsbereich aufgebaut: linke Navigation, kompakte KPI-Leiste, Operations-Queue, Ergebnis-/Teilnehmer-Arbeitsflächen und Diagnose-Bereich.
+- Bundesliga-Admin ist als geführte Betriebszentrale aufgebaut: gruppierte Navigation, Saisonstatus, vorbereitete Zugänge, nächste Schritte und Fachbereiche mit `Diagnose & Freigabe`.
 - Bundesliga-Codes können im Bundesliga-Admin wieder gelöscht werden, solange sie frei und keinem Teilnehmer zugeordnet sind.
 - Echte Bundesliga-Teilnehmer können im Bundesliga-Admin direkt mit verknüpftem Code angelegt werden.
 - Bundesliga-Teilnehmer sind im Admin standardmäßig eingeklappt; pro Teilnehmer öffnet sich ein Detailbereich für Name, Spieltag-Tipps, Bonus und QR-Code.
 - Im Bundesliga-Teilnehmerbereich kann der Admin per Zurück/Weiter oder Auswahl durch alle Spieltage wechseln und Tipps je Spieltag nachtragen.
-- Bundesliga-Grunddaten 2026/2027 können im Datenimport gelöscht werden: Spielplan, Teams/Logos, Ergebnisse, Goals, Torschützen sowie alte Tipps/Bonuswerte werden entfernt; echte Teilnehmer und Codes bleiben erhalten.
+- Bundesliga-Grunddaten 2026/2027 können ausschließlich im Gefahrenbereich unter `Diagnose & Freigabe` gelöscht werden: Spielplan, Teams/Logos, Ergebnisse, Goals, Torschützen sowie alte Tipps/Bonuswerte werden entfernt; echte Teilnehmer und Codes bleiben erhalten.
 - Bundesliga-Nutzeransicht hat einen Code-first Login: bestehende Teilnehmer-Codes melden direkt an, freie Codes fragen danach den Namen ab.
 - Bundesliga-Nutzer sehen vor der Anmeldung einen fokussierten Code-Login ohne persönliche Bereichsnavigation; nach erfolgreicher Anmeldung erscheint nur die persönliche Zentrale mit Abmelden, nächstem Schritt, Fortschritt, Bonusstatus, Punkten und Direktaktionen.
 - Bundesliga-Nutzeransicht hat zusätzliche In-App-Detailseiten für Live-Spieltag, volle Tabelle, volle Torschützenliste und Spielplan.
@@ -175,11 +175,11 @@ cd android-app
 - Bundesliga-UX nutzt ein eigenes Branding-Set unter `public/brand/bundesliga/`: Scoreboard-Header aus Konzept C, App-Icon aus Konzept D und Badge-Grafiken aus dem ersten Logo-Durchgang.
 - Spieltag-Zentrale, Live-Spieltag-Auswertung, Bonus-Erinnerung, mobile Rangliste und Admin-Qualitätscheck sind eingebaut.
 - Das Startdashboard zeigt „Nächste Spiele“ als kompakte Logo-Paarungen ohne Ergebnisanzeige.
-- Der Bundesliga-Admin enthält in `Diagnose` einen sichtbaren Release-Probelauf mit Ampelstatus für Daten, Codes, Teilnehmer, Tipps, Bonus, Ergebnisse und Rangliste.
-- Der Release-Probelauf kann im Diagnose-Bereich per Button vorbereitet werden; er schreibt nur `Release Test 1-3`, Spieltag-1-Tipps, Bonus-Tipps, Spieltag-1-Ergebnisse und hält `public_enabled = false`.
+- Der Bundesliga-Admin enthält in `Diagnose & Freigabe` einen sichtbaren Release-Probelauf mit Ampelstatus für Daten, Codes, Teilnehmer, Tipps, Bonus, Ergebnisse und Rangliste.
+- Der Release-Probelauf kann in `Diagnose & Freigabe` per Button vorbereitet werden; er schreibt nur `Release Test 1-3`, Spieltag-1-Tipps, Bonus-Tipps, Spieltag-1-Ergebnisse und hält `public_enabled = false`.
 - Release-Probelauf-Testdaten können gezielt wieder gelöscht werden; entfernt werden nur `Release Test 1-3` samt deren Tipps, Bonus-Tipps und Codes. Spielplan, Ergebnisse, Torschützen und echte Teilnehmer bleiben erhalten.
-- Der Diagnose-Bereich hat zusätzlich einen großen Bereinigungsbutton für Demo-/Diagnose-Daten: Demo-Tipper, Demo-Tipps, Demo-Bonus, Release-Testdaten, Ergebnisse, Goal-Events und offizielle Bundesliga-Bonus-Ergebnisse werden gelöscht. Spielplan, Teams/Logos, Torschützenliste, echte Teilnehmer und echte Codes bleiben erhalten.
-- Im Bereich `Datenimport` gibt es zusätzlich einen Reset für die importierten 2026/2027-Grunddaten, damit Staging-Spielplan, Teams/Logos und Torschützen vor dem Livegang komplett entfernt werden können. Echte Teilnehmer und Codes bleiben stehen.
+- Der Gefahrenbereich unter `Diagnose & Freigabe` bündelt Bereinigung von Demo-/Diagnose-Daten: Demo-Tipper, Demo-Tipps, Demo-Bonus, Release-Testdaten, Ergebnisse, Goal-Events und offizielle Bundesliga-Bonus-Ergebnisse werden gelöscht. Spielplan, Teams/Logos, Torschützenliste, echte Teilnehmer und echte Codes bleiben erhalten.
+- Der Reset für importierte 2026/2027-Grunddaten liegt ebenfalls ausschließlich im Gefahrenbereich, damit Staging-Spielplan, Teams/Logos und Torschützen vor dem Livegang komplett entfernt werden können. Echte Teilnehmer und Codes bleiben stehen.
 - Nutzer-Komfort ist erweitert:
   - Karten „Was fehlt noch?“ und „Meine Statistik“ in Start/Tippen/Rangliste.
   - Live-Auswertung erklärt pro Tipp den Punktegrund.
@@ -251,8 +251,8 @@ cd android-app
     - richtige Tendenz: 2 Punkte
     - falsch oder offen: 0 Punkte
 11. Freigabe nur simulieren: `status`, `public_enabled`, Bonusfrist und Regeln prüfen. Die öffentliche Aktion bleibt durch die Release-Gates blockiert, solange Probe- oder Importpunkte offen sind.
-12. Bei Bedarf „Release-Testdaten löschen“ klicken. Das entfernt nur die drei Release-Testteilnehmer samt Tipps, Bonus-Tipps und Codes; importierte Daten und echte Teilnehmer bleiben bestehen.
-13. Für einen kompletten Diagnose-Neustart „Diagnose-Daten löschen“ klicken. Das entfernt Demo- und Auswertungsdaten, lässt aber die importierte Grundlage für Teams, Logos, Spielplan und Torschützen stehen.
+12. Im Bereich `Diagnose & Freigabe` bei Bedarf „Release-Testdaten löschen“ klicken. Das entfernt nur die drei Release-Testteilnehmer samt Tipps, Bonus-Tipps und Codes; importierte Daten und echte Teilnehmer bleiben bestehen.
+13. Im dortigen Gefahrenbereich für einen kompletten Diagnose-Neustart „Diagnose-Daten löschen“ klicken. Das entfernt Demo- und Auswertungsdaten, lässt aber die importierte Grundlage für Teams, Logos, Spielplan und Torschützen stehen.
 
 ## Bundesliga Visuelle QA
 
@@ -282,12 +282,12 @@ Rangliste prüfen:
 
 Admin prüfen:
 
-- Bundesliga-Admin öffnet mit Betriebsübersicht, KPI-Leiste, Operations-Queue und den Bereichen `Teilnehmer`, `Codes`, `Spielplan`, `Ergebnisse`, `Bonus`, `Rangliste`, `Datenimport`, `Diagnose`.
+- Bundesliga-Admin öffnet mit geführter Betriebsübersicht, Saisonstatus und den Bereichen `Teilnehmer`, `Codes`, `Spielplan`, `Ergebnisse`, `Bonus`, `Rangliste`, `Datenimport`, `Diagnose & Freigabe`.
 - Release-Probelauf starten.
-- Release-Testdaten löschen.
-- Diagnose-Daten löschen und prüfen, dass Teams, Spielplan, Torschützen, echte Teilnehmer und echte Codes erhalten bleiben.
+- Unter `Diagnose & Freigabe` Release-Testdaten löschen.
+- Im dortigen Gefahrenbereich Diagnose-Daten löschen und prüfen, dass Teams, Spielplan, Torschützen, echte Teilnehmer und echte Codes erhalten bleiben.
 - Release-Checkliste, Datenqualität, Teilnehmer, Tipp-Auswertung, Datenimport und Regeln kontrollieren.
-- Bei Bedarf im Bereich `Datenimport` „26/27-Grunddaten löschen“ nutzen und prüfen, dass echte Teilnehmer und Codes erhalten bleiben.
+- Bei Bedarf ausschließlich im Gefahrenbereich von `Diagnose & Freigabe` „26/27-Grunddaten löschen“ nutzen und prüfen, dass echte Teilnehmer und Codes erhalten bleiben.
 
 Release-Lücken:
 
@@ -301,6 +301,14 @@ Release-Lücken:
 - Die leere aktive Saison `bundesliga-2026` erscheint im Admin als erwartete Vorsaison: Zugänge können vorbereitet sein, während Import-, Bonus- und Freigabeprüfungen auf den offiziellen Spielplan warten.
 - Destruktives Zurücksetzen von Ergebnissen verlangt eine Bestätigung; die öffentliche Freigabe bleibt zusätzlich in der UI deaktiviert, solange Release-Gates offen sind.
 - Für reine UI- und Testmodusarbeit genügt `npm run dev`. Echte Functions-, Supabase- und Adminprüfungen laufen lokal über `npm run dev:netlify`; HTML-Antworten vom reinen Vite-Server werden als hilfreicher Backend-Hinweis angezeigt.
+
+## Bundesliga Admin-Führung (25. Mai 2026)
+
+- Der Bundesliga-Admin ist als geführte Betriebszentrale organisiert: `Alltag`, `Spielbetrieb` und `Technik` gruppieren die vorhandenen Bereiche für neue Betreuende.
+- Die Übersicht priorisiert Saisonstatus, vorbereitete Zugänge, nächste Schritte und eine kompakte Aufgabenliste; technische Detailpanels liegen in ihren Fachbereichen.
+- Ergebnisaktualisierung gehört zu `Ergebnisse`, nicht zur allgemeinen Datenimportfläche; `Bonus` zeigt fachliche Werte und Regeln ohne Live-Freigabeschalter.
+- `Diagnose & Freigabe` bündelt Release-Gates, Release-Konfiguration, Probelauf, öffentliche Freigabe und den geschützten Gefahrenbereich für Rücksetzungen beziehungsweise Teilnehmerlöschung.
+- Keine neue SQL-Migration erforderlich; die Umordnung verwendet die bestehenden Actions und verändert keine vorhandenen Bundesliga- oder WM-Daten.
 
 ## CODEX.md Pflege-Regel
 
