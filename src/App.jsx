@@ -4371,6 +4371,7 @@ function BundesligaParticipantApp({ isTestMode }) {
   ));
   const [tips, setTips] = useState({});
   const [bonusTip, setBonusTip] = useState(createBundesligaBonusTip());
+  const [bonusDirty, setBonusDirty] = useState(false);
   const [ranking, setRanking] = useState(() => (isTestMode ? createTestBundesligaData().ranking : []));
   const [selectedMatchday, setSelectedMatchday] = useState(1);
   const [message, setMessage] = useState(isTestMode ? "Bundesliga-Testmodus aktiv" : "Bundesliga wird geladen...");
@@ -4426,11 +4427,20 @@ function BundesligaParticipantApp({ isTestMode }) {
   }, []);
 
   useEffect(() => {
+    if (!participant && activeTab !== "bundesliga-start") {
+      setBundesligaTab("bundesliga-start");
+    }
+  }, [activeTab, participant]);
+
+  useEffect(() => {
     async function loadData() {
       if (isTestMode) {
         const testData = createTestBundesligaData();
         setData(testData);
-        setTips(createInitialTips(testData.matches.map(mapBundesligaMatch)));
+        setTips(createInitialTips(
+          testData.matches.map(mapBundesligaMatch),
+          testData.participantTips.filter((tip) => tip.participant_id === "bl-test"),
+        ));
         setRanking(testData.ranking);
         setSelectedMatchday(1);
         return;
@@ -4493,6 +4503,7 @@ function BundesligaParticipantApp({ isTestMode }) {
         ]);
         setTips(createInitialTips(matches, tipPayload.tips ?? []));
         setBonusTip(createBundesligaBonusTip(bonusPayload.bonusTip));
+        setBonusDirty(false);
         await refreshRanking();
       } catch (error) {
         setMessage(error.message);
@@ -4545,17 +4556,18 @@ function BundesligaParticipantApp({ isTestMode }) {
   }, [tipStatuses, participant?.id]);
 
   useEffect(() => {
-    if (!participant?.id || bonusTip.saved) return undefined;
+    if (!participant?.id || !bonusDirty || bonusTip.saved) return undefined;
     const timer = window.setTimeout(() => {
       void saveBonus(bonusRef.current, { auto: true });
     }, AUTO_SAVE_DELAY_MS);
     return () => window.clearTimeout(timer);
-  }, [bonusTip, participant?.id]);
+  }, [bonusTip, bonusDirty, participant?.id]);
 
   function setBundesligaTab(tabId) {
     if (!bundesligaTabIds.has(tabId)) return;
     window.location.hash = tabId;
     setActiveTab(tabId);
+    window.scrollTo(0, 0);
   }
 
   async function refreshRanking() {
@@ -4648,6 +4660,7 @@ function BundesligaParticipantApp({ isTestMode }) {
     setLoginFeedback("Gib deinen Bundesliga-Code ein.");
     setTips(createInitialTips(matches));
     setBonusTip(createBundesligaBonusTip());
+    setBonusDirty(false);
     setRanking([]);
     setPersonalStats(null);
     setMatchdayWinners([]);
@@ -4726,6 +4739,7 @@ function BundesligaParticipantApp({ isTestMode }) {
 
   function updateBonus(patch) {
     setBonusTip((current) => ({ ...current, ...patch, saved: false }));
+    setBonusDirty(true);
   }
 
   function moveMatchday(delta) {
@@ -4767,6 +4781,7 @@ function BundesligaParticipantApp({ isTestMode }) {
     }
     if (isTestMode) {
       setBonusTip((current) => ({ ...current, saved: true }));
+      setBonusDirty(false);
       setMessage(auto ? "Bundesliga-Bonus automatisch gespeichert." : "Bundesliga-Bonus gespeichert.");
       return;
     }
@@ -4780,6 +4795,7 @@ function BundesligaParticipantApp({ isTestMode }) {
         relegatedTeamIds: source.relegatedTeamIds,
       });
       setBonusTip(createBundesligaBonusTip(payload.bonusTip));
+      setBonusDirty(false);
       setMessage(auto ? "Bundesliga-Bonus automatisch gespeichert." : "Bundesliga-Bonus gespeichert.");
       await refreshRanking();
     } catch (error) {
@@ -4882,6 +4898,23 @@ function BundesligaParticipantApp({ isTestMode }) {
     );
   }
 
+  function renderBonusProgress() {
+    const bonusDeadlineText = rulesSummary?.bonusDeadlineAt
+      ? `Frist: ${formatDateTime(rulesSummary.bonusDeadlineAt)}`
+      : "Frist: bis zum Saisonstart";
+    return (
+      <section className={`bundesliga-bonus-progress ${bonusStatus.complete ? "complete" : ""}`}>
+        <div>
+          <strong>{bonusStatus.doneCount}/{bonusStatus.totalCount} Bonus-Tipps erledigt</strong>
+          <small>{bonusDeadlineText}</small>
+        </div>
+        <span className={bonusTip.championTeamId ? "done" : ""}>Meister</span>
+        <span className={bonusTip.topScorerId || bonusTip.topScorer ? "done" : ""}>Torschütze</span>
+        <span className={bonusStatus.relegatedDoneCount === 3 ? "done" : ""}>Absteiger {bonusStatus.relegatedDoneCount}/3</span>
+      </section>
+    );
+  }
+
   function renderRulesCard() {
     return (
       <section className="bundesliga-public-card bundesliga-rules-card">
@@ -4909,7 +4942,10 @@ function BundesligaParticipantApp({ isTestMode }) {
           <span>{selectedMatchdayStatus.lockedCount} gesperrt</span>
           <span>{selectedMatchdayStatus.finishedCount} ausgewertet</span>
         </div>
-        <button type="button" onClick={jumpToFirstOpenTip}>Offene Tipps fertig machen</button>
+        <div className="bundesliga-matchday-actions">
+          <button type="button" onClick={saveVisibleMatchdayTips}>Alle Tipps dieses Spieltags speichern</button>
+          <button type="button" className="secondary" onClick={jumpToFirstOpenTip}>Zum nächsten offenen Tipp</button>
+        </div>
       </section>
     );
   }
@@ -4925,14 +4961,14 @@ function BundesligaParticipantApp({ isTestMode }) {
     );
   }
 
-  function renderLivePanel({ headingLink = true } = {}) {
+  function renderLivePanel({ headingLink = true, heading = "Live-Spieltag" } = {}) {
     const live = liveData;
     const trendsByMatch = new Map(liveTrends.map((trend) => [trend.matchId, trend]));
     return (
       <section className="bundesliga-public-card bundesliga-live-panel">
         {headingLink
-          ? renderCardHeading("Live-Spieltag", () => setBundesligaTab("bundesliga-live"))
-          : <h2>Live-Spieltag</h2>}
+          ? renderCardHeading(heading, () => setBundesligaTab("bundesliga-live"))
+          : <h2>{heading}</h2>}
         <div className="bundesliga-live-standings">
           {(live?.standings ?? []).slice(0, 5).map((row, index) => (
             <div key={row.participantId ?? row.name}>
@@ -4977,7 +5013,7 @@ function BundesligaParticipantApp({ isTestMode }) {
     );
   }
 
-  function renderOpenTasksCard() {
+  function renderOpenTasksCard({ compact = false } = {}) {
     const firstOpenStatus = matchdayStatusRows.find((row) => row.openTipCount > 0);
     return (
       <section className="bundesliga-public-card bundesliga-open-tasks">
@@ -4994,9 +5030,11 @@ function BundesligaParticipantApp({ isTestMode }) {
             <small>{bonusStatus.complete ? "Bonus vollständig" : "Meister, Torschütze oder Absteiger fehlen noch"}</small>
           </article>
         </div>
-        <button type="button" onClick={jumpToFirstOpenTip}>
-          nächsten offenen Tipp anzeigen
-        </button>
+        {!compact && (
+          <button type="button" onClick={jumpToFirstOpenTip}>
+            nächsten offenen Tipp anzeigen
+          </button>
+        )}
       </section>
     );
   }
@@ -5116,6 +5154,9 @@ function BundesligaParticipantApp({ isTestMode }) {
           <button type="button" onClick={() => setBundesligaTab("bundesliga-start")}>Zur Zentrale</button>
         </section>
         <section className="bundesliga-public-card bundesliga-full-table-card">
+          {(data?.results ?? []).length === 0 && (
+            <p className="bundesliga-detail-empty-note">Noch keine offiziellen Ergebnisse importiert. Die Tabelle startet daher mit Nullwerten.</p>
+          )}
           <div className="bundesliga-full-table-scroll">
             <table className="bundesliga-full-table">
               <thead>
@@ -5196,15 +5237,6 @@ function BundesligaParticipantApp({ isTestMode }) {
             <h1>Spieltag {selectedMatchday}</h1>
             <p>{visibleMatches.length} Spiele · {visibleSavedTipCount} deiner Tipps gespeichert.</p>
           </div>
-          <div className="bundesliga-matchday-switcher" aria-label="Spieltag wechseln">
-            <button type="button" onClick={() => moveMatchday(-1)} disabled={selectedMatchdayIndex <= 0}>
-              <ChevronRight size={18} />
-            </button>
-            <strong>Spieltag {selectedMatchday}</strong>
-            <button type="button" onClick={() => moveMatchday(1)} disabled={selectedMatchdayIndex >= matchdayOptions.length - 1}>
-              <ChevronRight size={18} />
-            </button>
-          </div>
         </section>
         <div className="bundesliga-matchday-chips" aria-label="Schnellauswahl Spieltage">
           {matchdayOptions.map((day) => {
@@ -5230,7 +5262,9 @@ function BundesligaParticipantApp({ isTestMode }) {
                 <span className={`bundesliga-match-status status-${tip?.saved ? "saved" : result?.status === "final" ? "finished" : state}`}>
                   {matchStatusLabel(match, result, tip)}
                 </span>
-                <button type="button" onClick={() => setBundesligaTab("bundesliga-tippen")}>Tipp öffnen</button>
+                <button type="button" onClick={() => setBundesligaTab("bundesliga-tippen")}>
+                  {result?.status === "final" ? "Auswertung ansehen" : tip?.saved ? "Tipp bearbeiten" : state === "locked" ? "Details ansehen" : "Tipp abgeben"}
+                </button>
               </article>
             );
           })}
@@ -5259,7 +5293,7 @@ function BundesligaParticipantApp({ isTestMode }) {
               </button>
             </div>
           </div>
-          {renderLivePanel({ headingLink: false })}
+          {renderLivePanel({ headingLink: false, heading: "Rangliste und Spiele" })}
         </section>
         <aside className="bundesliga-side-stack">
           {renderPersonalStatsCard()}
@@ -5291,10 +5325,11 @@ function BundesligaParticipantApp({ isTestMode }) {
   const topRankingRows = ranking.slice(0, 3);
   const openTipCount = Math.max(0, matches.length - savedTipCount);
   const nextOpenMatchday = matchdayStatusRows.find((row) => row.openTipCount > 0)?.matchday ?? selectedMatchday;
+  const displayedTab = participant ? activeTab : "bundesliga-start";
 
   return (
     <div className="bundesliga-public-shell">
-      <header className="bundesliga-public-header">
+      <header className={`bundesliga-public-header ${participant ? "" : "is-login"}`}>
         <button type="button" className="bundesliga-header-brand" onClick={() => setBundesligaTab("bundesliga-start")}>
           <BundesligaBrandLogo decorative variant="compact" />
           <span>
@@ -5302,29 +5337,31 @@ function BundesligaParticipantApp({ isTestMode }) {
             <small>versteckte Testversion</small>
           </span>
         </button>
-        <nav>
-          <button className={activeTab === "bundesliga-start" ? "active" : ""} onClick={() => setBundesligaTab("bundesliga-start")}>Start</button>
-          <button className={activeTab === "bundesliga-tippen" ? "active" : ""} onClick={() => setBundesligaTab("bundesliga-tippen")}>Tippen</button>
-          <button className={activeTab === "bundesliga-live" ? "active" : ""} onClick={() => setBundesligaTab("bundesliga-live")}>Live</button>
-          <button className={activeTab === "bundesliga-bonus" ? "active" : ""} onClick={() => setBundesligaTab("bundesliga-bonus")}>Bonus</button>
-          <button className={activeTab === "bundesliga-rangliste" ? "active" : ""} onClick={() => { setBundesligaTab("bundesliga-rangliste"); void refreshRanking(); }}>Rangliste</button>
-          <button className={activeTab === "bundesliga-tabelle" ? "active" : ""} onClick={() => setBundesligaTab("bundesliga-tabelle")}>Tabelle</button>
-          <button className={activeTab === "bundesliga-torschuetzen" ? "active" : ""} onClick={() => setBundesligaTab("bundesliga-torschuetzen")}>Torschützen</button>
-          <button className={activeTab === "bundesliga-spielplan" ? "active" : ""} onClick={() => setBundesligaTab("bundesliga-spielplan")}>Spielplan</button>
-        </nav>
+        {participant && (
+          <nav>
+            <button className={displayedTab === "bundesliga-start" ? "active" : ""} onClick={() => setBundesligaTab("bundesliga-start")}>Start</button>
+            <button className={displayedTab === "bundesliga-tippen" ? "active" : ""} onClick={() => setBundesligaTab("bundesliga-tippen")}>Tippen</button>
+            <button className={displayedTab === "bundesliga-live" ? "active" : ""} onClick={() => setBundesligaTab("bundesliga-live")}>Live</button>
+            <button className={displayedTab === "bundesliga-bonus" ? "active" : ""} onClick={() => setBundesligaTab("bundesliga-bonus")}>Bonus</button>
+            <button className={displayedTab === "bundesliga-rangliste" ? "active" : ""} onClick={() => { setBundesligaTab("bundesliga-rangliste"); void refreshRanking(); }}>Rangliste</button>
+            <button className={displayedTab === "bundesliga-tabelle" ? "active" : ""} onClick={() => setBundesligaTab("bundesliga-tabelle")}>Tabelle</button>
+            <button className={displayedTab === "bundesliga-torschuetzen" ? "active" : ""} onClick={() => setBundesligaTab("bundesliga-torschuetzen")}>Torschützen</button>
+            <button className={displayedTab === "bundesliga-spielplan" ? "active" : ""} onClick={() => setBundesligaTab("bundesliga-spielplan")}>Spielplan</button>
+          </nav>
+        )}
         <button type="button" onClick={() => { window.location.hash = "start"; }}>Zur WM</button>
       </header>
 
       <main className="bundesliga-public-main">
-        {activeTab !== "bundesliga-start" && (
-          <section className="bundesliga-public-status">
+        {displayedTab !== "bundesliga-start" && (
+          <section className="bundesliga-public-status" aria-live="polite">
             <span>{participant ? `Angemeldet als ${participant.name}` : "Bundesliga-Code erforderlich"}</span>
             <strong>{participant ? `${savedTipCount} von ${matches.length} Tipps gespeichert` : loginFeedback}</strong>
-            <span>{currentParticipantRank ? `${currentParticipantRank.points} Punkte` : message}</span>
+            <span>{message}</span>
           </section>
         )}
 
-        {activeTab === "bundesliga-start" && !participant && (
+        {displayedTab === "bundesliga-start" && !participant && (
           <section className="bundesliga-login-screen">
             <section className="bundesliga-login-welcome bundesliga-public-card">
               <div className="bundesliga-dashboard-hero">
@@ -5340,7 +5377,7 @@ function BundesligaParticipantApp({ isTestMode }) {
           </section>
         )}
 
-        {activeTab === "bundesliga-start" && participant && (
+        {displayedTab === "bundesliga-start" && participant && (
           <section className="bundesliga-home-grid">
             <section className="bundesliga-welcome-card bundesliga-public-card">
               <div className="bundesliga-dashboard-hero">
@@ -5382,14 +5419,13 @@ function BundesligaParticipantApp({ isTestMode }) {
               </div>
               {renderNextStepCard()}
               <div className="bundesliga-dashboard-actions">
-                <button type="button" onClick={() => setBundesligaTab("bundesliga-tippen")}>Offene Tipps bearbeiten</button>
                 <button type="button" onClick={() => setBundesligaTab("bundesliga-live")}>Live-Spieltag öffnen</button>
                 <button type="button" onClick={() => setBundesligaTab("bundesliga-rangliste")}>Rangliste ansehen</button>
               </div>
             </section>
 
             <aside className="bundesliga-side-stack">
-              {renderOpenTasksCard()}
+              {renderOpenTasksCard({ compact: true })}
               {renderPersonalStatsCard()}
               {renderBonusReminder()}
               <section className="bundesliga-public-card bundesliga-top-three">
@@ -5442,7 +5478,7 @@ function BundesligaParticipantApp({ isTestMode }) {
           </section>
         )}
 
-        {activeTab === "bundesliga-tippen" && (
+        {displayedTab === "bundesliga-tippen" && (
           <section className="bundesliga-stage-grid">
             <section className="bundesliga-public-card bundesliga-tip-stage">
               <div className="bundesliga-public-section-head">
@@ -5450,9 +5486,6 @@ function BundesligaParticipantApp({ isTestMode }) {
                   <h2>Spieltag tippen</h2>
                   <p>{visibleMatches.length} Spiele am {selectedMatchday}. Spieltag · {visibleSavedTipCount} gespeichert</p>
                 </div>
-                <button type="button" onClick={saveVisibleMatchdayTips}>
-                  Alle Tipps dieses Spieltags speichern
-                </button>
                 <div className="bundesliga-matchday-switcher" aria-label="Spieltag wechseln">
                   <button type="button" onClick={() => moveMatchday(-1)} disabled={selectedMatchdayIndex <= 0}>
                     <ChevronRight size={18} />
@@ -5480,6 +5513,8 @@ function BundesligaParticipantApp({ isTestMode }) {
                   const result = resultsByMatch.get(match.id);
                   const matchState = getBundesligaMatchState(match, result);
                   const tipLocked = !isTestMode && matchState !== "open";
+                  const showTipControls = matchState === "open" || (isTestMode && matchState !== "finished");
+                  const points = result?.status === "final" && tip.saved ? pointsFor(tip, result) : null;
                   const statusLabel = matchStatusLabel(match, result, tip);
                   const statusClass = result?.status === "final" ? "finished" : tip?.saved ? "saved" : matchState;
                   return (
@@ -5491,17 +5526,27 @@ function BundesligaParticipantApp({ isTestMode }) {
                       </header>
                       <div className="bundesliga-user-match-body">
                         {teamBadge(match.teamAId, match.teamA)}
-                        <div className="score-row">
-                          <ScoreControl value={tip.scoreA} onIncrease={() => changeScore(match.id, "scoreA", 1)} onDecrease={() => changeScore(match.id, "scoreA", -1)} disabled={tipLocked} />
-                          <span className="score-separator">:</span>
-                          <ScoreControl value={tip.scoreB} onIncrease={() => changeScore(match.id, "scoreB", 1)} onDecrease={() => changeScore(match.id, "scoreB", -1)} disabled={tipLocked} />
-                        </div>
+                        {showTipControls ? (
+                          <div className="score-row">
+                            <ScoreControl value={tip.scoreA} onIncrease={() => changeScore(match.id, "scoreA", 1)} onDecrease={() => changeScore(match.id, "scoreA", -1)} disabled={tipLocked} />
+                            <span className="score-separator">:</span>
+                            <ScoreControl value={tip.scoreB} onIncrease={() => changeScore(match.id, "scoreB", 1)} onDecrease={() => changeScore(match.id, "scoreB", -1)} disabled={tipLocked} />
+                          </div>
+                        ) : (
+                          <div className="bundesliga-closed-tip">
+                            <span>Dein Tipp</span>
+                            <strong>{isCompleteTip(tip) ? `${tip.scoreA}:${tip.scoreB}` : "kein Tipp"}</strong>
+                            {Number.isInteger(points) && <b>{points} Punkte</b>}
+                          </div>
+                        )}
                         {teamBadge(match.teamBId, match.teamB, { align: "right" })}
                       </div>
-                      <footer>
-                        <small>{tip.saved ? "✓ gespeichert" : tipStatuses[match.id] === "pending" ? "Autosave wartet..." : tipLocked ? "Spiel gesperrt" : "offen"}</small>
-                        <button type="button" onClick={() => saveTipRows([match.id])} disabled={!isCompleteTip(tip) || tipLocked}>Tipp speichern</button>
-                      </footer>
+                      {showTipControls && (
+                        <footer>
+                          <small>{tip.saved ? "Gespeichert" : tipStatuses[match.id] === "pending" ? "Autosave wartet..." : tipLocked ? "Spiel gesperrt" : "Noch ohne Tipp"}</small>
+                          <button type="button" onClick={() => saveTipRows([match.id])} disabled={!isCompleteTip(tip) || tipLocked}>Tipp speichern</button>
+                        </footer>
+                      )}
                     </article>
                   );
                 })}
@@ -5543,7 +5588,7 @@ function BundesligaParticipantApp({ isTestMode }) {
           </section>
         )}
 
-        {activeTab === "bundesliga-bonus" && (
+        {displayedTab === "bundesliga-bonus" && (
           <section className="bundesliga-stage-grid">
             <section className="bundesliga-public-card bundesliga-bonus-public">
               <div className="bundesliga-public-section-head">
@@ -5553,6 +5598,7 @@ function BundesligaParticipantApp({ isTestMode }) {
                 </div>
                 <button type="button" onClick={() => saveBonus()}>Bonus speichern</button>
               </div>
+              {renderBonusProgress()}
               <section className="bundesliga-choice-section">
                 <h3>Meister</h3>
                 <div className="bundesliga-choice-grid">
@@ -5589,7 +5635,6 @@ function BundesligaParticipantApp({ isTestMode }) {
               </section>
             </section>
             <aside className="bundesliga-side-stack">
-              {renderBonusReminder()}
               <section className="bundesliga-public-card">
                 <h2>Dein Bonus</h2>
                 <div className="bundesliga-bonus-summary">
@@ -5610,7 +5655,7 @@ function BundesligaParticipantApp({ isTestMode }) {
           </section>
         )}
 
-        {activeTab === "bundesliga-rangliste" && (
+        {displayedTab === "bundesliga-rangliste" && (
           <section className="bundesliga-stage-grid">
             <section className="bundesliga-public-card">
               <h2>Bundesliga Rangliste</h2>
@@ -5647,7 +5692,6 @@ function BundesligaParticipantApp({ isTestMode }) {
               </div>
             </section>
             <aside className="bundesliga-side-stack">
-              {renderLivePanel()}
               {renderCommunityCard()}
               {renderPersonalStatsCard()}
               {renderRulesCard()}
@@ -5668,10 +5712,10 @@ function BundesligaParticipantApp({ isTestMode }) {
           </section>
         )}
 
-        {activeTab === "bundesliga-live" && renderLivePage()}
-        {activeTab === "bundesliga-tabelle" && renderFullTablePage()}
-        {activeTab === "bundesliga-torschuetzen" && renderTopScorersPage()}
-        {activeTab === "bundesliga-spielplan" && renderSchedulePage()}
+        {displayedTab === "bundesliga-live" && renderLivePage()}
+        {displayedTab === "bundesliga-tabelle" && renderFullTablePage()}
+        {displayedTab === "bundesliga-torschuetzen" && renderTopScorersPage()}
+        {displayedTab === "bundesliga-spielplan" && renderSchedulePage()}
       </main>
     </div>
   );
