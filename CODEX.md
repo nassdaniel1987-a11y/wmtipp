@@ -223,7 +223,10 @@ cd android-app
   - wurde am 25. Mai 2026 vom Nutzer im SQL Editor des bestehenden WM-Supabase-Projekts ausgeführt.
   - `supabase/migrations/20260525161036_bundesliga_live_updates_probe.sql`
   - ergänzt den Bundesliga-Not-Aus `live_updates_paused` und legt die verborgene, später vollständig löschbare Relegations-Liveprobe an; WM-Tabellen und WM-Flows werden nicht verändert.
-  - muss vor Nutzung der Liveprobe beziehungsweise des Live-Not-Aus im bestehenden Supabase-Projekt ausgeführt werden.
+  - wurde am 25. Mai 2026 vom Nutzer im SQL Editor des bestehenden WM-Supabase-Projekts ausgeführt.
+  - `supabase/migrations/20260525191145_bundesliga_free_live_hybrid.sql`
+  - ergänzt interne Provider-Beobachtungen sowie die Herkunft/Bestätigung angezeigter Bundesliga-Livestände für den kostenlosen OpenLigaDB-/football-data-Hybrid; WM-Tabellen und WM-Flows bleiben unverändert.
+  - wurde am 25. Mai 2026 vom Nutzer im SQL Editor des bestehenden WM-Supabase-Projekts ausgeführt.
 
 ## Nächste Schritte Bundesliga
 
@@ -324,6 +327,14 @@ Release-Lücken:
 - Probe-Links enthalten `blCompetition=bundesliga-liveprobe-rel-2026`; die Teilnehmeransicht kennzeichnet sie als `Liveprobe Relegation - nicht Saisonbetrieb` und blendet Saisonbonus, Tabelle und Torschützen als reguläre Workflows aus.
 - Nach dem Test löscht `Liveprobe vollständig löschen` nur Probe-Daten. `bundesliga-2026` und WM bleiben unangetastet.
 - Die mobile Tippdarstellung fixiert überstehende Score-Buttons; das Statistiklabel `Gespeichert` bricht in schmalen Karten lesbar um.
+
+## Bundesliga Gratis-Hybrid Livequellen (25. Mai 2026)
+
+- OpenLigaDB bleibt Hauptquelle für Spielplan, Live-Tore und Torschützennamen; die Relegations-Liveprobe bleibt ausschließlich OpenLigaDB-basiert.
+- Für reguläre Spiele von `bundesliga-2026` kann die bestehende Netlify-Variable `FOOTBALL_DATA_API_KEY` zusätzlich den kostenlosen football-data-Vergleich für `BL1`/Saison `2026` aktivieren.
+- football-data darf nur einen fehlenden laufenden Zwischenstand als vorläufige Anzeige füllen; Nutzer sehen dabei gegebenenfalls `Torereignisse folgen`, bis OpenLigaDB Ereignisse liefert.
+- Finale automatische Wertung erfolgt bei aktivem Vergleich erst, wenn OpenLigaDB und football-data dasselbe Endergebnis gespeichert haben; Abweichungen erscheinen im Admin unter `Diagnose & Freigabe`.
+- Torereignisse werden bei jedem OpenLigaDB-Refresh erneuert: `Unbekannt` wird ersetzt, sobald ein Name geliefert wird, ein bekannter Name wird durch spätere leere Daten nicht wieder verschlechtert.
 
 ## CODEX.md Pflege-Regel
 

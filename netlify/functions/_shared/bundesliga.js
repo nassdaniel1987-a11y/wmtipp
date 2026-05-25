@@ -633,6 +633,9 @@ export function buildMatchdayLive(matches = [], participants = [], tips = [], re
             isPenalty: Boolean(goal.is_penalty),
             isOwnGoal: Boolean(goal.is_own_goal),
           })),
+        goalsPending: result?.status === "live" && result?.verification_status === "fallback_live"
+          && !(goals ?? []).some((goal) => goal.match_id === match.id),
+        isFallbackLive: result?.verification_status === "fallback_live",
         updatedAt: result?.updated_at ?? match.updated_at ?? null,
       };
     }),

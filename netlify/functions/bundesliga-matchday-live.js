@@ -18,7 +18,7 @@ export default async (req) => {
       supabase.from("competition_participants").select("id, display_name").eq("competition_id", competitionId),
       supabase.from("competition_matches").select("id, matchday, kickoff_at, team_a_name, team_b_name, updated_at").eq("competition_id", competitionId).eq("phase", "league").eq("matchday", matchday).order("match_number"),
       supabase.from("competition_tips").select("participant_id, match_id, score_a, score_b").eq("competition_id", competitionId),
-      supabase.from("competition_results").select("match_id, score_a, score_b, status, updated_at").eq("competition_id", competitionId),
+      supabase.from("competition_results").select("match_id, score_a, score_b, status, live_source, verification_status, source_updated_at, updated_at").eq("competition_id", competitionId),
       supabase.from("competition_goals").select("*").eq("competition_id", competitionId),
       loadCompetitionRuleSettings(supabase, competitionId),
     ]);

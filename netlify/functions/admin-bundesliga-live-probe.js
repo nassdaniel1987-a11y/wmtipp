@@ -121,6 +121,7 @@ async function deleteProbe(supabase) {
     "competition_demo_participants",
     "competition_results",
     "competition_goals",
+    "competition_live_observations",
     "competition_bonus_results",
     "competition_top_scorers",
   ];

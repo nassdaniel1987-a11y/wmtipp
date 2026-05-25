@@ -16,6 +16,7 @@ import {
   normalizeTeamLogoUrl,
   pointsFor,
 } from "./_shared/bundesliga.js";
+import { summarizeHybridObservation } from "./_shared/bundesliga-live-sync.js";
 
 function isMissingRelation(error) {
   return error?.code === "42P01" || error?.code === "PGRST205" || /does not exist|schema cache/i.test(error?.message || "");
@@ -56,6 +57,7 @@ export default async (req) => {
       participantBonusTipCount,
       ruleSettings,
       releaseGates,
+      liveObservations,
     ] = await Promise.all([
       supabase.from("competitions").select("*").eq("id", BUNDESLIGA_COMPETITION_ID).maybeSingle(),
       supabase.from("competition_teams").select("*").eq("competition_id", BUNDESLIGA_COMPETITION_ID).order("name"),
@@ -74,9 +76,10 @@ export default async (req) => {
       fetchExactCount(supabase.from("competition_participant_bonus_tips").select("participant_id", { count: "exact", head: true }).eq("competition_id", BUNDESLIGA_COMPETITION_ID)),
       loadCompetitionRuleSettings(supabase),
       buildBundesligaReleaseGates(supabase),
+      supabase.from("competition_live_observations").select("*").eq("competition_id", BUNDESLIGA_COMPETITION_ID).order("observed_at", { ascending: false }),
     ]);
 
-    for (const response of [competition, teams, matches, results, goals, demoParticipants, bonusResults, inviteCodes, participants]) {
+    for (const response of [competition, teams, matches, results, goals, demoParticipants, bonusResults, inviteCodes, participants, liveObservations]) {
       if (response.error) throw response.error;
     }
 
@@ -177,6 +180,25 @@ export default async (req) => {
       new Date(),
       ruleSettings,
     );
+    const footballDataConfigured = Boolean(Netlify.env.get("FOOTBALL_DATA_API_KEY"));
+    const observationsByMatch = new Map();
+    (liveObservations.data ?? []).forEach((observation) => {
+      const current = observationsByMatch.get(observation.match_id) ?? {};
+      current[observation.provider] = observation;
+      observationsByMatch.set(observation.match_id, current);
+    });
+    const sourceChecks = Array.from(observationsByMatch.entries()).map(([matchId, observations]) => {
+      const match = leagueMatches.find((row) => row.id === matchId);
+      const selectedResult = resultsByMatch.get(matchId) ?? null;
+      return {
+        matchId,
+        label: match ? `${match.team_a_name} - ${match.team_b_name}` : matchId,
+        openligadb: observations.openligadb ?? null,
+        footballData: observations["football-data"] ?? null,
+        selectedResult,
+        status: summarizeHybridObservation(observations.openligadb, observations["football-data"], selectedResult, footballDataConfigured),
+      };
+    }).slice(0, 8);
 
     return json({
       competition: competition.data,
@@ -200,6 +222,10 @@ export default async (req) => {
       participantMatchdayStatus,
       demoMatchdayStatus,
       activeLive,
+      liveSources: {
+        footballDataConfigured,
+        checks: sourceChecks,
+      },
       releaseGates,
       topScorers: topScorerRows,
       inviteCodes: inviteCodes.data ?? [],

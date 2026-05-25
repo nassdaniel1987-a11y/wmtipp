@@ -570,6 +570,7 @@ export default async (req) => {
       const deletedDemoParticipants = await deleteRowsByCompetition(supabase, "competition_demo_participants", "id");
       const deletedResults = await deleteRowsByCompetition(supabase, "competition_results", "match_id");
       const deletedGoals = await deleteRowsByCompetition(supabase, "competition_goals", "id");
+      const deletedLiveObservations = await deleteRowsByCompetition(supabase, "competition_live_observations", "match_id");
       const deletedBonusResults = await deleteRowsByCompetition(supabase, "competition_bonus_results", "competition_id");
 
       const { data: competition, error: competitionError } = await supabase
@@ -587,6 +588,7 @@ export default async (req) => {
           deletedDemoBonusTips,
           deletedResults,
           deletedGoals,
+          deletedLiveObservations,
           deletedBonusResults,
           resetReleaseProbe,
           competition: {
@@ -606,6 +608,7 @@ export default async (req) => {
       const deletedDemoParticipants = await deleteRowsByCompetition(supabase, "competition_demo_participants", "id");
       const deletedResults = await deleteRowsByCompetition(supabase, "competition_results", "match_id");
       const deletedGoals = await deleteRowsByCompetition(supabase, "competition_goals", "id");
+      const deletedLiveObservations = await deleteRowsByCompetition(supabase, "competition_live_observations", "match_id");
       const deletedBonusResults = await deleteRowsByCompetition(supabase, "competition_bonus_results", "competition_id");
       const deletedTopScorers = await deleteRowsByCompetition(supabase, "competition_top_scorers", "id");
       const deletedMatches = await deleteRowsByCompetition(supabase, "competition_matches", "id");
@@ -628,6 +631,7 @@ export default async (req) => {
           deletedDemoParticipants,
           deletedResults,
           deletedGoals,
+          deletedLiveObservations,
           deletedBonusResults,
           deletedTopScorers,
           deletedMatches,
@@ -680,12 +684,10 @@ export default async (req) => {
     }
 
     if (action === "reset-results") {
-      const { error } = await supabase
-        .from("competition_results")
-        .delete()
-        .eq("competition_id", BUNDESLIGA_COMPETITION_ID);
+      const deletedLiveObservations = await deleteRowsByCompetition(supabase, "competition_live_observations", "match_id");
+      const { error } = await supabase.from("competition_results").delete().eq("competition_id", BUNDESLIGA_COMPETITION_ID);
       if (error) throw error;
-      return json({ reset: true });
+      return json({ reset: true, deletedLiveObservations });
     }
 
     if (action === "import-top-scorers") {

@@ -356,6 +356,40 @@ test("Bundesliga tips warn before kickoff with an unsaved countdown", async ({ p
   await expect(countdown).toContainText("Noch nicht gespeichert");
 });
 
+test("Bundesliga live fallback waits visibly for goal events", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem("bundesliga-tippspiel-participant", JSON.stringify({
+      id: "fallback-user",
+      name: "Daniel",
+      code: "BL-FALLBACK",
+      competitionId: "bundesliga-2026",
+    }));
+  });
+  const fallbackMatch = {
+    id: "fallback-match", matchday: 1, match_number: 1, phase: "league",
+    kickoff_at: "2026-08-21T18:30:00.000Z",
+    team_a_id: "home", team_b_id: "away", team_a_name: "FC Bayern München", team_b_name: "RB Leipzig",
+  };
+  await page.route("**/api/bundesliga-public-data", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({
+    competition: { id: "bundesliga-2026", season_label: "2026/2027", public_enabled: false },
+    teams: [], matches: [fallbackMatch], results: [], topScorers: [], table: [],
+    rulesSummary: { visibilityMode: "kickoff", visibility: "Fremde Tipps werden pro Spiel ab Anpfiff sichtbar." },
+  }) }));
+  await page.route("**/api/bundesliga-tips", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ tips: [] }) }));
+  await page.route("**/api/bundesliga-bonus-tips", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ bonusTip: null }) }));
+  await page.route("**/api/bundesliga-ranking", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ ranking: [] }) }));
+  await page.route("**/api/bundesliga-matchday-live**", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({
+    live: { standings: [], matches: [{
+      id: "fallback-match", kickoffAt: fallbackMatch.kickoff_at, teamA: fallbackMatch.team_a_name, teamB: fallbackMatch.team_b_name,
+      result: { score_a: 0, score_b: 1, status: "live" }, status: "live", tips: [], tipsVisible: true,
+      goals: [], goalsPending: true, updatedAt: "2026-08-21T18:33:00.000Z",
+    }] }, trends: [],
+  }) }));
+  await page.goto("/#bundesliga-live");
+  await expect(page.getByText("LIVE · Punkte vorläufig")).toBeVisible();
+  await expect(page.getByText("Torereignisse folgen.")).toBeVisible();
+});
+
 test("Bundesliga community respects private visibility and mobile more navigation", async ({ page }, testInfo) => {
   let visibilityMode = "never";
   await page.addInitScript(() => {

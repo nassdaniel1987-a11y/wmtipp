@@ -5326,6 +5326,7 @@ function BundesligaParticipantApp({ isTestMode }) {
                   ))}
                 </div>
               )}
+              {match.goalsPending && <p className="bundesliga-live-goals-pending">Torereignisse folgen.</p>}
               {trendsByMatch.has(match.id) && (
                 <div className="bundesliga-trend-row">
                   <span>Heim {trendsByMatch.get(match.id).homePercent}%</span>
@@ -7983,6 +7984,7 @@ function BundesligaAdminArea({
         {renderReleaseSettings()}
         {renderReleaseProbe()}
         {renderLiveProbeConsole()}
+        {renderLiveSourceCheck()}
         {renderTeamLogoQuality()}
         {renderQualityCheck()}
         <section className="bundesliga-dark-panel">
@@ -8079,6 +8081,43 @@ function BundesligaAdminArea({
           <small>Löscht ausschließlich Daten dieser einmaligen Probe; die Vorbereitungssaison bleibt unberührt.</small>
           <button type="button" className="danger-button" onClick={() => onLiveProbeAction("delete")} disabled={loading || !liveProbe?.competition}>Liveprobe vollständig löschen</button>
         </div>
+      </section>
+    );
+  }
+
+  function renderLiveSourceCheck() {
+    const sourceStatusLabels = {
+      nicht_konfiguriert: "nicht konfiguriert",
+      stimmt_ueberein: "stimmt überein",
+      fallback_aktiv: "Fallback aktiv",
+      abweichend: "abweichend",
+      wartet: "wartet auf Bestätigung",
+    };
+    const checks = data?.liveSources?.checks ?? [];
+    const configured = Boolean(data?.liveSources?.footballDataConfigured);
+    return (
+      <section className="bundesliga-dark-panel bundesliga-live-source-check">
+        <header>
+          <div>
+            <h3>Live-Quellenprüfung</h3>
+            <p>OpenLigaDB bleibt Hauptquelle; football-data füllt nur fehlende laufende Zwischenstände.</p>
+          </div>
+          <span className={configured ? "is-active" : ""}>{configured ? "Vergleich aktiv" : "nicht konfiguriert"}</span>
+        </header>
+        {!configured && <p className="bundesliga-source-empty">Football-data Vergleich nicht konfiguriert. OpenLigaDB arbeitet unverändert allein.</p>}
+        {configured && checks.length === 0 && <p className="bundesliga-source-empty">Noch keine Live-Beobachtungen für Saisonspiele gespeichert.</p>}
+        {checks.length > 0 && (
+          <div className="bundesliga-source-rows">
+            {checks.map((check) => (
+              <article key={check.matchId} className={`status-${check.status}`}>
+                <strong>{check.label}</strong>
+                <span>OpenLigaDB: {check.openligadb ? `${check.openligadb.score_a}:${check.openligadb.score_b} · ${check.openligadb.status}` : "kein Stand"}</span>
+                <span>football-data: {check.footballData ? `${check.footballData.score_a}:${check.footballData.score_b} · ${check.footballData.status}` : "kein Stand"}</span>
+                <b>{sourceStatusLabels[check.status] ?? check.status}</b>
+              </article>
+            ))}
+          </div>
+        )}
       </section>
     );
   }

@@ -124,3 +124,8 @@ falls nur der Vite-Server läuft.
   `supabase/migrations/20260525161036_bundesliga_live_updates_probe.sql`
   im bestehenden Supabase-Projekt ausgeführt werden. Die Probe läuft in
   `bundesliga-liveprobe-rel-2026` getrennt von der späteren Saisonbasis.
+- Die reguläre Bundesliga kann über `FOOTBALL_DATA_API_KEY` einen kostenlosen
+  Live-Vergleich nutzen: OpenLigaDB bleibt Quelle für Tore und Namen,
+  football-data füllt nur fehlende vorläufige Zwischenstände. Dafür muss vor
+  dem Deploy `supabase/migrations/20260525191145_bundesliga_free_live_hybrid.sql`
+  im bestehenden Supabase-Projekt ausgeführt werden.

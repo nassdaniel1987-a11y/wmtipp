@@ -13,6 +13,11 @@ import {
   isBundesligaTipLocked,
   normalizeOpenLigaMatch,
 } from "../netlify/functions/_shared/bundesliga.js";
+import {
+  preserveKnownGoalScorer,
+  selectHybridLiveResult,
+  summarizeHybridObservation,
+} from "../netlify/functions/_shared/bundesliga-live-sync.js";
 
 const kickoff = "2026-08-21T18:30:00.000Z";
 const beforeKickoff = new Date("2026-08-21T18:00:00.000Z");
@@ -49,7 +54,7 @@ test("relegation live probe is isolated from the season competition", () => {
     matchIsFinished: false,
     team1: { teamId: 1, teamName: "SC Paderborn 07" },
     team2: { teamId: 2, teamName: "VfL Wolfsburg" },
-    goals: [{ goalID: 1, goalGetterName: "Test", matchMinute: 12, scoreTeam1: 1, scoreTeam2: 0 }],
+    goals: [{ goalID: 1, goalGetterName: "Dženan Pejcinovic", matchMinute: 3, scoreTeam1: 0, scoreTeam2: 1 }],
   }, "rel", 0, {
     competitionId: BUNDESLIGA_LIVE_PROBE_COMPETITION_ID,
     phaseOverride: "league",
@@ -59,7 +64,47 @@ test("relegation live probe is isolated from the season competition", () => {
   assert.equal(normalized.matchRow.competition_id, BUNDESLIGA_LIVE_PROBE_COMPETITION_ID);
   assert.equal(normalized.matchRow.phase, "league");
   assert.equal(normalized.resultRow.status, "live");
-  assert.deepEqual([normalized.resultRow.score_a, normalized.resultRow.score_b], [1, 0]);
+  assert.deepEqual([normalized.resultRow.score_a, normalized.resultRow.score_b], [0, 1]);
+  assert.equal(normalized.goals[0].scorer_name, "Dženan Pejcinovic");
+});
+
+test("goal refresh upgrades unknown scorers and never downgrades known names", () => {
+  assert.equal(
+    preserveKnownGoalScorer({ scorer_name: "Dženan Pejcinovic", scorer_external_id: "24380" }, { scorer_name: "Unbekannt" }).scorer_name,
+    "Dženan Pejcinovic",
+  );
+  assert.equal(
+    preserveKnownGoalScorer({ scorer_name: "Unbekannt", scorer_external_id: null }, { scorer_name: "Dženan Pejcinovic", scorer_external_id: "24380" }).scorer_name,
+    "Dženan Pejcinovic",
+  );
+});
+
+test("free hybrid uses football-data only as live fallback and confirms matching final scores", () => {
+  const openLive = { match_id: "m", competition_id: BUNDESLIGA_COMPETITION_ID, score_a: 1, score_b: 0, status: "live" };
+  const footballLive = { match_id: "m", competition_id: BUNDESLIGA_COMPETITION_ID, score_a: 0, score_b: 1, status: "live" };
+  const primary = selectHybridLiveResult(openLive, footballLive, { footballDataConfigured: true });
+  assert.equal(primary.live_source, "openligadb");
+  assert.equal(primary.verification_status, "primary_live");
+
+  const fallback = selectHybridLiveResult(null, footballLive, { footballDataConfigured: true });
+  assert.equal(fallback.live_source, "football-data");
+  assert.equal(fallback.verification_status, "fallback_live");
+
+  const openFinal = { ...openLive, score_a: 2, score_b: 1, status: "final" };
+  const matchingFinal = { ...footballLive, score_a: 2, score_b: 1, status: "final" };
+  const confirmed = selectHybridLiveResult(openFinal, matchingFinal, { footballDataConfigured: true });
+  assert.equal(confirmed.status, "final");
+  assert.equal(confirmed.verification_status, "confirmed");
+  assert.equal(summarizeHybridObservation(openFinal, matchingFinal, confirmed, true), "stimmt_ueberein");
+
+  const conflictingFinal = selectHybridLiveResult(openFinal, { ...matchingFinal, score_b: 2 }, { footballDataConfigured: true });
+  assert.equal(conflictingFinal.status, "live");
+  assert.equal(conflictingFinal.verification_status, "conflict");
+  assert.equal(summarizeHybridObservation(openFinal, matchingFinal, conflictingFinal, true), "abweichend");
+
+  const openLigaOnly = selectHybridLiveResult(openFinal, null, { footballDataConfigured: false });
+  assert.equal(openLigaOnly.status, "final");
+  assert.equal(openLigaOnly.verification_status, "single_source");
 });
 
 test("match tips lock at kickoff independently of public release state", () => {
@@ -127,6 +172,18 @@ test("live result exposes provisional points but ranking remains final only", ()
   const ranking = buildCompetitionRanking(participants, tips, [liveResult], [], null, [], [match], rules);
   assert.equal(ranking[0].points, 0);
   assert.equal(ranking[0].scoredTipCount, 0);
+});
+
+test("football-data live fallback exposes a neutral pending-goals state", () => {
+  const live = buildMatchdayLive([match], [{ id: "self", display_name: "Daniel" }], [], [{
+    match_id: match.id,
+    status: "live",
+    score_a: 0,
+    score_b: 1,
+    verification_status: "fallback_live",
+  }], "self", 1, afterKickoff, { foreign_tips_visible_from: "kickoff" }, []);
+  assert.equal(live.matches[0].goalsPending, true);
+  assert.equal(live.matches[0].isFallbackLive, true);
 });
 
 test("finished match detail respects tip visibility and derives goal sides", () => {
