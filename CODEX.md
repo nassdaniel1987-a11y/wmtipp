@@ -153,6 +153,7 @@ cd android-app
 - Bundesliga-Nutzeransicht hat einen Code-first Login: bestehende Teilnehmer-Codes melden direkt an, freie Codes fragen danach den Namen ab.
 - Bundesliga-Nutzer sehen vor der Anmeldung einen fokussierten Code-Login ohne persönliche Bereichsnavigation; nach erfolgreicher Anmeldung erscheint nur die persönliche Zentrale mit Abmelden, nächstem Schritt, Fortschritt, Bonusstatus, Punkten und Direktaktionen.
 - Bundesliga-Nutzeransicht hat zusätzliche In-App-Detailseiten für Live-Spieltag, volle Tabelle, volle Torschützenliste und Spielplan.
+- Fertige Bundesliga-Spiele öffnen eine persönliche Spielauswertung mit Endergebnis, eigenem Tipp, Punktebegründung, sichtbaren Community-Tipps, Tippverteilung und importiertem Torverlauf.
 - Bundesliga-Variante A wurde über alle Nutzerbereiche geglättet: kompakter App-Rahmen, sichtbares Arbeitsfeedback, eindeutig lesbare offene/gesperrte/ausgewertete Tippzustände und reduzierte Doppel-Navigation in Live, Bonus und Spielplan.
 - Bundesliga-Bonus-Autosave meldet Speichern erst nach einer tatsächlichen Nutzerauswahl; ein leer geladener Bonus erzeugt kein irreführendes Erfolgsfeedback mehr.
 - Bundesliga-Bonus erlaubt vor der ersten OpenLigaDB-Torschützenliste eine freie Spielereingabe, damit der echte Saisonstart nicht auf bereits erzielte Tore warten muss.
@@ -189,6 +190,7 @@ cd android-app
   - Die A-Oberfläche priorisiert auf Mobilgeräten den eigentlichen Workflow: kompakte Navigation, verdichtete Zentrale und Read-only-Auswertungsdarstellung für bereits gewertete Spiele.
   - Solange `bundesliga-2026` noch keinen importierten Spielplan besitzt, zeigen Zentrale, Tippen, Bonus und Spielplan einen klaren Vorsaison-Zustand statt vermeintlich fertiger Spieltagsaktionen.
   - Teilnehmer sehen einen verständlichen `Saisonstatus`; technische OpenLigaDB-/Importdetails bleiben im Bundesliga-Admin.
+  - Die Spielauswertung ist bewusst kein vollständiges Matchcenter: Karten, Wechsel und Aufstellungen gehören nicht zur ersten Liveversion.
 - Automatik ist vorbereitet, aber geschützt:
   - `netlify/functions/bundesliga-auto-import.js` importiert Ergebnisse/Torschützen nur mit `BUNDESLIGA_AUTO_IMPORT_ENABLED=true`.
   - Bundesliga-Push-Erinnerungen in `send-tip-reminders.js` laufen nur mit `BUNDESLIGA_PUSH_REMINDERS_ENABLED=true`.

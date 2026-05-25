@@ -609,6 +609,85 @@ export function buildMatchdayLive(matches = [], participants = [], tips = [], re
   };
 }
 
+export function buildBundesligaMatchDetail(match, result, goals = [], participants = [], tips = [], participantId = "", now = new Date(), ruleSettings = defaultBundesligaRuleSettings, teams = []) {
+  if (!match || result?.status !== "final") return null;
+
+  const participantsById = new Map((participants ?? []).map((participant) => [participant.id, participant]));
+  const teamsById = new Map((teams ?? []).map((team) => [team.id, team]));
+  const tipsVisible = canViewMatchTips(match, result, now, ruleSettings);
+  const releasedTips = (tips ?? [])
+    .filter((tip) => tip.match_id === match.id && (tipsVisible || tip.participant_id === participantId))
+    .map((tip) => {
+      const explanation = explainPointsFor(tip, result, ruleSettings);
+      return {
+        participantId: tip.participant_id,
+        participantName: participantsById.get(tip.participant_id)?.display_name ?? "Teilnehmer",
+        isOwnTip: tip.participant_id === participantId,
+        scoreA: tip.score_a,
+        scoreB: tip.score_b,
+        points: explanation.points,
+        reason: explanation.reason,
+      };
+    })
+    .sort((first, second) => second.points - first.points || first.participantName.localeCompare(second.participantName, "de"));
+  const trendTotals = releasedTips.reduce((trend, tip) => {
+    const direction = Math.sign(tip.scoreA - tip.scoreB);
+    trend.total += 1;
+    if (direction > 0) trend.home += 1;
+    else if (direction < 0) trend.away += 1;
+    else trend.draw += 1;
+    return trend;
+  }, { total: 0, home: 0, draw: 0, away: 0 });
+  const orderedGoals = [...(goals ?? [])].sort((first, second) =>
+    (Number(first.minute) || Number.MAX_SAFE_INTEGER) - (Number(second.minute) || Number.MAX_SAFE_INTEGER),
+  );
+  let previousHomeScore = 0;
+  let previousAwayScore = 0;
+  const normalizedGoals = orderedGoals.map((goal) => {
+    const rawHomeScore = Number(goal.source_json?.scoreTeam1);
+    const rawAwayScore = Number(goal.source_json?.scoreTeam2);
+    let teamSide = goal.team_side || null;
+    if (!teamSide && Number.isFinite(rawHomeScore) && Number.isFinite(rawAwayScore)) {
+      if (rawHomeScore > previousHomeScore && rawAwayScore === previousAwayScore) teamSide = "home";
+      else if (rawAwayScore > previousAwayScore && rawHomeScore === previousHomeScore) teamSide = "away";
+    }
+    if (Number.isFinite(rawHomeScore)) previousHomeScore = rawHomeScore;
+    if (Number.isFinite(rawAwayScore)) previousAwayScore = rawAwayScore;
+    return {
+      id: goal.id ?? goal.external_goal_id,
+      minute: goal.minute,
+      scorerName: goal.scorer_name,
+      teamSide,
+      isPenalty: Boolean(goal.is_penalty),
+      isOwnGoal: Boolean(goal.is_own_goal),
+    };
+  });
+  const homeTeam = teamsById.get(match.team_a_id);
+  const awayTeam = teamsById.get(match.team_b_id);
+
+  return {
+    match: {
+      id: match.id,
+      matchday: match.matchday,
+      kickoffAt: match.kickoff_at,
+      status: "finished",
+      teamA: { id: match.team_a_id, name: match.team_a_name, logoUrl: normalizeTeamLogoUrl(homeTeam?.logo_url) },
+      teamB: { id: match.team_b_id, name: match.team_b_name, logoUrl: normalizeTeamLogoUrl(awayTeam?.logo_url) },
+    },
+    result,
+    goals: normalizedGoals,
+    ownTip: releasedTips.find((tip) => tip.isOwnTip) ?? null,
+    tips: releasedTips,
+    tipsVisible,
+    trend: {
+      ...trendTotals,
+      homePercent: trendTotals.total ? Math.round((trendTotals.home / trendTotals.total) * 100) : 0,
+      drawPercent: trendTotals.total ? Math.round((trendTotals.draw / trendTotals.total) * 100) : 0,
+      awayPercent: trendTotals.total ? Math.round((trendTotals.away / trendTotals.total) * 100) : 0,
+    },
+  };
+}
+
 export function buildTopScorers(goals) {
   const totals = new Map();
   (goals ?? []).forEach((goal) => {

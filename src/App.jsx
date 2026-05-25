@@ -179,10 +179,19 @@ const bundesligaTabIds = new Set([
   "bundesliga-torschuetzen",
   "bundesliga-spielplan",
 ]);
+const BUNDESLIGA_MATCH_DETAIL_PREFIX = "bundesliga-spiel/";
 
 function getBundesligaTabFromHash() {
   const tabId = window.location.hash.replace("#", "").trim();
+  if (tabId.startsWith(BUNDESLIGA_MATCH_DETAIL_PREFIX) && tabId.length > BUNDESLIGA_MATCH_DETAIL_PREFIX.length) {
+    return tabId;
+  }
   return bundesligaTabIds.has(tabId) ? tabId : "bundesliga-start";
+}
+
+function getBundesligaMatchDetailId(tabId) {
+  if (!tabId?.startsWith(BUNDESLIGA_MATCH_DETAIL_PREFIX)) return "";
+  return decodeURIComponent(tabId.slice(BUNDESLIGA_MATCH_DETAIL_PREFIX.length));
 }
 
 function getBundesligaCompetitionFromUrl() {
@@ -331,6 +340,11 @@ function createTestBundesligaData() {
     results: [{ match_id: "bl-test-1", score_a: 2, score_b: 1, status: "final" }],
     participants,
     participantTips,
+    goals: [
+      { id: "bl-goal-1", match_id: "bl-test-1", minute: 18, scorer_name: "Harry Kane", team_side: "home", is_penalty: false, is_own_goal: false },
+      { id: "bl-goal-2", match_id: "bl-test-1", minute: 54, scorer_name: "Jamal Musiala", team_side: "home", is_penalty: false, is_own_goal: false },
+      { id: "bl-goal-3", match_id: "bl-test-1", minute: 81, scorer_name: "Serhou Guirassy", team_side: "away", is_penalty: false, is_own_goal: false },
+    ],
     topScorers: [
       { id: "kane", display_name: "Harry Kane", goals: 36 },
       { id: "undav", display_name: "Deniz Undav", goals: 19 },
@@ -487,6 +501,66 @@ function buildBundesligaTipTrendsFromData(data, selectedMatchday) {
     drawPercent: row.total ? Math.round((row.draw / row.total) * 100) : 0,
     awayPercent: row.total ? Math.round((row.away / row.total) * 100) : 0,
   }));
+}
+
+function buildBundesligaMatchDetailFromData(data, participant, matchId) {
+  const sourceMatch = (data?.matches ?? []).find((match) => match.id === matchId);
+  const result = (data?.results ?? []).find((row) => row.match_id === matchId);
+  if (!sourceMatch || result?.status !== "final") return null;
+  const teamsById = new Map((data?.teams ?? []).map((team) => [team.id, team]));
+  const participantById = new Map((data?.participants ?? []).map((row) => [row.id, row]));
+  const tipRows = (data?.participantTips ?? [])
+    .filter((tip) => tip.match_id === matchId)
+    .map((tip) => {
+      const explanation = explainBundesligaPoints({ scoreA: tip.score_a, scoreB: tip.score_b }, result);
+      return {
+        participantId: tip.participant_id,
+        participantName: participantById.get(tip.participant_id)?.display_name ?? "Teilnehmer",
+        isOwnTip: tip.participant_id === participant?.id,
+        scoreA: tip.score_a,
+        scoreB: tip.score_b,
+        points: explanation.points,
+        reason: explanation.reason,
+      };
+    })
+    .sort((first, second) => second.points - first.points || first.participantName.localeCompare(second.participantName, "de"));
+  const trend = tipRows.reduce((row, tip) => {
+    row.total += 1;
+    const direction = Math.sign(tip.scoreA - tip.scoreB);
+    if (direction > 0) row.home += 1;
+    else if (direction < 0) row.away += 1;
+    else row.draw += 1;
+    return row;
+  }, { total: 0, home: 0, draw: 0, away: 0 });
+
+  return {
+    match: {
+      id: sourceMatch.id,
+      matchday: sourceMatch.matchday,
+      kickoffAt: sourceMatch.kickoff_at,
+      status: "finished",
+      teamA: { id: sourceMatch.team_a_id, name: sourceMatch.team_a_name, logoUrl: teamsById.get(sourceMatch.team_a_id)?.logo_url },
+      teamB: { id: sourceMatch.team_b_id, name: sourceMatch.team_b_name, logoUrl: teamsById.get(sourceMatch.team_b_id)?.logo_url },
+    },
+    result,
+    goals: (data?.goals ?? []).filter((goal) => goal.match_id === matchId).map((goal) => ({
+      id: goal.id,
+      minute: goal.minute,
+      scorerName: goal.scorer_name,
+      teamSide: goal.team_side,
+      isPenalty: Boolean(goal.is_penalty),
+      isOwnGoal: Boolean(goal.is_own_goal),
+    })),
+    ownTip: tipRows.find((tip) => tip.isOwnTip) ?? null,
+    tips: tipRows,
+    tipsVisible: true,
+    trend: {
+      ...trend,
+      homePercent: trend.total ? Math.round((trend.home / trend.total) * 100) : 0,
+      drawPercent: trend.total ? Math.round((trend.draw / trend.total) * 100) : 0,
+      awayPercent: trend.total ? Math.round((trend.away / trend.total) * 100) : 0,
+    },
+  };
 }
 
 function QrCodeImage({ value }) {
@@ -4419,6 +4493,10 @@ function BundesligaParticipantApp({ isTestMode }) {
   const [matchdayWinners, setMatchdayWinners] = useState([]);
   const [compareParticipantId, setCompareParticipantId] = useState("");
   const [liveRefreshKey, setLiveRefreshKey] = useState(0);
+  const [matchDetail, setMatchDetail] = useState(null);
+  const [matchDetailLoading, setMatchDetailLoading] = useState(false);
+  const [matchDetailError, setMatchDetailError] = useState("");
+  const [matchDetailReturnTab, setMatchDetailReturnTab] = useState("bundesliga-spielplan");
   const tipsRef = useRef(tips);
   const bonusRef = useRef(bonusTip);
 
@@ -4593,6 +4671,40 @@ function BundesligaParticipantApp({ isTestMode }) {
   }, [participant?.id, selectedMatchday, data, isTestMode, liveRefreshKey, competitionId]);
 
   useEffect(() => {
+    const matchId = getBundesligaMatchDetailId(activeTab);
+    if (!matchId || !participant?.id) return undefined;
+    let cancelled = false;
+    async function loadMatchDetail() {
+      setMatchDetailLoading(true);
+      setMatchDetailError("");
+      if (isTestMode) {
+        const detail = buildBundesligaMatchDetailFromData(data, participant, matchId);
+        if (!cancelled) {
+          setMatchDetail(detail);
+          setMatchDetailError(detail ? "" : "Für dieses Spiel ist noch keine Auswertung verfügbar.");
+          setMatchDetailLoading(false);
+        }
+        return;
+      }
+      try {
+        const payload = await apiGet(`/api/bundesliga-match-detail?matchId=${encodeURIComponent(matchId)}`, accessHeaders());
+        if (!cancelled) setMatchDetail(payload);
+      } catch (error) {
+        if (!cancelled) {
+          setMatchDetail(null);
+          setMatchDetailError(error.message);
+        }
+      } finally {
+        if (!cancelled) setMatchDetailLoading(false);
+      }
+    }
+    void loadMatchDetail();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, participant?.id, data, isTestMode, competitionId]);
+
+  useEffect(() => {
     const pendingIds = Object.entries(tipStatuses)
       .filter(([, status]) => status === "pending")
       .map(([matchId]) => matchId)
@@ -4616,6 +4728,14 @@ function BundesligaParticipantApp({ isTestMode }) {
     if (!bundesligaTabIds.has(tabId)) return;
     window.location.hash = tabId;
     setActiveTab(tabId);
+    window.scrollTo(0, 0);
+  }
+
+  function openBundesligaMatchDetail(matchId, returnTab) {
+    setMatchDetailReturnTab(returnTab);
+    const detailTab = `${BUNDESLIGA_MATCH_DETAIL_PREFIX}${encodeURIComponent(matchId)}`;
+    window.location.hash = detailTab;
+    setActiveTab(detailTab);
     window.scrollTo(0, 0);
   }
 
@@ -4721,6 +4841,8 @@ function BundesligaParticipantApp({ isTestMode }) {
     setMatchdayWinners([]);
     setLiveData(null);
     setLiveTrends([]);
+    setMatchDetail(null);
+    setMatchDetailError("");
     setMessage("Bundesliga-Code erforderlich.");
     setBundesligaTab("bundesliga-start");
   }
@@ -5098,6 +5220,11 @@ function BundesligaParticipantApp({ isTestMode }) {
                 ))}
                 {(match.tips ?? []).length === 0 && <p>{match.tipsVisible ? "Noch keine Tipps für dieses Spiel." : "Tipps werden ab Anpfiff sichtbar."}</p>}
               </div>
+              {match.status === "finished" && (
+                <button type="button" className="bundesliga-match-detail-link" onClick={() => openBundesligaMatchDetail(match.id, "bundesliga-live")}>
+                  Spielauswertung öffnen
+                </button>
+              )}
             </article>
           ))}
         </div>
@@ -5408,12 +5535,108 @@ function BundesligaParticipantApp({ isTestMode }) {
                 <span className={`bundesliga-match-status status-${tip?.saved ? "saved" : result?.status === "final" ? "finished" : state}`}>
                   {matchStatusLabel(match, result, tip)}
                 </span>
-                <button type="button" onClick={() => setBundesligaTab("bundesliga-tippen")}>
-                  {archivePreview ? "Details ansehen" : result?.status === "final" ? "Auswertung ansehen" : tip?.saved ? "Tipp bearbeiten" : state === "locked" ? "Details ansehen" : "Tipp abgeben"}
+                <button type="button" onClick={() => result?.status === "final"
+                  ? openBundesligaMatchDetail(match.id, "bundesliga-spielplan")
+                  : setBundesligaTab("bundesliga-tippen")}>
+                  {result?.status === "final" ? "Auswertung ansehen" : archivePreview ? "Details ansehen" : tip?.saved ? "Tipp bearbeiten" : state === "locked" ? "Details ansehen" : "Tipp abgeben"}
                 </button>
               </article>
             );
           })}
+        </section>
+      </section>
+    );
+  }
+
+  function renderMatchDetailPage() {
+    if (matchDetailLoading) {
+      return (
+        <section className="bundesliga-public-card bundesliga-match-detail-state">
+          <h2>Spielauswertung wird geladen</h2>
+          <p>Ergebnis, Torverlauf und Tipps werden zusammengestellt.</p>
+        </section>
+      );
+    }
+    if (!matchDetail || matchDetailError) {
+      return (
+        <section className="bundesliga-public-card bundesliga-match-detail-state">
+          <h2>Spielauswertung nicht verfügbar</h2>
+          <p>{matchDetailError || "Für dieses Spiel liegen noch keine finalen Auswertungsdaten vor."}</p>
+          <button type="button" onClick={() => setBundesligaTab(matchDetailReturnTab)}>Zurück</button>
+        </section>
+      );
+    }
+    const { match, result, goals, ownTip, tips: detailTips, trend } = matchDetail;
+    return (
+      <section className="bundesliga-match-detail-page">
+        <section className="bundesliga-public-card bundesliga-match-detail-head">
+          <div className="bundesliga-match-detail-toolbar">
+            <button type="button" onClick={() => setBundesligaTab(matchDetailReturnTab)}>Zurück</button>
+            <span>Spieltag {match.matchday} · {formatDateTime(match.kickoffAt)}</span>
+            {archivePreview && <b>Archivvorschau · nur lesbar</b>}
+          </div>
+          <div className="bundesliga-match-detail-score">
+            <div>
+              <BundesligaLogo src={match.teamA.logoUrl} name={match.teamA.name} />
+              <strong>{match.teamA.name}</strong>
+            </div>
+            <section>
+              <small>Endergebnis</small>
+              <b>{result.score_a}:{result.score_b}</b>
+              <span>Beendet</span>
+            </section>
+            <div className="away">
+              <BundesligaLogo src={match.teamB.logoUrl} name={match.teamB.name} />
+              <strong>{match.teamB.name}</strong>
+            </div>
+          </div>
+        </section>
+        <section className="bundesliga-match-detail-grid">
+          <div className="bundesliga-match-detail-main">
+            <section className={`bundesliga-public-card bundesliga-own-match-tip ${ownTip ? "" : "empty"}`}>
+              <h2>Dein Tipp</h2>
+              {ownTip ? (
+                <div>
+                  <strong>{ownTip.scoreA}:{ownTip.scoreB}</strong>
+                  <b>{ownTip.points} Punkte</b>
+                  <span>{ownTip.reason}</span>
+                </div>
+              ) : <p>Kein Tipp abgegeben.</p>}
+            </section>
+            <section className="bundesliga-public-card bundesliga-match-tip-overview">
+              <h2>Tippübersicht</h2>
+              {detailTips.length > 0 ? detailTips.map((tip, index) => (
+                <article key={tip.participantId} className={tip.isOwnTip ? "own" : ""}>
+                  <span>{index + 1}</span>
+                  <strong>{tip.participantName}{tip.isOwnTip ? " (Du)" : ""}</strong>
+                  <b>{tip.scoreA}:{tip.scoreB}</b>
+                  <em>{tip.points} P</em>
+                  <small>{tip.reason}</small>
+                </article>
+              )) : <p>Noch keine sichtbaren Tipps für dieses Spiel.</p>}
+            </section>
+          </div>
+          <aside className="bundesliga-side-stack">
+            <section className="bundesliga-public-card bundesliga-goal-timeline">
+              <h2>Torverlauf</h2>
+              {goals.length > 0 ? goals.map((goal) => (
+                <article key={goal.id} className={goal.teamSide ?? "neutral"}>
+                  <b>{Number.isInteger(goal.minute) ? `${goal.minute}'` : "-"}</b>
+                  <strong>{goal.scorerName}</strong>
+                  <small>{goal.isPenalty ? "Elfmeter" : goal.isOwnGoal ? "Eigentor" : goal.teamSide === "home" ? match.teamA.name : goal.teamSide === "away" ? match.teamB.name : "Tor"}</small>
+                </article>
+              )) : <p>Keine Torereignisse importiert.</p>}
+            </section>
+            <section className="bundesliga-public-card bundesliga-match-trend-card">
+              <h2>Tippverteilung</h2>
+              <div>
+                <article><strong>{trend.homePercent}%</strong><span>Heimsieg</span></article>
+                <article><strong>{trend.drawPercent}%</strong><span>Remis</span></article>
+                <article><strong>{trend.awayPercent}%</strong><span>Auswärtssieg</span></article>
+              </div>
+              <small>{trend.total} sichtbare Tipps</small>
+            </section>
+          </aside>
         </section>
       </section>
     );
@@ -5717,6 +5940,12 @@ function BundesligaParticipantApp({ isTestMode }) {
                           <button type="button" onClick={() => saveTipRows([match.id])} disabled={!isCompleteTip(tip) || tipLocked}>Tipp speichern</button>
                         </footer>
                       )}
+                      {result?.status === "final" && (
+                        <footer className="bundesliga-finished-match-action">
+                          <small>Endergebnis und Community-Tipps verfügbar</small>
+                          <button type="button" onClick={() => openBundesligaMatchDetail(match.id, "bundesliga-tippen")}>Auswertung ansehen</button>
+                        </footer>
+                      )}
                     </article>
                   );
                 })}
@@ -5904,6 +6133,7 @@ function BundesligaParticipantApp({ isTestMode }) {
         {displayedTab === "bundesliga-tabelle" && renderFullTablePage()}
         {displayedTab === "bundesliga-torschuetzen" && renderTopScorersPage()}
         {displayedTab === "bundesliga-spielplan" && renderSchedulePage()}
+        {getBundesligaMatchDetailId(displayedTab) && renderMatchDetailPage()}
       </main>
     </div>
   );

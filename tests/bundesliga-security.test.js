@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   BUNDESLIGA_COMPETITION_ID,
   BUNDESLIGA_SEASON_LABEL,
+  buildBundesligaMatchDetail,
   buildMatchdayLive,
   buildTipTrends,
   canViewMatchTips,
@@ -69,6 +70,43 @@ test("live payload hides foreign tip existence until visibility opens", () => {
   const visibleLive = buildMatchdayLive([match], participants, tips, [], "self", 1, afterKickoff, ruleSettings);
   assert.deepEqual(visibleLive.matches[0].tips.map((tip) => tip.participantId), ["self", "other"]);
   assert.equal(buildTipTrends(tips, [match], [], afterKickoff, ruleSettings)[0].total, 2);
+});
+
+test("finished match detail respects tip visibility and derives goal sides", () => {
+  const participants = [
+    { id: "self", display_name: "Daniel" },
+    { id: "other", display_name: "Clemens" },
+  ];
+  const tips = [
+    { participant_id: "self", match_id: match.id, score_a: 2, score_b: 1 },
+    { participant_id: "other", match_id: match.id, score_a: 1, score_b: 1 },
+  ];
+  const goals = [
+    { id: "goal-1", minute: 12, scorer_name: "Kane", team_side: null, source_json: { scoreTeam1: 1, scoreTeam2: 0 } },
+    { id: "goal-2", minute: 64, scorer_name: "Sesko", team_side: null, source_json: { scoreTeam1: 1, scoreTeam2: 1 } },
+  ];
+
+  const privateDetail = buildBundesligaMatchDetail(match, finalResult, goals, participants, tips, "self", afterKickoff, {
+    foreign_tips_visible_from: "never",
+    exact_score_points: 4,
+    goal_diff_points: 3,
+    tendency_points: 2,
+  });
+  assert.deepEqual(privateDetail.tips.map((tip) => tip.participantId), ["self"]);
+  assert.equal(privateDetail.ownTip.points, 4);
+  assert.equal(privateDetail.ownTip.reason, "exakt getroffen: 4 Punkte");
+  assert.equal(privateDetail.trend.total, 1);
+  assert.deepEqual(privateDetail.goals.map((goal) => goal.teamSide), ["home", "away"]);
+
+  const visibleDetail = buildBundesligaMatchDetail(match, finalResult, goals, participants, tips, "self", afterKickoff, {
+    foreign_tips_visible_from: "match_finished",
+    exact_score_points: 4,
+    goal_diff_points: 3,
+    tendency_points: 2,
+  });
+  assert.deepEqual(visibleDetail.tips.map((tip) => tip.participantId), ["self", "other"]);
+  assert.equal(visibleDetail.trend.total, 2);
+  assert.equal(buildBundesligaMatchDetail(match, null, goals, participants, tips, "self", afterKickoff), null);
 });
 
 test("preview access and personal requests require a validated code", async () => {

@@ -130,6 +130,24 @@ test("Bundesliga logout returns to the focused code login", async ({ page }) => 
   await expect(page.getByRole("heading", { name: "Bundesliga starten" })).toBeVisible();
 });
 
+test("finished Bundesliga matches open the personal match evaluation", async ({ page }) => {
+  await page.goto("/?test=1#bundesliga-tippen");
+
+  await page.getByRole("button", { name: "Auswertung ansehen" }).first().click();
+  await expect(page).toHaveURL(/#bundesliga-spiel\/bl-test-1$/);
+  await expect(page.getByText("Endergebnis")).toBeVisible();
+  await expect(page.getByText("2:1").first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Dein Tipp" })).toBeVisible();
+  await expect(page.locator(".bundesliga-own-match-tip").getByText("exakt getroffen: 4 Punkte")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Torverlauf" })).toBeVisible();
+  await expect(page.getByText("Harry Kane")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Tippübersicht" })).toBeVisible();
+  await expect(page.getByText("Aaron BL")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Tippverteilung" })).toBeVisible();
+  await expect(page.getByText("2 sichtbare Tipps")).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);
+});
+
 test("Bundesliga archive preview is visibly read-only", async ({ page }) => {
   await page.goto("/?test=1&blCompetition=bundesliga-2025#bundesliga-start");
 
@@ -144,6 +162,11 @@ test("Bundesliga archive preview is visibly read-only", async ({ page }) => {
 
   await page.getByRole("button", { name: "Bonus", exact: true }).click();
   await expect(page.getByRole("button", { name: "Nur lesbar" })).toBeDisabled();
+
+  await page.getByRole("button", { name: "Spielplan", exact: true }).click();
+  await page.getByRole("button", { name: "Auswertung ansehen" }).first().click();
+  await expect(page.getByText("Archivvorschau · nur lesbar")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Torverlauf" })).toBeVisible();
 });
 
 test("empty Bundesliga 2026 season shows a clear preseason state", async ({ page }) => {
