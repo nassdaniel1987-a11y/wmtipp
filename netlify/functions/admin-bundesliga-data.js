@@ -205,7 +205,7 @@ export default async (req) => {
       inviteCodes: inviteCodes.data ?? [],
       dataQuality: {
         source: "OpenLigaDB",
-        autoImportEnabled: Netlify.env.get("BUNDESLIGA_AUTO_IMPORT_ENABLED") === "true",
+        autoImportEnabled: !competition.data?.live_updates_paused,
         pushRemindersEnabled: Netlify.env.get("BUNDESLIGA_PUSH_REMINDERS_ENABLED") === "true",
         topScorerSource: topScorers.length ? "goalgetters" : "match_goals_fallback",
         topScorerCount: topScorerRows.length,

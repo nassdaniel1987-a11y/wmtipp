@@ -1,52 +1,40 @@
 import { getServiceClient, json } from "./_shared/supabase.js";
 import {
   BUNDESLIGA_COMPETITION_ID,
-  BUNDESLIGA_SOURCE_LEAGUE,
-  BUNDESLIGA_SOURCE_SEASON,
   normalizeGoalgetter,
-  normalizeOpenLigaMatch,
 } from "./_shared/bundesliga.js";
+import { LIVE_UPDATE_COMPETITION_IDS, syncLiveCompetition } from "./_shared/bundesliga-live-sync.js";
 
-async function fetchOpenLigaMatches() {
-  const response = await fetch(`https://api.openligadb.de/getmatchdata/${BUNDESLIGA_SOURCE_LEAGUE}/${BUNDESLIGA_SOURCE_SEASON}`);
-  if (response.status === 404) return [];
-  if (!response.ok) throw new Error("OpenLigaDB-Spielplan konnte nicht geladen werden.");
-  return response.json();
-}
-
-async function fetchOpenLigaGoalgetters() {
-  const response = await fetch(`https://api.openligadb.de/getgoalgetters/${BUNDESLIGA_SOURCE_LEAGUE}/${BUNDESLIGA_SOURCE_SEASON}`);
+async function fetchOpenLigaGoalgetters(competition) {
+  const response = await fetch(`https://api.openligadb.de/getgoalgetters/${competition.source_league}/${competition.source_season}`);
   if (!response.ok) throw new Error("OpenLigaDB-Torschützen konnten nicht geladen werden.");
   return response.json();
 }
 
 export default async () => {
-  if (Netlify.env.get("BUNDESLIGA_AUTO_IMPORT_ENABLED") !== "true") {
-    return json({ ok: true, skipped: true, reason: "BUNDESLIGA_AUTO_IMPORT_ENABLED ist nicht aktiv." });
-  }
-
   try {
     const supabase = getServiceClient();
-    const [openLigaMatches, goalgetters] = await Promise.all([
-      fetchOpenLigaMatches(),
-      fetchOpenLigaGoalgetters().catch(() => []),
-    ]);
-    const normalized = openLigaMatches.map((match, index) => normalizeOpenLigaMatch(match, BUNDESLIGA_SOURCE_LEAGUE, index));
-    if (normalized.length === 0) {
-      return json({ ok: true, skipped: true, reason: "Spielplan für 2026/27 ist bei OpenLigaDB noch nicht verfügbar." });
-    }
-    const resultRows = normalized
-      .map((item) => item.resultRow)
-      .filter(Boolean);
+    const { data: competitions, error: competitionError } = await supabase
+      .from("competitions")
+      .select("id, source_league, source_season, live_updates_paused")
+      .in("id", LIVE_UPDATE_COMPETITION_IDS);
+    if (competitionError) throw competitionError;
 
-    if (resultRows.length) {
-      const { error } = await supabase
-        .from("competition_results")
-        .upsert(resultRows, { onConflict: "competition_id,match_id" });
-      if (error) throw error;
+    const updates = [];
+    for (const competition of competitions ?? []) {
+      if (competition.live_updates_paused) {
+        updates.push({ competitionId: competition.id, skipped: true, reason: "Live-Aktualisierung pausiert." });
+        continue;
+      }
+      updates.push({ competitionId: competition.id, ...await syncLiveCompetition(supabase, competition) });
     }
 
     let topScorerCount = 0;
+    const regularCompetition = (competitions ?? []).find((row) => row.id === BUNDESLIGA_COMPETITION_ID);
+    const regularUpdated = updates.find((row) => row.competitionId === BUNDESLIGA_COMPETITION_ID && !row.skipped);
+    const goalgetters = regularCompetition && regularUpdated
+      ? await fetchOpenLigaGoalgetters(regularCompetition).catch(() => [])
+      : [];
     if (goalgetters.length) {
       const { data: existingScorers, error: existingError } = await supabase
         .from("competition_top_scorers")
@@ -67,7 +55,7 @@ export default async () => {
 
     return json({
       ok: true,
-      importedResults: resultRows.length,
+      updates,
       importedTopScorers: topScorerCount,
       checkedAt: new Date().toISOString(),
     });
@@ -76,4 +64,4 @@ export default async () => {
   }
 };
 
-export const config = { schedule: "*/30 * * * *" };
+export const config = { schedule: "*/2 * * * *" };

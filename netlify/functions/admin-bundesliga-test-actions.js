@@ -1,6 +1,7 @@
 import { makeInviteCode, requireAdmin } from "./_shared/admin.js";
 import { json } from "./_shared/supabase.js";
 import { buildBundesligaReleaseGates } from "./_shared/bundesliga-release.js";
+import { syncLiveCompetition } from "./_shared/bundesliga-live-sync.js";
 import {
   BUNDESLIGA_COMPETITION_ID,
   BUNDESLIGA_SOURCE_LEAGUE,
@@ -926,6 +927,31 @@ export default async (req) => {
         .single();
       if (error) throw error;
       return json({ competition: data });
+    }
+
+    if (action === "set-live-updates-paused") {
+      const { data, error } = await supabase
+        .from("competitions")
+        .update({
+          live_updates_paused: Boolean(body.paused),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", BUNDESLIGA_COMPETITION_ID)
+        .select("*")
+        .single();
+      if (error) throw error;
+      return json({ competition: data });
+    }
+
+    if (action === "refresh-live-now") {
+      const { data: competition, error: competitionError } = await supabase
+        .from("competitions")
+        .select("id, source_league, source_season, live_updates_paused")
+        .eq("id", BUNDESLIGA_COMPETITION_ID)
+        .single();
+      if (competitionError) throw competitionError;
+      const update = await syncLiveCompetition(supabase, competition);
+      return json({ update });
     }
 
     return json({ error: "Unbekannte Bundesliga-Testaktion." }, 400);

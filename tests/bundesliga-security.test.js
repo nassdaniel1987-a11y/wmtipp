@@ -2,13 +2,16 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   BUNDESLIGA_COMPETITION_ID,
+  BUNDESLIGA_LIVE_PROBE_COMPETITION_ID,
   BUNDESLIGA_SEASON_LABEL,
+  buildCompetitionRanking,
   buildBundesligaMatchDetail,
   buildBundesligaRulesSummary,
   buildMatchdayLive,
   buildTipTrends,
   canViewMatchTips,
   isBundesligaTipLocked,
+  normalizeOpenLigaMatch,
 } from "../netlify/functions/_shared/bundesliga.js";
 
 const kickoff = "2026-08-21T18:30:00.000Z";
@@ -36,6 +39,27 @@ function mockQuery(data) {
 test("live foundation targets a new 2026/27 competition", () => {
   assert.equal(BUNDESLIGA_COMPETITION_ID, "bundesliga-2026");
   assert.equal(BUNDESLIGA_SEASON_LABEL, "2026/2027");
+});
+
+test("relegation live probe is isolated from the season competition", () => {
+  assert.equal(BUNDESLIGA_LIVE_PROBE_COMPETITION_ID, "bundesliga-liveprobe-rel-2026");
+  const normalized = normalizeOpenLigaMatch({
+    matchID: 81659,
+    matchDateTimeUTC: "2026-05-25T18:30:00.000Z",
+    matchIsFinished: false,
+    team1: { teamId: 1, teamName: "SC Paderborn 07" },
+    team2: { teamId: 2, teamName: "VfL Wolfsburg" },
+    goals: [{ goalID: 1, goalGetterName: "Test", matchMinute: 12, scoreTeam1: 1, scoreTeam2: 0 }],
+  }, "rel", 0, {
+    competitionId: BUNDESLIGA_LIVE_PROBE_COMPETITION_ID,
+    phaseOverride: "league",
+    matchdayOverride: 1,
+    now: new Date("2026-05-25T18:45:00.000Z"),
+  });
+  assert.equal(normalized.matchRow.competition_id, BUNDESLIGA_LIVE_PROBE_COMPETITION_ID);
+  assert.equal(normalized.matchRow.phase, "league");
+  assert.equal(normalized.resultRow.status, "live");
+  assert.deepEqual([normalized.resultRow.score_a, normalized.resultRow.score_b], [1, 0]);
 });
 
 test("match tips lock at kickoff independently of public release state", () => {
@@ -84,6 +108,25 @@ test("live payload hides foreign tip existence until visibility opens", () => {
   const visibleLive = buildMatchdayLive([match], participants, tips, [], "self", 1, afterKickoff, ruleSettings);
   assert.deepEqual(visibleLive.matches[0].tips.map((tip) => tip.participantId), ["self", "other"]);
   assert.equal(buildTipTrends(tips, [match], [], afterKickoff, ruleSettings)[0].total, 2);
+});
+
+test("live result exposes provisional points but ranking remains final only", () => {
+  const participants = [{ id: "self", display_name: "Daniel" }];
+  const tips = [{ participant_id: "self", match_id: match.id, score_a: 2, score_b: 1 }];
+  const liveResult = { match_id: match.id, status: "live", score_a: 2, score_b: 1, updated_at: "2026-08-21T18:40:00.000Z" };
+  const rules = { foreign_tips_visible_from: "kickoff", exact_score_points: 4, goal_diff_points: 3, tendency_points: 2 };
+  const live = buildMatchdayLive([match], participants, tips, [liveResult], "self", 1, afterKickoff, rules, [
+    { id: "goal", match_id: match.id, minute: 10, scorer_name: "Test", is_penalty: false, is_own_goal: false },
+  ]);
+  assert.equal(live.matches[0].status, "live");
+  assert.equal(live.matches[0].tips[0].points, 4);
+  assert.equal(live.matches[0].tips[0].provisional, true);
+  assert.match(live.matches[0].tips[0].reason, /vorläufig/);
+  assert.equal(live.matches[0].goals[0].scorerName, "Test");
+
+  const ranking = buildCompetitionRanking(participants, tips, [liveResult], [], null, [], [match], rules);
+  assert.equal(ranking[0].points, 0);
+  assert.equal(ranking[0].scoredTipCount, 0);
 });
 
 test("finished match detail respects tip visibility and derives goal sides", () => {
@@ -143,6 +186,9 @@ test("preview access and personal requests require a validated code", async () =
     (error) => error.status === 409 && /Archivvorschau/.test(error.message),
   );
   assert.equal(requireBundesligaWriteCompetition(new Request("http://localhost")), BUNDESLIGA_COMPETITION_ID);
+  assert.equal(requireBundesligaWriteCompetition(new Request("http://localhost", {
+    headers: { "X-Bundesliga-Competition": BUNDESLIGA_LIVE_PROBE_COMPETITION_ID },
+  })), BUNDESLIGA_LIVE_PROBE_COMPETITION_ID);
   const participant = { id: "self", competition_id: BUNDESLIGA_COMPETITION_ID, display_name: "Daniel", invite_code_id: "code-1" };
   const supabase = {
     from(table) {

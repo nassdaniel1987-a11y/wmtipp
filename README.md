@@ -117,3 +117,10 @@ falls nur der Vite-Server läuft.
   (`ab Anpfiff`, `nach Abpfiff` oder `privat`) statt eines festen Texts.
 - Technische Imports, Freigabeprüfungen und destruktive Aktionen bleiben im
   Bundesliga-Admin; die Veröffentlichung bleibt blockiert, solange Gates offen sind.
+- Laufende Bundesliga-Spiele werden nach dem Deploy automatisiert im kurzen
+  Intervall aktualisiert; `Diagnose & Freigabe` bietet einen Not-Aus und eine
+  manuelle Sofortaktualisierung.
+- Für die verborgene Relegations-Generalprobe muss vorab
+  `supabase/migrations/20260525161036_bundesliga_live_updates_probe.sql`
+  im bestehenden Supabase-Projekt ausgeführt werden. Die Probe läuft in
+  `bundesliga-liveprobe-rel-2026` getrennt von der späteren Saisonbasis.

@@ -228,6 +228,87 @@ test("empty Bundesliga 2026 season shows a clear preseason state", async ({ page
   await expect(page.getByRole("button", { name: "Bonus speichern" })).toHaveCount(0);
 });
 
+test("Bundesliga live page shows provisional score updates and fits compact score controls", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem("bundesliga-tippspiel-participant", JSON.stringify({
+      id: "live-user",
+      name: "Daniel",
+      code: "BL-LIVE",
+      competitionId: "bundesliga-2026",
+    }));
+  });
+  const liveMatch = {
+    id: "live-match",
+    matchday: 1,
+    match_number: 1,
+    phase: "league",
+    kickoff_at: "2026-05-25T18:30:00.000Z",
+    team_a_id: "home",
+    team_b_id: "away",
+    team_a_name: "SC Paderborn 07",
+    team_b_name: "VfL Wolfsburg",
+  };
+  const publicPayload = {
+    competition: { id: "bundesliga-2026", season_label: "2026/2027", public_enabled: false },
+    teams: [
+      { id: "home", name: "SC Paderborn 07", logo_url: "" },
+      { id: "away", name: "VfL Wolfsburg", logo_url: "" },
+    ],
+    matches: [liveMatch],
+    results: [{ match_id: "live-match", score_a: 1, score_b: 0, status: "live" }],
+    topScorers: [],
+    table: [],
+    rulesSummary: { visibilityMode: "kickoff", visibility: "Fremde Tipps werden pro Spiel ab Anpfiff sichtbar." },
+  };
+  await page.route("**/api/bundesliga-public-data", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify(publicPayload) }));
+  await page.route("**/api/bundesliga-tips", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ tips: [{ match_id: "live-match", score_a: 1, score_b: 0 }] }) }));
+  await page.route("**/api/bundesliga-bonus-tips", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ bonusTip: null }) }));
+  await page.route("**/api/bundesliga-ranking", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ ranking: [] }) }));
+  await page.route("**/api/bundesliga-matchday-live**", (route) => route.fulfill({
+    contentType: "application/json",
+    body: JSON.stringify({
+      live: {
+        standings: [{ participantId: "live-user", name: "Daniel", points: 4 }],
+        matches: [{
+          id: "live-match",
+          kickoffAt: liveMatch.kickoff_at,
+          teamA: liveMatch.team_a_name,
+          teamB: liveMatch.team_b_name,
+          result: { score_a: 1, score_b: 0, status: "live" },
+          status: "live",
+          tipsVisible: true,
+          updatedAt: "2026-05-25T18:42:00.000Z",
+          goals: [{ id: "goal-1", minute: 12, scorerName: "Live Torschütze", isPenalty: false, isOwnGoal: false }],
+          tips: [{ participantId: "live-user", participantName: "Daniel", isOwnTip: true, visible: true, scoreA: 1, scoreB: 0, points: 4, reason: "exakt getroffen: 4 Punkte (vorläufig)", provisional: true }],
+        }],
+      },
+      trends: [],
+    }),
+  }));
+
+  await page.goto("/#bundesliga-live");
+  await expect(page.getByText("LIVE · Punkte vorläufig")).toBeVisible();
+  await expect(page.getByText("Live Torschütze")).toBeVisible();
+  await expect(page.getByText(/Zwischenstand und Punkte sind vorläufig/)).toBeVisible();
+
+  for (const width of [390, 360, 320]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/?test=1#bundesliga-tippen");
+    const mobileLayout = await page.locator(".bundesliga-user-match-card").nth(1).locator(".score-control").first().evaluate((control) => {
+      const controlRect = control.getBoundingClientRect();
+      return {
+        buttonsFit: [...control.querySelectorAll("button")].every((button) => {
+          const rect = button.getBoundingClientRect();
+          return rect.top >= controlRect.top - 1 && rect.bottom <= controlRect.bottom + 1;
+        }),
+        bodyOverflows: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+      };
+    });
+    expect(mobileLayout.buttonsFit).toBe(true);
+    expect(mobileLayout.bodyOverflows).toBe(false);
+  }
+});
+
 test("Bundesliga community respects private visibility and mobile more navigation", async ({ page }, testInfo) => {
   let visibilityMode = "never";
   await page.addInitScript(() => {

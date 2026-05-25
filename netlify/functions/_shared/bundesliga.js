@@ -2,9 +2,12 @@ export const BUNDESLIGA_COMPETITION_ID = "bundesliga-2026";
 export const BUNDESLIGA_SEASON_LABEL = "2026/2027";
 export const BUNDESLIGA_PUBLIC_SLUG = "bundesliga-2026";
 export const BUNDESLIGA_ARCHIVE_COMPETITION_ID = "bundesliga-2025";
+export const BUNDESLIGA_LIVE_PROBE_COMPETITION_ID = "bundesliga-liveprobe-rel-2026";
+export const BUNDESLIGA_LIVE_PROBE_MATCH_ID = "81659";
 export const BUNDESLIGA_PREVIEW_COMPETITIONS = Object.freeze({
   [BUNDESLIGA_ARCHIVE_COMPETITION_ID]: { id: BUNDESLIGA_ARCHIVE_COMPETITION_ID, seasonLabel: "2025/2026" },
   [BUNDESLIGA_COMPETITION_ID]: { id: BUNDESLIGA_COMPETITION_ID, seasonLabel: BUNDESLIGA_SEASON_LABEL },
+  [BUNDESLIGA_LIVE_PROBE_COMPETITION_ID]: { id: BUNDESLIGA_LIVE_PROBE_COMPETITION_ID, seasonLabel: "Relegation Liveprobe 2025/2026" },
 });
 export const BUNDESLIGA_SOURCE_SEASON = 2026;
 export const BUNDESLIGA_SOURCE_LEAGUE = "bl1";
@@ -82,6 +85,17 @@ export function pointsFor(tip, result, ruleSettings = defaultBundesligaRuleSetti
   if (tipTrend !== resultTrend) return 0;
   if (tipTrend === 0) return ruleSettings.tendency_points;
   return tipGoalDiff === resultGoalDiff ? ruleSettings.goal_diff_points : ruleSettings.tendency_points;
+}
+
+export function provisionalPointsFor(tip, result, ruleSettings = defaultBundesligaRuleSettings) {
+  if (!result || !["live", "final"].includes(result.status)) return 0;
+  return pointsFor(tip, { ...result, status: "final" }, ruleSettings);
+}
+
+export function explainLivePointsFor(tip, result, ruleSettings = defaultBundesligaRuleSettings) {
+  if (result?.status !== "live") return explainPointsFor(tip, result, ruleSettings);
+  const explanation = explainPointsFor(tip, { ...result, status: "final" }, ruleSettings);
+  return { ...explanation, reason: `${explanation.reason} (vorläufig)`, provisional: true };
 }
 
 export function explainPointsFor(tip, result, ruleSettings = defaultBundesligaRuleSettings) {
@@ -254,6 +268,7 @@ export function canViewMatchTips(match, result = null, now = new Date(), ruleSet
 
 export function getBundesligaMatchStatus(match, result = null, now = new Date(), tipLockMode = "kickoff") {
   if (result?.status === "final") return "finished";
+  if (result?.status === "live") return "live";
   return isBundesligaTipLocked(match, result, now, tipLockMode) ? "locked" : "open";
 }
 
@@ -561,7 +576,7 @@ export function buildCompetitionRanking(participants, tips, results, bonusTips =
   );
 }
 
-export function buildMatchdayLive(matches = [], participants = [], tips = [], results = [], participantId = "", matchday = 1, now = new Date(), ruleSettings = defaultBundesligaRuleSettings) {
+export function buildMatchdayLive(matches = [], participants = [], tips = [], results = [], participantId = "", matchday = 1, now = new Date(), ruleSettings = defaultBundesligaRuleSettings, goals = []) {
   const visibleMatches = (matches ?? []).filter((match) => Number(match.matchday) === Number(matchday));
   const resultsByMatch = new Map((results ?? []).map((result) => [result.match_id, result]));
   const participantsById = new Map((participants ?? []).map((participant) => [participant.id, participant]));
@@ -572,7 +587,8 @@ export function buildMatchdayLive(matches = [], participants = [], tips = [], re
     const match = visibleMatches.find((row) => row.id === tip.match_id);
     return canViewMatchTips(match, resultsByMatch.get(tip.match_id) ?? null, now, ruleSettings);
   });
-  const pointRows = buildMatchdayPointRows(participants, authorizedTips, visibleMatches, results, ruleSettings);
+  const liveScoringResults = (results ?? []).map((result) => result.status === "live" ? { ...result, status: "final" } : result);
+  const pointRows = buildMatchdayPointRows(participants, authorizedTips, visibleMatches, liveScoringResults, ruleSettings);
 
   return {
     matchday: Number(matchday),
@@ -584,7 +600,7 @@ export function buildMatchdayLive(matches = [], participants = [], tips = [], re
         .filter((tip) => tip.match_id === match.id)
         .map((tip) => {
           const isOwnTip = tip.participant_id === participantId;
-          const explanation = explainPointsFor(tip, result, ruleSettings);
+          const explanation = explainLivePointsFor(tip, result, ruleSettings);
           return {
             participantId: tip.participant_id,
             participantName: participantsById.get(tip.participant_id)?.display_name ?? "Teilnehmer",
@@ -592,8 +608,9 @@ export function buildMatchdayLive(matches = [], participants = [], tips = [], re
             visible: visible || isOwnTip,
             scoreA: visible || isOwnTip ? tip.score_a : null,
             scoreB: visible || isOwnTip ? tip.score_b : null,
-            points: result?.status === "final" && (visible || isOwnTip) ? explanation.points : null,
-            reason: result?.status === "final" && (visible || isOwnTip) ? explanation.reason : null,
+            points: ["live", "final"].includes(result?.status) && (visible || isOwnTip) ? explanation.points : null,
+            reason: ["live", "final"].includes(result?.status) && (visible || isOwnTip) ? explanation.reason : null,
+            provisional: result?.status === "live",
           };
         });
       return {
@@ -606,6 +623,17 @@ export function buildMatchdayLive(matches = [], participants = [], tips = [], re
         status: getBundesligaMatchStatus(match, result, now),
         tipsVisible: visible,
         tips: matchTips,
+        goals: (goals ?? [])
+          .filter((goal) => goal.match_id === match.id)
+          .sort((first, second) => (Number(first.minute) || 999) - (Number(second.minute) || 999))
+          .map((goal) => ({
+            id: goal.id ?? goal.external_goal_id,
+            minute: goal.minute,
+            scorerName: goal.scorer_name,
+            isPenalty: Boolean(goal.is_penalty),
+            isOwnGoal: Boolean(goal.is_own_goal),
+          })),
+        updatedAt: result?.updated_at ?? match.updated_at ?? null,
       };
     }),
   };
@@ -724,22 +752,44 @@ export function normalizeGoalgetter(row, existing = null) {
   };
 }
 
-export function normalizeOpenLigaMatch(match, leagueShortcut, indexOffset = 0) {
+export function getOpenLigaCurrentScore(match, now = new Date()) {
+  const kickoff = new Date(match.matchDateTimeUTC || match.matchDateTime);
+  const started = !Number.isNaN(kickoff.getTime()) && kickoff <= now;
+  if (!started) return null;
+  const finalScore = getFinalScore(match);
+  if (match.matchIsFinished && finalScore) return { ...finalScore, status: "final" };
+  const orderedGoals = [...(match.goals ?? [])].sort((first, second) =>
+    (Number(first.matchMinute) || 0) - (Number(second.matchMinute) || 0)
+  );
+  const latestGoal = orderedGoals[orderedGoals.length - 1];
+  const resultCandidates = [...(match.matchResults ?? [])].sort((first, second) =>
+    (second.resultOrderID ?? 0) - (first.resultOrderID ?? 0)
+  );
+  const current = latestGoal && Number.isInteger(latestGoal.scoreTeam1) && Number.isInteger(latestGoal.scoreTeam2)
+    ? { pointsTeam1: latestGoal.scoreTeam1, pointsTeam2: latestGoal.scoreTeam2 }
+    : resultCandidates.find((result) => Number.isInteger(result.pointsTeam1) && Number.isInteger(result.pointsTeam2));
+  return { pointsTeam1: current?.pointsTeam1 ?? 0, pointsTeam2: current?.pointsTeam2 ?? 0, status: "live" };
+}
+
+export function normalizeOpenLigaMatch(match, leagueShortcut, indexOffset = 0, options = {}) {
+  const competitionId = options.competitionId ?? BUNDESLIGA_COMPETITION_ID;
   const kickoff = match.matchDateTimeUTC || match.matchDateTime;
   const date = new Date(kickoff);
   const externalId = String(match.matchID);
   const matchday = Number(match.group?.groupOrderID ?? 0);
-  const finalScore = getFinalScore(match);
+  const currentScore = getOpenLigaCurrentScore(match, options.now ?? new Date());
   const isRelegation = leagueShortcut === BUNDESLIGA_RELEGATION_LEAGUE;
+  const phase = options.phaseOverride ?? (isRelegation ? "relegation" : "league");
+  const normalizedMatchday = options.matchdayOverride ?? matchday;
 
   return {
     matchRow: {
-      id: `${BUNDESLIGA_COMPETITION_ID}-${leagueShortcut}-${externalId}`,
-      competition_id: BUNDESLIGA_COMPETITION_ID,
+      id: `${competitionId}-${leagueShortcut}-${externalId}`,
+      competition_id: competitionId,
       external_id: `${leagueShortcut}-${externalId}`,
       match_number: isRelegation ? 1000 + indexOffset + 1 : indexOffset + 1,
-      matchday,
-      phase: isRelegation ? "relegation" : "league",
+      matchday: normalizedMatchday,
+      phase,
       kickoff_at: Number.isNaN(date.getTime()) ? null : date.toISOString(),
       match_date: Number.isNaN(date.getTime()) ? new Date().toISOString().slice(0, 10) : date.toISOString().slice(0, 10),
       match_time: Number.isNaN(date.getTime()) ? "00:00" : date.toISOString().slice(11, 16),
@@ -750,7 +800,7 @@ export function normalizeOpenLigaMatch(match, leagueShortcut, indexOffset = 0) {
       updated_at: new Date().toISOString(),
     },
     homeTeam: {
-      competition_id: BUNDESLIGA_COMPETITION_ID,
+      competition_id: competitionId,
       external_id: String(match.team1?.teamId ?? `${externalId}-home`),
       name: match.team1?.teamName ?? "Heimteam",
       short_name: match.team1?.shortName ?? null,
@@ -758,26 +808,26 @@ export function normalizeOpenLigaMatch(match, leagueShortcut, indexOffset = 0) {
       updated_at: new Date().toISOString(),
     },
     awayTeam: {
-      competition_id: BUNDESLIGA_COMPETITION_ID,
+      competition_id: competitionId,
       external_id: String(match.team2?.teamId ?? `${externalId}-away`),
       name: match.team2?.teamName ?? "Auswärtsteam",
       short_name: match.team2?.shortName ?? null,
       logo_url: normalizeTeamLogoUrl(match.team2?.teamIconUrl),
       updated_at: new Date().toISOString(),
     },
-    resultRow: finalScore && match.matchIsFinished
+    resultRow: currentScore
       ? {
-          match_id: `${BUNDESLIGA_COMPETITION_ID}-${leagueShortcut}-${externalId}`,
-          competition_id: BUNDESLIGA_COMPETITION_ID,
-          score_a: finalScore.pointsTeam1,
-          score_b: finalScore.pointsTeam2,
-          status: "final",
+          match_id: `${competitionId}-${leagueShortcut}-${externalId}`,
+          competition_id: competitionId,
+          score_a: currentScore.pointsTeam1,
+          score_b: currentScore.pointsTeam2,
+          status: currentScore.status,
           updated_at: new Date().toISOString(),
         }
       : null,
     goals: (match.goals ?? []).map((goal, goalIndex) => ({
-      competition_id: BUNDESLIGA_COMPETITION_ID,
-      match_id: `${BUNDESLIGA_COMPETITION_ID}-${leagueShortcut}-${externalId}`,
+      competition_id: competitionId,
+      match_id: `${competitionId}-${leagueShortcut}-${externalId}`,
       external_goal_id: goal.goalID ? String(goal.goalID) : `${leagueShortcut}-${externalId}-${goalIndex}`,
       scorer_name: String(goal.goalGetterName || "").trim() || "Unbekannt",
       scorer_external_id: goal.goalGetterID ? String(goal.goalGetterID) : null,
