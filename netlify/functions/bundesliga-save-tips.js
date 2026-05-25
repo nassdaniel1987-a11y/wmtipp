@@ -1,6 +1,6 @@
 import { getServiceClient, json } from "./_shared/supabase.js";
 import { isBundesligaTipLocked } from "./_shared/bundesliga.js";
-import { BundesligaHttpError, bundesligaErrorResponse, resolveBundesligaParticipant, resolveRequestedBundesligaCompetition } from "./_shared/bundesliga-access.js";
+import { BundesligaHttpError, bundesligaErrorResponse, requireBundesligaWriteCompetition, resolveBundesligaParticipant } from "./_shared/bundesliga-access.js";
 
 export default async (req) => {
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -9,7 +9,7 @@ export default async (req) => {
     const { tips } = await req.json();
     if (!Array.isArray(tips)) return json({ error: "Tipps sind erforderlich." }, 400);
     const supabase = getServiceClient();
-    const competitionId = resolveRequestedBundesligaCompetition(req);
+    const competitionId = requireBundesligaWriteCompetition(req);
     const participant = await resolveBundesligaParticipant(req, supabase, { required: true, competitionId });
     const rows = tips.map((tip) => ({
       competition_id: competitionId,

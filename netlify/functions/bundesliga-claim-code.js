@@ -1,5 +1,5 @@
 import { getServiceClient, json, normalizeCode } from "./_shared/supabase.js";
-import { resolveRequestedBundesligaCompetition } from "./_shared/bundesliga-access.js";
+import { bundesligaErrorResponse, requireBundesligaWriteCompetition } from "./_shared/bundesliga-access.js";
 
 export default async (req) => {
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -11,7 +11,7 @@ export default async (req) => {
     if (!cleanCode || displayName.length < 2) return json({ error: "Code und Name sind erforderlich." }, 400);
 
     const supabase = getServiceClient();
-    const competitionId = resolveRequestedBundesligaCompetition(req);
+    const competitionId = requireBundesligaWriteCompetition(req);
     const { data: invite, error: inviteError } = await supabase
       .from("competition_invite_codes")
       .select("id, code, status, participant_id")
@@ -46,7 +46,7 @@ export default async (req) => {
 
     return json({ participant, code: cleanCode, alreadyClaimed: false });
   } catch (error) {
-    return json({ error: error.message || "Bundesliga-Code konnte nicht aktiviert werden." }, 500);
+    return bundesligaErrorResponse(error, "Bundesliga-Code konnte nicht aktiviert werden.");
   }
 };
 

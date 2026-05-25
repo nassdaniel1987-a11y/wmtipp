@@ -1,4 +1,5 @@
 import {
+  BUNDESLIGA_ARCHIVE_COMPETITION_ID,
   BUNDESLIGA_COMPETITION_ID,
   getBundesligaSeasonLabel,
   isBundesligaCompetitionId,
@@ -22,6 +23,14 @@ export function bundesligaErrorResponse(error, fallbackMessage) {
 export function resolveRequestedBundesligaCompetition(req) {
   const requested = String(req.headers.get(BUNDESLIGA_COMPETITION_HEADER) || "").trim();
   return isBundesligaCompetitionId(requested) ? requested : BUNDESLIGA_COMPETITION_ID;
+}
+
+export function requireBundesligaWriteCompetition(req) {
+  const competitionId = resolveRequestedBundesligaCompetition(req);
+  if (competitionId === BUNDESLIGA_ARCHIVE_COMPETITION_ID) {
+    throw new BundesligaHttpError("Die Archivvorschau 2025/2026 ist schreibgeschützt. Änderungen sind nur in 2026/2027 möglich.", 409);
+  }
+  return competitionId;
 }
 
 export async function loadBundesligaCompetition(supabase, competitionId = BUNDESLIGA_COMPETITION_ID) {

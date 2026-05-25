@@ -1,8 +1,9 @@
 export const BUNDESLIGA_COMPETITION_ID = "bundesliga-2026";
 export const BUNDESLIGA_SEASON_LABEL = "2026/2027";
 export const BUNDESLIGA_PUBLIC_SLUG = "bundesliga-2026";
+export const BUNDESLIGA_ARCHIVE_COMPETITION_ID = "bundesliga-2025";
 export const BUNDESLIGA_PREVIEW_COMPETITIONS = Object.freeze({
-  "bundesliga-2025": { id: "bundesliga-2025", seasonLabel: "2025/2026" },
+  [BUNDESLIGA_ARCHIVE_COMPETITION_ID]: { id: BUNDESLIGA_ARCHIVE_COMPETITION_ID, seasonLabel: "2025/2026" },
   [BUNDESLIGA_COMPETITION_ID]: { id: BUNDESLIGA_COMPETITION_ID, seasonLabel: BUNDESLIGA_SEASON_LABEL },
 });
 export const BUNDESLIGA_SOURCE_SEASON = 2026;

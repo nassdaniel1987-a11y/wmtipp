@@ -39,10 +39,7 @@ import { displayTeamName } from "./teamNames.js";
 const STORAGE_KEY = "wm-tippspiel-participant";
 const BUNDESLIGA_STORAGE_KEY = "bundesliga-tippspiel-participant";
 const BUNDESLIGA_DEFAULT_COMPETITION_ID = "bundesliga-2026";
-const BUNDESLIGA_PREVIEW_OPTIONS = [
-  { id: "bundesliga-2025", label: "Testdaten 25/26", season: "2025/2026", purpose: "bestehende Testbasis" },
-  { id: BUNDESLIGA_DEFAULT_COMPETITION_ID, label: "Live-Vorbereitung 26/27", season: "2026/2027", purpose: "frische Releasebasis" },
-];
+const BUNDESLIGA_ARCHIVE_COMPETITION_ID = "bundesliga-2025";
 const BUNDESLIGA_BRAND_ASSETS = {
   header: "/brand/bundesliga/logo-header.png",
   compact: "/brand/bundesliga/logo-compact.png",
@@ -189,9 +186,7 @@ function getBundesligaTabFromHash() {
 
 function getBundesligaCompetitionFromUrl() {
   const requested = new URLSearchParams(window.location.search).get("blCompetition");
-  return BUNDESLIGA_PREVIEW_OPTIONS.some((option) => option.id === requested)
-    ? requested
-    : BUNDESLIGA_DEFAULT_COMPETITION_ID;
+  return requested === BUNDESLIGA_ARCHIVE_COMPETITION_ID ? requested : BUNDESLIGA_DEFAULT_COMPETITION_ID;
 }
 
 function isBundesligaRoute() {
@@ -4397,7 +4392,7 @@ function BundesligaParticipantApp({ isTestMode }) {
     const savedCompetitionId = saved.competitionId ?? BUNDESLIGA_DEFAULT_COMPETITION_ID;
     return savedCompetitionId === selectedCompetitionAtLoad ? { ...saved, competitionId: savedCompetitionId } : null;
   }, [selectedCompetitionAtLoad]);
-  const [competitionId, setCompetitionId] = useState(selectedCompetitionAtLoad);
+  const competitionId = selectedCompetitionAtLoad;
   const [activeTab, setActiveTab] = useState(getBundesligaTabFromHash);
   const [data, setData] = useState(() => (isTestMode ? createTestBundesligaData() : null));
   const [participant, setParticipant] = useState(() => (isTestMode ? { id: "bl-test", name: "Daniel BL", code: "BL-TEST" } : savedParticipant));
@@ -4408,7 +4403,7 @@ function BundesligaParticipantApp({ isTestMode }) {
     isTestMode || savedParticipant ? "success" : code ? "checking" : "idle"
   ));
   const [loginFeedback, setLoginFeedback] = useState(() => (
-    isTestMode ? "Bundesliga-Testmodus aktiv." : savedParticipant ? "Login gespeichert." : code ? "Code wird geprüft..." : "Gib deinen Bundesliga-Code ein."
+    isTestMode ? "Bundesliga-Testmodus aktiv." : savedParticipant ? "Login gespeichert." : code ? "Code wird geprüft..." : selectedCompetitionAtLoad === BUNDESLIGA_ARCHIVE_COMPETITION_ID ? "Archivvorschau: Bitte mit einem bereits zugeordneten Code anmelden." : "Gib deinen Bundesliga-Code ein."
   ));
   const [tips, setTips] = useState({});
   const [bonusTip, setBonusTip] = useState(createBundesligaBonusTip());
@@ -4450,8 +4445,8 @@ function BundesligaParticipantApp({ isTestMode }) {
   };
   const bonusStatus = buildBundesligaBonusStatus(bonusTip);
   const rulesSummary = data?.rulesSummary;
-  const bonusLocked = Boolean(rulesSummary?.bonusDeadlineAt && new Date(rulesSummary.bonusDeadlineAt) <= new Date());
-  const selectedCompetition = BUNDESLIGA_PREVIEW_OPTIONS.find((option) => option.id === competitionId) ?? BUNDESLIGA_PREVIEW_OPTIONS[1];
+  const archivePreview = competitionId === BUNDESLIGA_ARCHIVE_COMPETITION_ID;
+  const bonusLocked = archivePreview || Boolean(rulesSummary?.bonusDeadlineAt && new Date(rulesSummary.bonusDeadlineAt) <= new Date());
 
   function accessHeaders(activeCode = participant?.code) {
     return {
@@ -4526,6 +4521,9 @@ function BundesligaParticipantApp({ isTestMode }) {
           window.localStorage.setItem(BUNDESLIGA_STORAGE_KEY, JSON.stringify(saved));
           setLoginState("success");
           setLoginFeedback(`Willkommen zurück, ${saved.name}.`);
+        } else if (payload.codeStatus === "free" && archivePreview) {
+          setLoginState("error");
+          setLoginFeedback("Archivvorschau: Nur bereits zugeordnete Codes können vorhandene Stände ansehen.");
         } else if (payload.codeStatus === "free") {
           setLoginState("needsName");
           setLoginFeedback("Code erkannt. Jetzt fehlt nur dein Name.");
@@ -4541,7 +4539,7 @@ function BundesligaParticipantApp({ isTestMode }) {
       }
     }
     resolveParticipant();
-  }, [code, participant?.id, isTestMode, competitionId]);
+  }, [code, participant?.id, isTestMode, competitionId, archivePreview]);
 
   useEffect(() => {
     async function loadParticipantState() {
@@ -4606,12 +4604,12 @@ function BundesligaParticipantApp({ isTestMode }) {
   }, [tipStatuses, participant?.id]);
 
   useEffect(() => {
-    if (!participant?.id || !bonusDirty || bonusTip.saved) return undefined;
+    if (!participant?.id || !bonusDirty || bonusTip.saved || archivePreview) return undefined;
     const timer = window.setTimeout(() => {
       void saveBonus(bonusRef.current, { auto: true });
     }, AUTO_SAVE_DELAY_MS);
     return () => window.clearTimeout(timer);
-  }, [bonusTip, bonusDirty, participant?.id]);
+  }, [bonusTip, bonusDirty, participant?.id, archivePreview]);
 
   function setBundesligaTab(tabId) {
     if (!bundesligaTabIds.has(tabId)) return;
@@ -4657,6 +4655,10 @@ function BundesligaParticipantApp({ isTestMode }) {
         setLoginState("success");
         setLoginFeedback(`Login erfolgreich. Willkommen zurück, ${saved.name}.`);
         setMessage("Bundesliga-Login erfolgreich.");
+      } else if (payload.codeStatus === "free" && archivePreview) {
+        setLoginState("error");
+        setLoginFeedback("Archivvorschau: Dieser freie Code kann hier nicht aktiviert werden.");
+        setMessage("Archivvorschau: Änderungen sind nicht möglich.");
       } else if (payload.codeStatus === "free") {
         setLoginState("needsName");
         setLoginFeedback("Code erkannt. Trag deinen Namen ein, dann ist dein Bereich bereit.");
@@ -4678,6 +4680,11 @@ function BundesligaParticipantApp({ isTestMode }) {
     event.preventDefault();
     if (!code.trim() || name.trim().length < 2) return;
     if (isTestMode) return;
+    if (archivePreview) {
+      setLoginState("error");
+      setLoginFeedback("Archivvorschau: Neue Zugänge werden nur für 2026/2027 aktiviert.");
+      return;
+    }
     setLoginState("submitting");
     setLoginFeedback("Dein Bundesliga-Zugang wird angelegt...");
     try {
@@ -4704,7 +4711,7 @@ function BundesligaParticipantApp({ isTestMode }) {
     setName("");
     setCodeStatus("missing");
     setLoginState("idle");
-    setLoginFeedback("Gib deinen Bundesliga-Code ein.");
+    setLoginFeedback(archivePreview ? "Archivvorschau: Bitte mit einem bereits zugeordneten Code anmelden." : "Gib deinen Bundesliga-Code ein.");
     setTips(createInitialTips(matches));
     setBonusTip(createBundesligaBonusTip());
     setBonusDirty(false);
@@ -4717,37 +4724,11 @@ function BundesligaParticipantApp({ isTestMode }) {
     setBundesligaTab("bundesliga-start");
   }
 
-  function switchBundesligaCompetition(nextCompetitionId) {
-    if (nextCompetitionId === competitionId) return;
-    const target = BUNDESLIGA_PREVIEW_OPTIONS.find((option) => option.id === nextCompetitionId);
-    if (!target) return;
-    const url = new URL(window.location.href);
-    url.searchParams.set("blCompetition", nextCompetitionId);
-    url.searchParams.delete("blCode");
-    window.history.replaceState({}, "", `${url.pathname}${url.search}#bundesliga-start`);
-    window.localStorage.removeItem(BUNDESLIGA_STORAGE_KEY);
-    setCompetitionId(nextCompetitionId);
-    setParticipant(null);
-    setCode("");
-    setName("");
-    setCodeStatus("missing");
-    setLoginState("idle");
-    setLoginFeedback(`Datenbasis ${target.season} gewählt. Bitte mit einem Code dieser Saison einloggen.`);
-    setData(null);
-    setTips({});
-    setBonusTip(createBundesligaBonusTip());
-    setBonusDirty(false);
-    setRanking([]);
-    setPersonalStats(null);
-    setMatchdayWinners([]);
-    setLiveData(null);
-    setLiveTrends([]);
-    setMessage(`${target.label} ausgewählt.`);
-    setActiveTab("bundesliga-start");
-    window.scrollTo(0, 0);
-  }
-
   function changeScore(matchId, side, delta) {
+    if (archivePreview) {
+      setMessage("Archivvorschau: Änderungen sind nicht möglich.");
+      return;
+    }
     setTips((current) => ({
       ...current,
       [matchId]: {
@@ -4762,6 +4743,10 @@ function BundesligaParticipantApp({ isTestMode }) {
   async function saveTipRows(matchIds, sourceTips = tipsRef.current) {
     if (!participant?.id) {
       setMessage("Bitte zuerst Bundesliga-Code aktivieren.");
+      return;
+    }
+    if (archivePreview) {
+      setMessage("Archivvorschau: Änderungen sind nicht möglich.");
       return;
     }
     const completeIds = matchIds.filter((matchId) => isCompleteTip(sourceTips[matchId]));
@@ -4814,6 +4799,10 @@ function BundesligaParticipantApp({ isTestMode }) {
   }
 
   function updateBonus(patch) {
+    if (archivePreview) {
+      setMessage("Archivvorschau: Änderungen sind nicht möglich.");
+      return;
+    }
     if (bonusLocked) {
       setMessage("Die Bundesliga-Bonusfrist ist abgelaufen.");
       return;
@@ -4857,6 +4846,10 @@ function BundesligaParticipantApp({ isTestMode }) {
   async function saveBonus(source = bonusRef.current, { auto = false } = {}) {
     if (!participant?.id) {
       setMessage("Bitte zuerst Bundesliga-Code aktivieren.");
+      return;
+    }
+    if (archivePreview) {
+      setMessage("Archivvorschau: Änderungen sind nicht möglich.");
       return;
     }
     if (isTestMode) {
@@ -4931,7 +4924,12 @@ function BundesligaParticipantApp({ isTestMode }) {
     let detail = "Logge dich ein, damit deine Zentrale personalisiert wird.";
     let actionLabel = "Zum Login";
     let action = () => setBundesligaTab("bundesliga-start");
-    if (participant && openTipCount > 0) {
+    if (participant && archivePreview) {
+      title = "Archivstand ansehen";
+      detail = "Dieser Saisonstand ist schreibgeschützt. Ergebnisse, Rangliste und gespeicherte Tipps bleiben einsehbar.";
+      actionLabel = "Rangliste ansehen";
+      action = () => setBundesligaTab("bundesliga-rangliste");
+    } else if (participant && openTipCount > 0) {
       title = `Spieltag ${nextOpenMatchday} tippen`;
       detail = `${openTipCount} Tipps sind noch offen. Der nächste offene Spieltag wartet schon.`;
       actionLabel = "Tipps öffnen";
@@ -4975,7 +4973,7 @@ function BundesligaParticipantApp({ isTestMode }) {
           <span className={bonusStatus.relegatedDoneCount === 3 ? "done" : ""}>Absteiger {bonusStatus.relegatedDoneCount}/3</span>
         </div>
         <button type="button" onClick={() => setBundesligaTab("bundesliga-bonus")}>
-          Bonus öffnen
+          {archivePreview ? "Bonus ansehen" : "Bonus öffnen"}
         </button>
       </section>
     );
@@ -5026,8 +5024,14 @@ function BundesligaParticipantApp({ isTestMode }) {
           <span>{selectedMatchdayStatus.finishedCount} ausgewertet</span>
         </div>
         <div className="bundesliga-matchday-actions">
-          <button type="button" onClick={saveVisibleMatchdayTips}>Alle Tipps dieses Spieltags speichern</button>
-          <button type="button" className="secondary" onClick={jumpToFirstOpenTip}>Zum nächsten offenen Tipp</button>
+          {archivePreview ? (
+            <span>Archivstand - keine Speicherung möglich.</span>
+          ) : (
+            <>
+              <button type="button" onClick={saveVisibleMatchdayTips}>Alle Tipps dieses Spieltags speichern</button>
+              <button type="button" className="secondary" onClick={jumpToFirstOpenTip}>Zum nächsten offenen Tipp</button>
+            </>
+          )}
         </div>
       </section>
     );
@@ -5113,7 +5117,7 @@ function BundesligaParticipantApp({ isTestMode }) {
             <small>{bonusStatus.complete ? "Bonus vollständig" : "Meister, Torschütze oder Absteiger fehlen noch"}</small>
           </article>
         </div>
-        {!compact && (
+        {!compact && !archivePreview && (
           <button type="button" onClick={jumpToFirstOpenTip}>
             nächsten offenen Tipp anzeigen
           </button>
@@ -5294,7 +5298,7 @@ function BundesligaParticipantApp({ isTestMode }) {
             <h1>Torschützenliste</h1>
             <p>Die importierte OpenLigaDB-Liste für Torschützenkönig und Saisonüberblick.</p>
           </div>
-          <button type="button" onClick={() => setBundesligaTab("bundesliga-bonus")}>Bonus öffnen</button>
+          <button type="button" onClick={() => setBundesligaTab("bundesliga-bonus")}>{archivePreview ? "Bonus ansehen" : "Bonus öffnen"}</button>
         </section>
         <section className="bundesliga-public-card bundesliga-scorer-page-list">
           {topScorers.map((row, index) => (
@@ -5346,7 +5350,7 @@ function BundesligaParticipantApp({ isTestMode }) {
                   {matchStatusLabel(match, result, tip)}
                 </span>
                 <button type="button" onClick={() => setBundesligaTab("bundesliga-tippen")}>
-                  {result?.status === "final" ? "Auswertung ansehen" : tip?.saved ? "Tipp bearbeiten" : state === "locked" ? "Details ansehen" : "Tipp abgeben"}
+                  {archivePreview ? "Details ansehen" : result?.status === "final" ? "Auswertung ansehen" : tip?.saved ? "Tipp bearbeiten" : state === "locked" ? "Details ansehen" : "Tipp abgeben"}
                 </button>
               </article>
             );
@@ -5436,26 +5440,10 @@ function BundesligaParticipantApp({ isTestMode }) {
       </header>
 
       <main className="bundesliga-public-main">
-        {!isTestMode && (
-          <section className="bundesliga-preview-season-bar" aria-label="Bundesliga Datenbasis">
-            <div>
-              <span>Datenbasis</span>
-              <strong>{selectedCompetition.season}</strong>
-              <small>{selectedCompetition.purpose}</small>
-            </div>
-            <div role="group" aria-label="Saison zum Testen wählen">
-              {BUNDESLIGA_PREVIEW_OPTIONS.map((option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  className={option.id === competitionId ? "active" : ""}
-                  aria-pressed={option.id === competitionId}
-                  onClick={() => switchBundesligaCompetition(option.id)}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
+        {archivePreview && (
+          <section className="bundesliga-archive-banner" aria-live="polite">
+            <strong>Interne Archivvorschau 2025/2026</strong>
+            <span>Nur lesbar. Neue Codes, Tipps und Bonusänderungen laufen ausschließlich in 2026/2027.</span>
           </section>
         )}
         {displayedTab !== "bundesliga-start" && (
@@ -5589,7 +5577,7 @@ function BundesligaParticipantApp({ isTestMode }) {
               <div className="bundesliga-public-section-head">
                 <div>
                   <h2>Spieltag tippen</h2>
-                  <p>{visibleMatches.length} Spiele am {selectedMatchday}. Spieltag · {visibleSavedTipCount} gespeichert</p>
+                  <p>{archivePreview ? "Archivvorschau - Änderungen nicht möglich" : `${visibleMatches.length} Spiele am ${selectedMatchday}. Spieltag · ${visibleSavedTipCount} gespeichert`}</p>
                 </div>
                 <div className="bundesliga-matchday-switcher" aria-label="Spieltag wechseln">
                   <button type="button" onClick={() => moveMatchday(-1)} disabled={selectedMatchdayIndex <= 0}>
@@ -5617,8 +5605,8 @@ function BundesligaParticipantApp({ isTestMode }) {
                   const tip = tips[match.id] ?? { scoreA: null, scoreB: null, saved: false };
                   const result = resultsByMatch.get(match.id);
                   const matchState = getBundesligaMatchState(match, result);
-                  const tipLocked = !isTestMode && matchState !== "open";
-                  const showTipControls = matchState === "open" || (isTestMode && matchState !== "finished");
+                  const tipLocked = archivePreview || (!isTestMode && matchState !== "open");
+                  const showTipControls = !archivePreview && (matchState === "open" || (isTestMode && matchState !== "finished"));
                   const points = result?.status === "final" && tip.saved ? pointsFor(tip, result) : null;
                   const statusLabel = matchStatusLabel(match, result, tip);
                   const statusClass = result?.status === "final" ? "finished" : tip?.saved ? "saved" : matchState;
@@ -5699,9 +5687,9 @@ function BundesligaParticipantApp({ isTestMode }) {
               <div className="bundesliga-public-section-head">
                 <div>
                   <h2>Bonus tippen</h2>
-                  <p>Meister, Torschützenkönig und drei Absteiger wählen.</p>
+                  <p>{archivePreview ? "Archivvorschau - Änderungen nicht möglich" : "Meister, Torschützenkönig und drei Absteiger wählen."}</p>
                 </div>
-                <button type="button" onClick={() => saveBonus()} disabled={bonusLocked}>{bonusLocked ? "Bonusfrist abgelaufen" : "Bonus speichern"}</button>
+                <button type="button" onClick={() => saveBonus()} disabled={bonusLocked}>{archivePreview ? "Nur lesbar" : bonusLocked ? "Bonusfrist abgelaufen" : "Bonus speichern"}</button>
               </div>
               {renderBonusProgress()}
               <section className="bundesliga-choice-section">
@@ -7371,7 +7359,8 @@ function BundesligaAdminArea({
           <span><strong>{dataQuality.topScorerCount ?? topScorerRows.length}</strong> Torschützen</span>
           {dataQuality.lastTopScorerImportAt && <span><strong>{formatDateTime(dataQuality.lastTopScorerImportAt)}</strong> letzter Torschützen-Import</span>}
           <button type="button" onClick={onRefresh} disabled={loading}>Aktualisieren</button>
-          <button type="button" onClick={() => openBundesligaPreview("bundesliga-2025")}>Testansicht 25/26 öffnen</button>
+          <span><strong>2026/2027 aktiv</strong> neue Codes und Tests</span>
+          <button type="button" onClick={() => openBundesligaPreview(BUNDESLIGA_ARCHIVE_COMPETITION_ID)}>Archivvorschau 25/26 öffnen</button>
           <button type="button" onClick={() => openBundesligaPreview(BUNDESLIGA_DEFAULT_COMPETITION_ID)}>Teilnehmeransicht 26/27 öffnen</button>
         </section>
 

@@ -68,6 +68,7 @@ test("new unsaved tips start empty and can become an active zero", async ({ page
 test("hidden Bundesliga test flow supports tips, bonus and ranking", async ({ page }) => {
   await page.goto("/?test=1#bundesliga-start");
 
+  await expect(page.locator(".bundesliga-archive-banner")).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Hallo Daniel BL" })).toBeVisible();
   await expect(page.getByText("Zugang aktiv")).toBeVisible();
   await expect(page.getByRole("button", { name: "Abmelden" })).toBeVisible();
@@ -129,37 +130,18 @@ test("Bundesliga logout returns to the focused code login", async ({ page }) => 
   await expect(page.getByRole("heading", { name: "Bundesliga starten" })).toBeVisible();
 });
 
-test("Bundesliga preview can switch between test and release data bases", async ({ page }) => {
-  const competitionHeaders = [];
-  await page.route("**/api/bundesliga-public-data", async (route) => {
-    competitionHeaders.push(route.request().headers()["x-bundesliga-competition"]);
-    await route.fulfill({
-      json: {
-        competition: { id: "bundesliga-2026", season_label: "2026/2027", public_enabled: false },
-        teams: [],
-        matches: [],
-        results: [],
-        topScorers: [],
-        bonusResults: null,
-        ruleSettings: {},
-        table: [],
-        matchdayStatus: [],
-        bonusStatus: {},
-        rulesSummary: {},
-        importStatus: {},
-      },
-    });
-  });
-  await page.route("**/api/bundesliga-ranking", async (route) => route.fulfill({ json: { ranking: [] } }));
+test("Bundesliga archive preview is visibly read-only", async ({ page }) => {
+  await page.goto("/?test=1&blCompetition=bundesliga-2025#bundesliga-start");
 
-  await page.goto("/#bundesliga-start");
-  await expect(page.getByRole("button", { name: "Live-Vorbereitung 26/27" })).toHaveAttribute("aria-pressed", "true");
-  await page.getByRole("button", { name: "Testdaten 25/26" }).click();
+  await expect(page.getByText("Interne Archivvorschau 2025/2026")).toBeVisible();
+  await expect(page.getByText("Nur lesbar. Neue Codes, Tipps und Bonusänderungen laufen ausschließlich in 2026/2027.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Testdaten 25/26" })).toHaveCount(0);
 
-  await expect(page).toHaveURL(/blCompetition=bundesliga-2025/);
-  await expect(page.getByRole("button", { name: "Testdaten 25/26" })).toHaveAttribute("aria-pressed", "true");
-  const dataBasisBar = page.locator(".bundesliga-preview-season-bar");
-  await expect(dataBasisBar.getByText("2025/2026")).toBeVisible();
-  await expect(dataBasisBar.getByText("bestehende Testbasis")).toBeVisible();
-  await expect.poll(() => competitionHeaders).toContain("bundesliga-2025");
+  await page.getByRole("button", { name: "Tippen", exact: true }).click();
+  await expect(page.getByText("Archivvorschau - Änderungen nicht möglich")).toBeVisible();
+  await expect(page.locator(".bundesliga-user-match-card .score-control")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Tipp speichern" })).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Bonus", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Nur lesbar" })).toBeDisabled();
 });

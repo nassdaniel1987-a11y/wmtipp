@@ -5675,64 +5675,25 @@ tbody tr:nth-child(1) td:first-child {
   padding: 22px 0 48px;
 }
 
-.bundesliga-preview-season-bar {
+.bundesliga-archive-banner {
   display: flex;
-  justify-content: space-between;
   align-items: center;
   gap: 16px;
   padding: 10px 12px;
-  border: 1px solid var(--bl-line);
+  border: 1px solid rgba(207, 158, 61, 0.45);
   border-radius: 8px;
-  background: rgba(19, 24, 29, 0.88);
+  background: rgba(75, 56, 20, 0.28);
 }
 
-.bundesliga-preview-season-bar > div:first-child {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  min-width: 0;
-}
-
-.bundesliga-preview-season-bar span {
-  color: var(--bl-muted);
-  font-size: 0.78rem;
-  text-transform: uppercase;
-}
-
-.bundesliga-preview-season-bar strong {
+.bundesliga-archive-banner strong {
   color: var(--bl-text);
   font-size: 0.96rem;
+  white-space: nowrap;
 }
 
-.bundesliga-preview-season-bar small {
+.bundesliga-archive-banner span {
   color: var(--bl-muted);
-}
-
-.bundesliga-preview-season-bar > div:last-child {
-  display: flex;
-  flex: 0 0 auto;
-  gap: 6px;
-}
-
-.bundesliga-preview-season-bar button {
-  min-height: 38px;
-  padding: 0 12px;
-  border: 1px solid var(--bl-line);
-  border-radius: 6px;
-  color: var(--bl-muted);
-  background: #10151a;
-}
-
-.bundesliga-preview-season-bar button.active {
-  border-color: var(--bl-red);
-  color: var(--bl-text);
-  background: rgba(223, 47, 40, 0.2);
-}
-
-.bundesliga-preview-season-bar button:hover,
-.bundesliga-preview-season-bar button:focus-visible {
-  border-color: var(--bl-red);
-  color: var(--bl-text);
+  font-size: 0.9rem;
 }
 
 .bundesliga-public-status {
@@ -6318,6 +6279,15 @@ tbody tr:nth-child(1) td:first-child {
   display: flex;
   gap: 8px;
   justify-content: end;
+}
+
+.bundesliga-matchday-actions > span {
+  align-self: center;
+  padding: 8px 10px;
+  border: 1px solid rgba(207, 158, 61, 0.36);
+  border-radius: 7px;
+  color: #edcc87;
+  font-weight: 800;
 }
 
 .bundesliga-matchday-actions button.secondary {
@@ -7479,27 +7449,12 @@ tbody tr:nth-child(1) td:first-child {
     padding-top: 12px;
   }
 
-  .bundesliga-preview-season-bar {
+  .bundesliga-archive-banner {
     display: grid;
-    gap: 10px;
+    gap: 4px;
   }
 
-  .bundesliga-preview-season-bar > div:first-child {
-    flex-wrap: wrap;
-    gap: 4px 10px;
-  }
-
-  .bundesliga-preview-season-bar > div:last-child {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    width: 100%;
-  }
-
-  .bundesliga-preview-season-bar button {
-    min-width: 0;
-    height: auto;
-    min-height: 44px;
-    padding: 7px 8px;
+  .bundesliga-archive-banner strong {
     white-space: normal;
   }
 

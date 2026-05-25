@@ -1,5 +1,5 @@
 import { getServiceClient, json } from "./_shared/supabase.js";
-import { bundesligaErrorResponse, resolveBundesligaParticipant, resolveRequestedBundesligaCompetition } from "./_shared/bundesliga-access.js";
+import { bundesligaErrorResponse, requireBundesligaWriteCompetition, resolveBundesligaParticipant } from "./_shared/bundesliga-access.js";
 
 export default async (req) => {
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -7,7 +7,7 @@ export default async (req) => {
   try {
     const { championTeamId, topScorerId, topScorer, relegatedTeamIds } = await req.json();
     const supabase = getServiceClient();
-    const competitionId = resolveRequestedBundesligaCompetition(req);
+    const competitionId = requireBundesligaWriteCompetition(req);
     const participant = await resolveBundesligaParticipant(req, supabase, { required: true, competitionId });
     const { data: competition, error: competitionError } = await supabase
       .from("competitions")

@@ -73,6 +73,7 @@ test("live payload hides foreign tip existence until visibility opens", () => {
 
 test("preview access and personal requests require a validated code", async () => {
   const {
+    requireBundesligaWriteCompetition,
     requireBundesligaViewAccess,
     resolveBundesligaParticipant,
     resolveRequestedBundesligaCompetition,
@@ -83,6 +84,13 @@ test("preview access and personal requests require a validated code", async () =
   assert.equal(resolveRequestedBundesligaCompetition(new Request("http://localhost", {
     headers: { "X-Bundesliga-Competition": "bundesliga-other" },
   })), BUNDESLIGA_COMPETITION_ID);
+  assert.throws(
+    () => requireBundesligaWriteCompetition(new Request("http://localhost", {
+      headers: { "X-Bundesliga-Competition": "bundesliga-2025" },
+    })),
+    (error) => error.status === 409 && /Archivvorschau/.test(error.message),
+  );
+  assert.equal(requireBundesligaWriteCompetition(new Request("http://localhost")), BUNDESLIGA_COMPETITION_ID);
   const participant = { id: "self", competition_id: BUNDESLIGA_COMPETITION_ID, display_name: "Daniel", invite_code_id: "code-1" };
   const supabase = {
     from(table) {
@@ -107,6 +115,22 @@ test("preview access and personal requests require a validated code", async () =
   });
   assert.equal((await resolveBundesligaParticipant(authenticatedRequest, supabase, { required: true })).id, "self");
   assert.equal((await requireBundesligaViewAccess(authenticatedRequest, supabase)).participant.id, "self");
+
+  const archiveParticipant = { ...participant, competition_id: "bundesliga-2025" };
+  const archiveSupabase = {
+    from(table) {
+      return mockQuery(table === "competitions"
+        ? { id: "bundesliga-2025", public_enabled: false }
+        : { code: "BL-ARCHIVE", status: "claimed", participant: archiveParticipant });
+    },
+  };
+  const archiveRequest = new Request("http://localhost/api/bundesliga-public-data", {
+    headers: {
+      "X-Bundesliga-Code": "BL-ARCHIVE",
+      "X-Bundesliga-Competition": "bundesliga-2025",
+    },
+  });
+  assert.equal((await requireBundesligaViewAccess(archiveRequest, archiveSupabase)).participant.id, "self");
 
   const mismatchedSupabase = {
     from(table) {
