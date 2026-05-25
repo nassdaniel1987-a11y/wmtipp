@@ -155,7 +155,8 @@ function chunkArray(items, size) {
 
 function getIsTestMode() {
   const params = new URLSearchParams(window.location.search);
-  return params.get("test") === "1" || params.get("mode") === "test";
+  const requested = params.get("test") === "1" || params.get("mode") === "test";
+  return import.meta.env.DEV && requested;
 }
 
 function getInitialCode() {
@@ -4929,6 +4930,10 @@ function BundesligaParticipantApp({ isTestMode }) {
       detail = "Dieser Saisonstand ist schreibgeschützt. Ergebnisse, Rangliste und gespeicherte Tipps bleiben einsehbar.";
       actionLabel = "Rangliste ansehen";
       action = () => setBundesligaTab("bundesliga-rangliste");
+    } else if (participant && preseasonPending) {
+      title = "Spielplan 2026/27 noch nicht verfügbar";
+      detail = "Sobald der offizielle Spielplan importiert ist, werden hier deine Spieltage und Tipps freigeschaltet.";
+      actionLabel = null;
     } else if (participant && openTipCount > 0) {
       title = `Spieltag ${nextOpenMatchday} tippen`;
       detail = `${openTipCount} Tipps sind noch offen. Der nächste offene Spieltag wartet schon.`;
@@ -4953,7 +4958,7 @@ function BundesligaParticipantApp({ isTestMode }) {
         <span>Nächster Schritt</span>
         <h2>{title}</h2>
         <p>{detail}</p>
-        <button type="button" onClick={action}>{actionLabel}</button>
+        {actionLabel && <button type="button" onClick={action}>{actionLabel}</button>}
       </section>
     );
   }
@@ -5101,6 +5106,25 @@ function BundesligaParticipantApp({ isTestMode }) {
   }
 
   function renderOpenTasksCard({ compact = false } = {}) {
+    if (preseasonPending) {
+      return (
+        <section className="bundesliga-public-card bundesliga-open-tasks">
+          <h2>Was kommt als Nächstes?</h2>
+          <div>
+            <article>
+              <strong>-</strong>
+              <span>Spieltipps</span>
+              <small>starten nach dem Spielplanimport</small>
+            </article>
+            <article>
+              <strong>-</strong>
+              <span>Bonus</span>
+              <small>{bonusAvailable ? "wird zum Saisonstart geöffnet" : "folgt nach dem Teamimport"}</small>
+            </article>
+          </div>
+        </section>
+      );
+    }
     const firstOpenStatus = matchdayStatusRows.find((row) => row.openTipCount > 0);
     return (
       <section className="bundesliga-public-card bundesliga-open-tasks">
@@ -5212,19 +5236,37 @@ function BundesligaParticipantApp({ isTestMode }) {
     );
   }
 
-  function renderImportStatusCard() {
-    const importStatus = data?.importStatus ?? {};
+  function renderSeasonStatusCard() {
+    const resultCount = data?.results?.length ?? 0;
+    const seasonState = archivePreview
+      ? {
+          label: "Archivstand verfügbar",
+          detail: "Die Saison 2025/2026 bleibt als interne Vorschau lesbar.",
+          meta: "Änderungen sind in dieser Vorschau deaktiviert.",
+        }
+      : preseasonPending
+        ? {
+            label: "Spielplan wird vorbereitet",
+            detail: "Der offizielle Spielplan für 2026/2027 ist noch nicht verfügbar.",
+            meta: "Deine Tippbereiche werden nach dem Import freigeschaltet.",
+          }
+        : resultCount > 0
+          ? {
+              label: "Ergebnisse werden aktualisiert",
+              detail: "Spielplan und Auswertungen der laufenden Saison sind verfügbar.",
+              meta: "Neue Ergebnisse erscheinen nach der Aktualisierung.",
+            }
+          : {
+              label: "Saison bereit",
+              detail: "Der Spielplan ist geladen und deine Tipps können abgegeben werden.",
+              meta: "Auswertungen erscheinen nach den ersten Ergebnissen.",
+            };
     return (
-      <section className="bundesliga-public-card bundesliga-import-status">
-        <h2>Datenstatus</h2>
-        <div>
-          <span>Quelle</span><strong>{importStatus.source ?? "OpenLigaDB"}</strong>
-          <span>Teams</span><strong>{importStatus.teams ?? teams.length}</strong>
-          <span>Spiele</span><strong>{importStatus.matches ?? matches.length}</strong>
-          <span>Ergebnisse</span><strong>{importStatus.results ?? data?.results?.length ?? 0}</strong>
-          <span>Torschützen</span><strong>{importStatus.topScorers ?? topScorers.length}</strong>
-        </div>
-        <small>Letzter Ergebnisimport: {importStatus.lastResultImportAt ? formatDateTime(importStatus.lastResultImportAt) : "noch nicht bekannt"}</small>
+      <section className="bundesliga-public-card bundesliga-season-status">
+        <h2>Saisonstatus</h2>
+        <strong>{seasonState.label}</strong>
+        <p>{seasonState.detail}</p>
+        <small>{seasonState.meta}</small>
       </section>
     );
   }
@@ -5316,6 +5358,23 @@ function BundesligaParticipantApp({ isTestMode }) {
   }
 
   function renderSchedulePage() {
+    if (preseasonPending) {
+      return (
+        <section className="bundesliga-detail-page">
+          <section className="bundesliga-public-card bundesliga-detail-head">
+            <div>
+              <span>Spielplan</span>
+              <h1>Spielplan 2026/27</h1>
+              <p>Die Spieltage werden sichtbar, sobald der offizielle Spielplan importiert wurde.</p>
+            </div>
+          </section>
+          <section className="bundesliga-public-card bundesliga-preseason-empty">
+            <h2>Spielplan noch nicht verfügbar</h2>
+            <p>Hier findest du später alle Spieltage, Anstoßzeiten und deine Tippzustände.</p>
+          </section>
+        </section>
+      );
+    }
     return (
       <section className="bundesliga-detail-page">
         <section className="bundesliga-public-card bundesliga-detail-head">
@@ -5361,6 +5420,14 @@ function BundesligaParticipantApp({ isTestMode }) {
   }
 
   function renderLivePage() {
+    if (preseasonPending) {
+      return (
+        <section className="bundesliga-public-card bundesliga-preseason-empty">
+          <h2>Live-Spieltag startet mit der Saison</h2>
+          <p>Sobald der Spielplan vorliegt und die ersten Partien beginnen, erscheinen hier Live-Rangliste und Tippvergleich.</p>
+        </section>
+      );
+    }
     return (
       <section className="bundesliga-stage-grid">
         <section className="bundesliga-live-page">
@@ -5412,6 +5479,8 @@ function BundesligaParticipantApp({ isTestMode }) {
   const topRankingRows = ranking.slice(0, 3);
   const openTipCount = Math.max(0, matches.length - savedTipCount);
   const nextOpenMatchday = matchdayStatusRows.find((row) => row.openTipCount > 0)?.matchday ?? selectedMatchday;
+  const preseasonPending = Boolean(data) && !archivePreview && matches.length === 0;
+  const bonusAvailable = teams.length > 0;
   const displayedTab = participant ? activeTab : "bundesliga-start";
 
   return (
@@ -5491,36 +5560,38 @@ function BundesligaParticipantApp({ isTestMode }) {
               <div className="bundesliga-dashboard-metrics">
                 <article>
                   <span>Offene Tipps</span>
-                  <strong>{openTipCount}</strong>
-                  <small>{savedTipCount} von {matches.length} gespeichert</small>
+                  <strong>{preseasonPending ? "-" : openTipCount}</strong>
+                  <small>{preseasonPending ? "nach Spielplanimport verfügbar" : `${savedTipCount} von ${matches.length} gespeichert`}</small>
                 </article>
                 <article>
                   <span>Bonus</span>
-                  <strong>{bonusStatus.doneCount}/{bonusStatus.totalCount}</strong>
-                  <small>{bonusStatus.complete ? "vollständig" : "noch offen"}</small>
+                  <strong>{bonusAvailable ? `${bonusStatus.doneCount}/${bonusStatus.totalCount}` : "-"}</strong>
+                  <small>{bonusAvailable ? (bonusStatus.complete ? "vollständig" : "noch offen") : "nach Teamimport verfügbar"}</small>
                 </article>
                 <article>
                   <span>Dein Stand</span>
-                  <strong>{currentParticipantRank ? `${currentParticipantRank.points} P` : "offen"}</strong>
-                  <small>{currentParticipantRank ? `${currentParticipantRank.matchdayWins ?? 0} Spieltagssiege` : "Code aktivieren"}</small>
+                  <strong>{preseasonPending ? "-" : currentParticipantRank ? `${currentParticipantRank.points} P` : "offen"}</strong>
+                  <small>{preseasonPending ? "beginnt mit der Saison" : currentParticipantRank ? `${currentParticipantRank.matchdayWins ?? 0} Spieltagssiege` : "Code aktivieren"}</small>
                 </article>
                 <article>
                   <span>Nächster Fokus</span>
-                  <strong>ST {nextOpenMatchday}</strong>
-                  <small>{selectedMatchdayStatus.openTipCount} offene Tipps dort</small>
+                  <strong>{preseasonPending ? "Warten" : `ST ${nextOpenMatchday}`}</strong>
+                  <small>{preseasonPending ? "Spielplan in Vorbereitung" : `${selectedMatchdayStatus.openTipCount} offene Tipps dort`}</small>
                 </article>
               </div>
               {renderNextStepCard()}
-              <div className="bundesliga-dashboard-actions">
-                <button type="button" onClick={() => setBundesligaTab("bundesliga-live")}>Live-Spieltag öffnen</button>
-                <button type="button" onClick={() => setBundesligaTab("bundesliga-rangliste")}>Rangliste ansehen</button>
-              </div>
+              {!preseasonPending && (
+                <div className="bundesliga-dashboard-actions">
+                  <button type="button" onClick={() => setBundesligaTab("bundesliga-live")}>Live-Spieltag öffnen</button>
+                  <button type="button" onClick={() => setBundesligaTab("bundesliga-rangliste")}>Rangliste ansehen</button>
+                </div>
+              )}
             </section>
 
             <aside className="bundesliga-side-stack">
               {renderOpenTasksCard({ compact: true })}
               {renderPersonalStatsCard()}
-              {renderBonusReminder()}
+              {bonusAvailable && renderBonusReminder()}
               <section className="bundesliga-public-card bundesliga-top-three">
                 {renderCardHeading("Top 3", () => {
                   setBundesligaTab("bundesliga-rangliste");
@@ -5537,7 +5608,7 @@ function BundesligaParticipantApp({ isTestMode }) {
                   {topRankingRows.length === 0 && <p>Noch keine Rangliste vorhanden.</p>}
                 </div>
               </section>
-              <section className="bundesliga-public-card">
+              {displayTableRows.length > 0 && <section className="bundesliga-public-card">
                 {renderCardHeading("Live-Tabelle", () => setBundesligaTab("bundesliga-tabelle"))}
                 <div className="bundesliga-mini-table">
                   {displayTableRows.slice(0, 8).map((row, index) => (
@@ -5549,9 +5620,9 @@ function BundesligaParticipantApp({ isTestMode }) {
                     </div>
                   ))}
                 </div>
-              </section>
+              </section>}
               {renderCommunityCard()}
-              <section className="bundesliga-public-card">
+              {dashboardMatches.length > 0 && <section className="bundesliga-public-card">
                 {renderCardHeading("Nächste Spiele", () => setBundesligaTab("bundesliga-spielplan"))}
                 <div className="bundesliga-fixture-list">
                   {dashboardMatches.map((match) => (
@@ -5565,8 +5636,8 @@ function BundesligaParticipantApp({ isTestMode }) {
                     </div>
                   ))}
                 </div>
-              </section>
-              {renderImportStatusCard()}
+              </section>}
+              {renderSeasonStatusCard()}
             </aside>
           </section>
         )}
@@ -5577,9 +5648,9 @@ function BundesligaParticipantApp({ isTestMode }) {
               <div className="bundesliga-public-section-head">
                 <div>
                   <h2>Spieltag tippen</h2>
-                  <p>{archivePreview ? "Archivvorschau - Änderungen nicht möglich" : `${visibleMatches.length} Spiele am ${selectedMatchday}. Spieltag · ${visibleSavedTipCount} gespeichert`}</p>
+                  <p>{archivePreview ? "Archivvorschau - Änderungen nicht möglich" : preseasonPending ? "Der Spielplan für 2026/2027 wird vorbereitet." : `${visibleMatches.length} Spiele am ${selectedMatchday}. Spieltag · ${visibleSavedTipCount} gespeichert`}</p>
                 </div>
-                <div className="bundesliga-matchday-switcher" aria-label="Spieltag wechseln">
+                {!preseasonPending && <div className="bundesliga-matchday-switcher" aria-label="Spieltag wechseln">
                   <button type="button" onClick={() => moveMatchday(-1)} disabled={selectedMatchdayIndex <= 0}>
                     <ChevronRight size={18} />
                   </button>
@@ -5587,8 +5658,14 @@ function BundesligaParticipantApp({ isTestMode }) {
                   <button type="button" onClick={() => moveMatchday(1)} disabled={selectedMatchdayIndex >= matchdayOptions.length - 1}>
                     <ChevronRight size={18} />
                   </button>
-                </div>
+                </div>}
               </div>
+              {preseasonPending ? (
+                <section className="bundesliga-preseason-empty">
+                  <h2>Noch keine Spiele zum Tippen</h2>
+                  <p>Deine Tippkarten erscheinen automatisch, sobald der offizielle Spielplan importiert ist.</p>
+                </section>
+              ) : <>
               {renderMatchdayCenter()}
               <div className="bundesliga-matchday-chips" aria-label="Schnellauswahl Spieltage">
                 {matchdayOptions.map((day) => {
@@ -5644,11 +5721,12 @@ function BundesligaParticipantApp({ isTestMode }) {
                   );
                 })}
               </div>
+              </>}
             </section>
 
             <aside className="bundesliga-side-stack">
               {renderOpenTasksCard()}
-              {renderBonusReminder()}
+              {bonusAvailable && renderBonusReminder()}
               {renderPersonalStatsCard()}
               {renderLivePanel()}
               <section className="bundesliga-public-card">
@@ -5681,7 +5759,14 @@ function BundesligaParticipantApp({ isTestMode }) {
           </section>
         )}
 
-        {displayedTab === "bundesliga-bonus" && (
+        {displayedTab === "bundesliga-bonus" && !bonusAvailable && !archivePreview && (
+          <section className="bundesliga-public-card bundesliga-preseason-empty">
+            <h2>Bonusfragen werden vorbereitet</h2>
+            <p>Sobald die Teams der Saison 2026/2027 importiert sind, kannst du Meister, Torschützenkönig und Absteiger tippen.</p>
+          </section>
+        )}
+
+        {displayedTab === "bundesliga-bonus" && (bonusAvailable || archivePreview) && (
           <section className="bundesliga-stage-grid">
             <section className="bundesliga-public-card bundesliga-bonus-public">
               <div className="bundesliga-public-section-head">
@@ -6021,7 +6106,7 @@ function BundesligaAdminArea({
     {
       label: "Komfortkarten aktiv",
       done: true,
-      detail: "Was fehlt noch, Meine Statistik, Community und Datenstatus",
+      detail: "Was fehlt noch, Meine Statistik, Community und Saisonstatus",
     },
     {
       label: "Automatik geschützt",

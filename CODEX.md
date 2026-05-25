@@ -157,6 +157,7 @@ cd android-app
 - Bundesliga-Bonus-Autosave meldet Speichern erst nach einer tatsächlichen Nutzerauswahl; ein leer geladener Bonus erzeugt kein irreführendes Erfolgsfeedback mehr.
 - Bundesliga-Bonus erlaubt vor der ersten OpenLigaDB-Torschützenliste eine freie Spielereingabe, damit der echte Saisonstart nicht auf bereits erzielte Tore warten muss.
 - Der Bundesliga-Admin kann die interne Archivvorschau `2025/2026` gezielt öffnen; die normale Teilnehmeransicht bietet keine Saisonwahl und arbeitet auf `2026/2027`.
+- Der URL-Testmodus (`?test=1` / `?mode=test`) ist nur in lokaler Development-/Testumgebung aktiv und kann in einem produktiven Web-Build keine Demo-Teilnehmeransicht öffnen.
 
 ## Bundesliga Stand
 
@@ -186,6 +187,8 @@ cd android-app
   - Vorschaukarten öffnen passende Detailseiten direkt über klickbare Überschriften statt über zusätzliche Öffnen-Buttons.
   - `#bundesliga-start` trennt die Zustände klar: anonym wird nur der Code-first Login gezeigt, angemeldet die persönliche Zentrale samt `Abmelden`.
   - Die A-Oberfläche priorisiert auf Mobilgeräten den eigentlichen Workflow: kompakte Navigation, verdichtete Zentrale und Read-only-Auswertungsdarstellung für bereits gewertete Spiele.
+  - Solange `bundesliga-2026` noch keinen importierten Spielplan besitzt, zeigen Zentrale, Tippen, Bonus und Spielplan einen klaren Vorsaison-Zustand statt vermeintlich fertiger Spieltagsaktionen.
+  - Teilnehmer sehen einen verständlichen `Saisonstatus`; technische OpenLigaDB-/Importdetails bleiben im Bundesliga-Admin.
 - Automatik ist vorbereitet, aber geschützt:
   - `netlify/functions/bundesliga-auto-import.js` importiert Ergebnisse/Torschützen nur mit `BUNDESLIGA_AUTO_IMPORT_ENABLED=true`.
   - Bundesliga-Push-Erinnerungen in `send-tip-reminders.js` laufen nur mit `BUNDESLIGA_PUSH_REMINDERS_ENABLED=true`.
@@ -254,8 +257,9 @@ cd android-app
 Start prüfen:
 
 - „Was fehlt noch?“ zeigt offene Tipps und Bonusstatus.
-- „Meine Statistik“, Community-Karte, Datenstatus und Top-3-Rangliste sind sichtbar.
+- „Meine Statistik“, Community-Karte, Saisonstatus und Top-3-Rangliste sind sichtbar.
 - „Nächste Spiele“ zeigt Paarungen mit Logos ohne Ergebnisanzeige.
+- Bei einer noch leeren Saison `2026/2027` steht stattdessen sichtbar „Spielplan 2026/27 noch nicht verfügbar“; es werden keine Tippaktionen für `ST 1` angeboten.
 
 Tippen prüfen:
 

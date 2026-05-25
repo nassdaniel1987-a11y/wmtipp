@@ -145,3 +145,57 @@ test("Bundesliga archive preview is visibly read-only", async ({ page }) => {
   await page.getByRole("button", { name: "Bonus", exact: true }).click();
   await expect(page.getByRole("button", { name: "Nur lesbar" })).toBeDisabled();
 });
+
+test("empty Bundesliga 2026 season shows a clear preseason state", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem("bundesliga-tippspiel-participant", JSON.stringify({
+      id: "preview-user",
+      name: "Daniel",
+      code: "BL-PREVIEW",
+      competitionId: "bundesliga-2026",
+    }));
+  });
+  await page.route("**/api/bundesliga-public-data", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        competition: { id: "bundesliga-2026", season_label: "2026/2027", public_enabled: false },
+        teams: [],
+        matches: [],
+        results: [],
+        topScorers: [],
+        table: [],
+        rulesSummary: {},
+      }),
+    });
+  });
+  await page.route("**/api/bundesliga-ranking", async (route) => {
+    await route.fulfill({ contentType: "application/json", body: JSON.stringify({ ranking: [] }) });
+  });
+  await page.route("**/api/bundesliga-tips", async (route) => {
+    await route.fulfill({ contentType: "application/json", body: JSON.stringify({ tips: [] }) });
+  });
+  await page.route("**/api/bundesliga-bonus-tips", async (route) => {
+    await route.fulfill({ contentType: "application/json", body: JSON.stringify({ bonusTip: null }) });
+  });
+
+  await page.goto("/#bundesliga-start");
+
+  await expect(page.getByRole("heading", { name: "Hallo Daniel" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Spielplan 2026/27 noch nicht verfügbar" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Saisonstatus" })).toBeVisible();
+  await expect(page.getByText("Spielplan wird vorbereitet")).toBeVisible();
+  await expect(page.getByText("Alles bereit")).toHaveCount(0);
+  await expect(page.getByText("ST 1", { exact: true })).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Tippen", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Noch keine Spiele zum Tippen" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Alle Tipps dieses Spieltags speichern" })).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Spielplan", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Spielplan noch nicht verfügbar" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Bonus", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Bonusfragen werden vorbereitet" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Bonus speichern" })).toHaveCount(0);
+});

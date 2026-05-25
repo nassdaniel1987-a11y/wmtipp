@@ -6704,7 +6704,7 @@ tbody tr:nth-child(1) td:first-child {
 .bundesliga-open-tasks,
 .bundesliga-personal-stats,
 .bundesliga-community-card,
-.bundesliga-import-status {
+.bundesliga-season-status {
   display: grid;
   gap: 12px;
   padding: 16px;
@@ -6774,6 +6774,35 @@ tbody tr:nth-child(1) td:first-child {
   color: var(--bl-muted);
   background: rgba(255, 180, 91, 0.06);
   font-weight: 850;
+}
+
+.bundesliga-preseason-empty {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  padding: clamp(18px, 3vw, 26px);
+  border: 1px solid rgba(255, 180, 91, 0.3);
+  border-radius: 8px;
+  background: rgba(255, 180, 91, 0.05);
+}
+
+.bundesliga-public-card.bundesliga-preseason-empty {
+  margin-top: 0;
+}
+
+.bundesliga-preseason-empty h2,
+.bundesliga-preseason-empty p {
+  margin: 0;
+}
+
+.bundesliga-preseason-empty h2 {
+  color: #ffffff;
+}
+
+.bundesliga-preseason-empty p {
+  color: var(--bl-muted);
+  font-weight: 850;
+  line-height: 1.45;
 }
 
 .bundesliga-full-table-scroll {
@@ -6917,7 +6946,8 @@ tbody tr:nth-child(1) td:first-child {
 .bundesliga-personal-stats span,
 .bundesliga-personal-stats footer,
 .bundesliga-community-card p,
-.bundesliga-import-status small {
+.bundesliga-season-status p,
+.bundesliga-season-status small {
   color: var(--bl-muted);
   font-weight: 850;
   line-height: 1.35;
@@ -7057,20 +7087,16 @@ tbody tr:nth-child(1) td:first-child {
   border-radius: 8px;
 }
 
-.bundesliga-import-status > div {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px 12px;
-}
-
-.bundesliga-import-status span {
-  color: var(--bl-muted);
-  font-weight: 850;
-}
-
-.bundesliga-import-status strong {
+.bundesliga-season-status > strong {
+  padding: 11px 12px;
+  border: 1px solid rgba(255, 180, 91, 0.28);
+  border-radius: 8px;
   color: #ffffff;
-  text-align: right;
+  background: rgba(255, 180, 91, 0.06);
+}
+
+.bundesliga-season-status p {
+  margin: 0;
 }
 
 .bundesliga-public-ranking {
