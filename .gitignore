@@ -6,3 +6,6 @@ dist/
 .netlify/
 *.log
 android-app/app/google-services.json
+.idea/
+test-results/
+supabase/.temp/

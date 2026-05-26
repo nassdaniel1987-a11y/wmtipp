@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  BUNDESLIGA_ARCHIVE_SHOWCASE_PARTICIPANT_NAME,
   BUNDESLIGA_COMPETITION_ID,
   BUNDESLIGA_RETIRED_LIVE_PROBE_COMPETITION_ID,
   BUNDESLIGA_SEASON_LABEL,
@@ -254,6 +255,7 @@ test("finished match detail respects tip visibility and derives goal sides", () 
 
 test("preview access and personal requests require a validated code", async () => {
   const {
+    filterBundesligaArchiveShowcaseParticipants,
     requireBundesligaWriteCompetition,
     requireBundesligaViewAccess,
     resolveBundesligaParticipant,
@@ -318,6 +320,33 @@ test("preview access and personal requests require a validated code", async () =
     },
   });
   assert.equal((await requireBundesligaViewAccess(archiveRequest, archiveSupabase)).participant.id, "self");
+
+  const archiveShowcaseParticipant = {
+    id: "archive-showcase",
+    competition_id: "bundesliga-2025",
+    display_name: BUNDESLIGA_ARCHIVE_SHOWCASE_PARTICIPANT_NAME,
+    invite_code_id: null,
+  };
+  const anonymousArchiveSupabase = {
+    from(table) {
+      return mockQuery(table === "competitions"
+        ? { id: "bundesliga-2025", public_enabled: false }
+        : archiveShowcaseParticipant);
+    },
+  };
+  const anonymousArchiveRequest = new Request("http://localhost/api/bundesliga-public-data", {
+    headers: { "X-Bundesliga-Competition": "bundesliga-2025" },
+  });
+  const anonymousArchiveAccess = await requireBundesligaViewAccess(anonymousArchiveRequest, anonymousArchiveSupabase);
+  assert.equal(anonymousArchiveAccess.participant.id, "archive-showcase");
+  assert.equal(anonymousArchiveAccess.participant.showcase, true);
+  assert.deepEqual(
+    filterBundesligaArchiveShowcaseParticipants([
+      { id: "archive-showcase", display_name: BUNDESLIGA_ARCHIVE_SHOWCASE_PARTICIPANT_NAME },
+      { id: "private-archive-test-user", display_name: "Alter Testnutzer" },
+    ], "bundesliga-2025", anonymousArchiveAccess.participant).map((row) => row.id),
+    ["archive-showcase"],
+  );
 
   const mismatchedSupabase = {
     from(table) {

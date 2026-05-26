@@ -1,5 +1,11 @@
 import { getServiceClient, json } from "./_shared/supabase.js";
-import { BundesligaHttpError, bundesligaErrorResponse, requireBundesligaViewAccess } from "./_shared/bundesliga-access.js";
+import {
+  BundesligaHttpError,
+  bundesligaErrorResponse,
+  filterBundesligaArchiveShowcaseParticipants,
+  filterBundesligaArchiveShowcaseTips,
+  requireBundesligaViewAccess,
+} from "./_shared/bundesliga-access.js";
 import {
   buildBundesligaMatchDetail,
   loadCompetitionRuleSettings,
@@ -38,13 +44,15 @@ export default async (req) => {
     if (result.data?.status !== "final") {
       throw new BundesligaHttpError("Die Spielauswertung ist erst nach dem Endergebnis verfügbar.", 409);
     }
+    const participantRows = filterBundesligaArchiveShowcaseParticipants(participants.data, competitionId, participant);
+    const tipRows = filterBundesligaArchiveShowcaseTips(tips.data, participantRows, competitionId, participant);
 
     return json(buildBundesligaMatchDetail(
       match,
       result.data,
       goals.data ?? [],
-      participants.data ?? [],
-      tips.data ?? [],
+      participantRows,
+      tipRows,
       participant?.id ?? "",
       new Date(),
       ruleSettings,

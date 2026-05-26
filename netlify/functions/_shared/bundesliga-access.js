@@ -1,5 +1,7 @@
 import {
   BUNDESLIGA_ARCHIVE_COMPETITION_ID,
+  BUNDESLIGA_ARCHIVE_SHOWCASE_PARTICIPANT_NAME,
+  BUNDESLIGA_ARCHIVE_SHOWCASE_PARTICIPANT_NAMES,
   BUNDESLIGA_COMPETITION_ID,
   BUNDESLIGA_RETIRED_LIVE_PROBE_COMPETITION_ID,
   getBundesligaSeasonLabel,
@@ -51,6 +53,23 @@ export async function loadBundesligaCompetition(supabase, competitionId = BUNDES
 export async function resolveBundesligaParticipant(req, supabase, { required = false, competitionId = resolveRequestedBundesligaCompetition(req) } = {}) {
   const code = normalizeCode(req.headers.get(BUNDESLIGA_CODE_HEADER));
   if (!code) {
+    if (competitionId === BUNDESLIGA_ARCHIVE_COMPETITION_ID) {
+      const { data: showcaseParticipant, error } = await supabase
+        .from("competition_participants")
+        .select("id, competition_id, display_name, invite_code_id")
+        .eq("competition_id", competitionId)
+        .eq("display_name", BUNDESLIGA_ARCHIVE_SHOWCASE_PARTICIPANT_NAME)
+        .maybeSingle();
+      if (error) throw error;
+      if (!showcaseParticipant) {
+        throw new BundesligaHttpError("Die Archiv-Demo wird gerade vorbereitet.", 503);
+      }
+      return {
+        ...showcaseParticipant,
+        code: null,
+        showcase: true,
+      };
+    }
     if (required) throw new BundesligaHttpError("Bitte melde dich mit deinem Bundesliga-Code an.", 401);
     return null;
   }
@@ -75,6 +94,22 @@ export async function resolveBundesligaParticipant(req, supabase, { required = f
     code: invite.code,
     competition_id: competitionId,
   };
+}
+
+export function isBundesligaArchiveShowcase(competitionId, participant) {
+  return competitionId === BUNDESLIGA_ARCHIVE_COMPETITION_ID && participant?.showcase === true;
+}
+
+export function filterBundesligaArchiveShowcaseParticipants(rows, competitionId, participant) {
+  if (!isBundesligaArchiveShowcase(competitionId, participant)) return rows ?? [];
+  const allowedNames = new Set(BUNDESLIGA_ARCHIVE_SHOWCASE_PARTICIPANT_NAMES);
+  return (rows ?? []).filter((row) => allowedNames.has(row.display_name));
+}
+
+export function filterBundesligaArchiveShowcaseTips(rows, participantRows, competitionId, participant) {
+  if (!isBundesligaArchiveShowcase(competitionId, participant)) return rows ?? [];
+  const allowedIds = new Set((participantRows ?? []).map((row) => row.id));
+  return (rows ?? []).filter((row) => allowedIds.has(row.participant_id));
 }
 
 export async function requireBundesligaViewAccess(req, supabase) {

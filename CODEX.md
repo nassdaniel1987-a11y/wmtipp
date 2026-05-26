@@ -157,16 +157,16 @@ cd android-app
 - Bundesliga-Variante A wurde über alle Nutzerbereiche geglättet: kompakter App-Rahmen, sichtbares Arbeitsfeedback, eindeutig lesbare offene/gesperrte/ausgewertete Tippzustände und reduzierte Doppel-Navigation in Live, Bonus und Spielplan.
 - Bundesliga-Bonus-Autosave meldet Speichern erst nach einer tatsächlichen Nutzerauswahl; ein leer geladener Bonus erzeugt kein irreführendes Erfolgsfeedback mehr.
 - Bundesliga-Bonus erlaubt vor der ersten OpenLigaDB-Torschützenliste eine freie Spielereingabe, damit der echte Saisonstart nicht auf bereits erzielte Tore warten muss.
-- Der Bundesliga-Admin kann die interne Archivvorschau `2025/2026` gezielt öffnen; die normale Teilnehmeransicht bietet keine Saisonwahl und arbeitet auf `2026/2027`.
+- Der Bundesliga-Admin kann die öffentliche, schreibgeschützte Archiv-Demo `2025/2026` gezielt öffnen; sie benötigt keinen Code und zeigt ausschließlich kuratierte Demo-Teilnehmer. Die normale Teilnehmeransicht bietet keine Saisonwahl und arbeitet auf `2026/2027`.
 - Der URL-Testmodus (`?test=1` / `?mode=test`) ist nur in lokaler Development-/Testumgebung aktiv und kann in einem produktiven Web-Build keine Demo-Teilnehmeransicht öffnen.
 
 ## Bundesliga Stand
 
 - Versteckte Bundesliga-Version läuft getrennt von der WM unter den Hash-Routen `#bundesliga-start`, `#bundesliga-tippen`, `#bundesliga-bonus`, `#bundesliga-rangliste`, `#bundesliga-live`, `#bundesliga-tabelle`, `#bundesliga-torschuetzen` und `#bundesliga-spielplan`.
 - Die zuvor erprobte Bundesliga Variante B wurde wieder entfernt; die bestehenden `#bundesliga-*` Routen sind die einzige Bundesliga-Nutzeransicht.
-- Der Bundesliga-Admin öffnet die Teilnehmeransicht getrennt als schreibgeschützte Archivvorschau `2025/2026` oder aktive Livevorbereitung `2026/2027`; Admin-Import, Release-Probelauf und Freigabegates bleiben fest an `bundesliga-2026` gebunden.
+- Der Bundesliga-Admin öffnet die Teilnehmeransicht getrennt als anonyme, schreibgeschützte Archiv-Demo `2025/2026` oder aktive Livevorbereitung `2026/2027`; Admin-Import, Release-Probelauf und Freigabegates bleiben fest an `bundesliga-2026` gebunden.
 - Bundesliga-Admin ist über den Adminbereich erreichbar und bleibt nicht öffentlich.
-- Liveziel ist die frische Saison `2026/2027` mit `competition_id = 'bundesliga-2026'`; `bundesliga-2025` bleibt als interne, nicht veröffentlichte Testbasis erhalten.
+- Liveziel ist die frische Saison `2026/2027` mit `competition_id = 'bundesliga-2026'`; `bundesliga-2025` dient als anonym sichtbare, aber schreibgeschützte Vorführsaison mit künstlichen Profilen.
 - OpenLigaDB ist als Hauptquelle vorbereitet: Teams, Logos, Spielplan, Ergebnisse und Torschützen.
 - Spielplan und Torschützen werden für den Livebetrieb über `bl1/2026` importiert, sobald OpenLigaDB diese Saison bereitstellt; am 25. Mai 2026 ist der Spielplan dort noch nicht verfügbar.
 - Bundesliga-Teilnehmer, Codes, Tipps und Bonus-Tipps sind von WM-Teilnehmern getrennt.
@@ -187,7 +187,7 @@ cd android-app
   - Spieltagssieger und Share-Karte werden in der Community-Karte angezeigt.
   - Vorschaukarten öffnen passende Detailseiten direkt über klickbare Überschriften statt über zusätzliche Öffnen-Buttons.
   - Die mobile Bundesliga-Navigation öffnet `Tabelle`, `Torschützen` und `Spielplan` über ein sichtbares `Mehr`-Panel unterhalb der horizontalen Kernnavigation.
-  - `#bundesliga-start` trennt die Zustände klar: anonym wird nur der Code-first Login gezeigt, angemeldet die persönliche Zentrale samt `Abmelden`.
+  - `#bundesliga-start` trennt die Zustände klar: Für `bundesliga-2026` wird anonym nur der Code-first Login gezeigt, angemeldet die persönliche Zentrale samt `Abmelden`; die Archiv-Demo öffnet ohne Login direkt ein read-only Demo-Profil.
   - Die A-Oberfläche priorisiert auf Mobilgeräten den eigentlichen Workflow: kompakte Navigation, verdichtete Zentrale und Read-only-Auswertungsdarstellung für bereits gewertete Spiele.
   - Solange `bundesliga-2026` noch keinen importierten Spielplan besitzt, zeigen Zentrale, Tippen, Bonus und Spielplan einen klaren Vorsaison-Zustand statt vermeintlich fertiger Spieltagsaktionen.
   - Teilnehmer sehen einen verständlichen `Saisonstatus`; technische OpenLigaDB-/Importdetails bleiben im Bundesliga-Admin.
@@ -198,12 +198,12 @@ cd android-app
   - Bundesliga-Admin zeigt Datenstatus, letzte Imports und ob Automatik/Push aktiv sind.
 - Release-Hardening:
   - Persönliche Bundesliga-APIs leiten den Teilnehmer nur noch aus dem validierten Request-Header `X-Bundesliga-Code` ab; eine mitgesendete `participantId` berechtigt nicht zum Lesen oder Schreiben.
-  - Versteckte Bundesliga-Daten sind anonym nicht abrufbar; ein gültiger Bundesliga-Code erlaubt Preview-Prüfungen, bis `public_enabled = true` gesetzt wird.
+  - Versteckte Daten der aktiven Basis `bundesliga-2026` sind anonym nicht abrufbar; nur die separate Archiv-Demo `bundesliga-2025` erlaubt anonym lesende Requests für fest definierte Demo-Profile.
   - Tipp-Sperre ab Anpfiff, Bonusfrist und Sichtbarkeit fremder Tipps werden serverseitig erzwungen; verdeckte Live-Tipps verraten weder Ergebnis noch Existenz fremder Einträge.
   - Der Admin blockiert die öffentliche Freigabe, solange Release-Gates wie Saison, Bonusfrist, vollständiger Spielplan/Logos oder bereinigte Probe-Ergebnisse offen sind.
   - Push-Erinnerungen gehören bewusst nicht zum ersten Bundesliga-Livegang.
   - Nutzer-Preview-Requests senden zusätzlich `X-Bundesliga-Competition`; erlaubt sind nur `bundesliga-2025` und `bundesliga-2026`. Die abgeschlossene Generalprobe wird nicht mehr als Competition akzeptiert; Standard und einzige Releasebasis bleibt `bundesliga-2026`.
-  - `bundesliga-2025` ist nur als interne Archivvorschau lesbar: vorhandene zugeordnete Codes können alte Stände prüfen, während Code-Aktivierung, Spieltipps und Bonusänderungen serverseitig blockiert werden.
+  - `bundesliga-2025` ist eine schreibgeschützte Archiv-Demo: ohne Login sieht man ausschließlich die kuratierten Profile `Archivgast (Demo)`, `Mara (Demo)`, `Clemens (Demo)` und `Sofia (Demo)` samt Beispieltipps; Code-Aktivierung, Spieltipps und Bonusänderungen bleiben serverseitig blockiert.
 
 ## Zuletzt ausgeführte / benötigte SQL-Dateien
 
@@ -228,6 +228,8 @@ cd android-app
   - ergänzt interne Provider-Beobachtungen sowie die Herkunft/Bestätigung angezeigter Bundesliga-Livestände für den kostenlosen OpenLigaDB-/football-data-Hybrid; WM-Tabellen und WM-Flows bleiben unverändert.
   - wurde am 25. Mai 2026 vom Nutzer im SQL Editor des bestehenden WM-Supabase-Projekts ausgeführt.
   - `supabase/migrations/20260525212452_remove_bundesliga_live_probe.sql`
+  - `supabase/migrations/20260526151419_bundesliga_archive_showcase.sql`
+  - legt vier künstliche Archiv-Demo-Profile samt reproduzierbaren Tipps und Bonusauswahl ausschließlich in `bundesliga-2025` an; `bundesliga-2026` und WM-Daten bleiben unverändert.
   - entfernt nach der erfolgreichen Generalprobe ausschließlich Daten der Competition `bundesliga-liveprobe-rel-2026`; `bundesliga-2026`, `bundesliga-2025`, Live-Schema und WM bleiben erhalten.
   - wurde am 25. Mai 2026 vom Nutzer im SQL Editor des bestehenden WM-Supabase-Projekts ausgeführt.
 

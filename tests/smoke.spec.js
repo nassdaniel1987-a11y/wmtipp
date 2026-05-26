@@ -158,8 +158,8 @@ test("finished Bundesliga matches open the personal match evaluation", async ({ 
 test("Bundesliga archive preview is visibly read-only", async ({ page }) => {
   await page.goto("/?test=1&blCompetition=bundesliga-2025#bundesliga-start");
 
-  await expect(page.getByText("Interne Archivvorschau 2025/2026")).toBeVisible();
-  await expect(page.getByText("Nur lesbar. Neue Codes, Tipps und Bonusänderungen laufen ausschließlich in 2026/2027.")).toBeVisible();
+  await expect(page.getByText("Archiv-Demo 2025/2026")).toBeVisible();
+  await expect(page.getByText("Ohne Login ansehen: Beispieltipps zeigen den Ablauf. Änderungen sind nicht möglich.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Testdaten 25/26" })).toHaveCount(0);
 
   await page.getByRole("button", { name: "Tippen", exact: true }).click();
@@ -175,6 +175,44 @@ test("Bundesliga archive preview is visibly read-only", async ({ page }) => {
   await page.getByRole("button", { name: "Auswertung ansehen" }).first().click();
   await expect(page.getByText("Archivvorschau · nur lesbar")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Torverlauf" })).toBeVisible();
+});
+
+test("Bundesliga archive demo opens without login and uses its curated viewer", async ({ page }) => {
+  await page.route("**/api/bundesliga-public-data", (route) => route.fulfill({
+    contentType: "application/json",
+    body: JSON.stringify({
+      competition: { id: "bundesliga-2025", season_label: "2025/2026", public_enabled: false },
+      showcaseParticipant: { id: "archive-showcase", display_name: "Archivgast (Demo)" },
+      teams: [],
+      bonusTeams: [],
+      matches: [],
+      results: [],
+      topScorers: [],
+      table: [],
+      rulesSummary: { visibilityMode: "match_finished", visibility: "Fremde Tipps werden pro Spiel nach Abpfiff sichtbar." },
+    }),
+  }));
+  await page.route("**/api/bundesliga-ranking", (route) => route.fulfill({
+    contentType: "application/json",
+    body: JSON.stringify({
+      ranking: [
+        { id: "archive-showcase", name: "Archivgast (Demo)", points: 58, matchPoints: 58, bonusPoints: 0, scoredTipCount: 34, matchdayWins: 2 },
+        { id: "mara-showcase", name: "Mara (Demo)", points: 54, matchPoints: 54, bonusPoints: 0, scoredTipCount: 34, matchdayWins: 1 },
+      ],
+      personalStats: { savedTipCount: 34, scoredTipCount: 34, exactHits: 4, goalDiffHits: 7, tendencyHits: 9, wrongTips: 14, bestMatchdays: [] },
+    }),
+  }));
+  await page.route("**/api/bundesliga-matchday-live**", (route) => route.fulfill({
+    contentType: "application/json",
+    body: JSON.stringify({ live: { standings: [], matches: [] }, trends: [] }),
+  }));
+
+  await page.goto("/?blCompetition=bundesliga-2025#bundesliga-start");
+
+  await expect(page.getByRole("heading", { name: "Hallo Archivgast (Demo)" })).toBeVisible();
+  await expect(page.getByText("Archiv-Demo ohne Login. Eingaben und Speichern sind deaktiviert.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Einloggen" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Abmelden" })).toHaveCount(0);
 });
 
 test("retired Bundesliga live probe link no longer opens a participant session", async ({ page }) => {

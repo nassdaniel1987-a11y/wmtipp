@@ -1,5 +1,10 @@
 import { getServiceClient, json } from "./_shared/supabase.js";
-import { bundesligaErrorResponse, requireBundesligaViewAccess } from "./_shared/bundesliga-access.js";
+import {
+  bundesligaErrorResponse,
+  filterBundesligaArchiveShowcaseParticipants,
+  filterBundesligaArchiveShowcaseTips,
+  requireBundesligaViewAccess,
+} from "./_shared/bundesliga-access.js";
 import {
   buildCompetitionRanking,
   buildMatchdayPointRows,
@@ -28,15 +33,16 @@ export default async (req) => {
       if (response.error) throw response.error;
     }
 
-    const participantRows = participants.data ?? [];
-    const tipRows = tips.data ?? [];
+    const participantRows = filterBundesligaArchiveShowcaseParticipants(participants.data, competitionId, participant);
+    const tipRows = filterBundesligaArchiveShowcaseTips(tips.data, participantRows, competitionId, participant);
+    const bonusTipRows = filterBundesligaArchiveShowcaseTips(bonusTips.data, participantRows, competitionId, participant);
     const matchRows = matches.data ?? [];
     const resultRows = results.data ?? [];
     const ranking = buildCompetitionRanking(
       participantRows,
       tipRows,
       resultRows,
-      bonusTips.data ?? [],
+      bonusTipRows,
       bonusResults.data ?? null,
       topScorers.data ?? [],
       matchRows,

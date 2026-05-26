@@ -1,6 +1,7 @@
 import { getServiceClient, json } from "./_shared/supabase.js";
 import { bundesligaErrorResponse, requireBundesligaViewAccess } from "./_shared/bundesliga-access.js";
 import {
+  BUNDESLIGA_ARCHIVE_COMPETITION_ID,
   buildBonusStatus,
   buildBundesligaRulesSummary,
   buildLeagueTable,
@@ -14,7 +15,7 @@ export default async (req) => {
 
   try {
     const supabase = getServiceClient();
-    const { competition: activeCompetition, competitionId } = await requireBundesligaViewAccess(req, supabase);
+    const { competition: activeCompetition, competitionId, participant } = await requireBundesligaViewAccess(req, supabase);
     const [competition, teams, matches, results, topScorers, bonusResults, ruleSettings] = await Promise.all([
       Promise.resolve({ data: activeCompetition, error: null }),
       supabase.from("competition_teams").select("*").eq("competition_id", competitionId).order("name"),
@@ -40,6 +41,9 @@ export default async (req) => {
 
     return json({
       competition: competition.data,
+      showcaseParticipant: competitionId === BUNDESLIGA_ARCHIVE_COMPETITION_ID && participant?.showcase
+        ? { id: participant.id, display_name: participant.display_name }
+        : null,
       teams: normalizedTeams,
       bonusTeams: leagueTeams,
       matches: visibleMatches,

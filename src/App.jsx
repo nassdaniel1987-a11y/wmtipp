@@ -4497,6 +4497,7 @@ function AdminPanel({
 function BundesligaParticipantApp({ isTestMode }) {
   const selectedCompetitionAtLoad = useMemo(() => getBundesligaCompetitionFromUrl(), []);
   const savedParticipant = useMemo(() => {
+    if (selectedCompetitionAtLoad === BUNDESLIGA_ARCHIVE_COMPETITION_ID) return null;
     const saved = loadSavedBundesligaParticipant();
     if (!saved) return null;
     const savedCompetitionId = saved.competitionId ?? BUNDESLIGA_DEFAULT_COMPETITION_ID;
@@ -4506,14 +4507,18 @@ function BundesligaParticipantApp({ isTestMode }) {
   const [activeTab, setActiveTab] = useState(getBundesligaTabFromHash);
   const [data, setData] = useState(() => (isTestMode ? createTestBundesligaData() : null));
   const [participant, setParticipant] = useState(() => (isTestMode ? { id: "bl-test", name: "Daniel BL", code: "BL-TEST" } : savedParticipant));
-  const [code, setCode] = useState(() => new URLSearchParams(window.location.search).get("blCode")?.trim() || savedParticipant?.code || "");
+  const [code, setCode] = useState(() => (
+    selectedCompetitionAtLoad === BUNDESLIGA_ARCHIVE_COMPETITION_ID
+      ? ""
+      : new URLSearchParams(window.location.search).get("blCode")?.trim() || savedParticipant?.code || ""
+  ));
   const [name, setName] = useState(() => savedParticipant?.name ?? "");
   const [codeStatus, setCodeStatus] = useState(isTestMode ? "claimed" : code ? "checking" : "missing");
   const [loginState, setLoginState] = useState(() => (
     isTestMode || savedParticipant ? "success" : code ? "checking" : "idle"
   ));
   const [loginFeedback, setLoginFeedback] = useState(() => (
-    isTestMode ? "Bundesliga-Testmodus aktiv." : savedParticipant ? "Login gespeichert." : code ? "Code wird geprüft..." : selectedCompetitionAtLoad === BUNDESLIGA_ARCHIVE_COMPETITION_ID ? "Archivvorschau: Bitte mit einem bereits zugeordneten Code anmelden." : "Gib deinen Bundesliga-Code ein."
+    isTestMode ? "Bundesliga-Testmodus aktiv." : savedParticipant ? "Login gespeichert." : code ? "Code wird geprüft..." : selectedCompetitionAtLoad === BUNDESLIGA_ARCHIVE_COMPETITION_ID ? "Archiv-Demo wird geöffnet..." : "Gib deinen Bundesliga-Code ein."
   ));
   const [tips, setTips] = useState({});
   const [bonusTip, setBonusTip] = useState(createBundesligaBonusTip());
@@ -4595,10 +4600,10 @@ function BundesligaParticipantApp({ isTestMode }) {
   }, []);
 
   useEffect(() => {
-    if (!participant && activeTab !== "bundesliga-start") {
+    if (!participant && !archivePreview && activeTab !== "bundesliga-start") {
       setBundesligaTab("bundesliga-start");
     }
-  }, [activeTab, participant]);
+  }, [activeTab, participant, archivePreview]);
 
   useEffect(() => {
     async function loadData() {
@@ -4617,17 +4622,29 @@ function BundesligaParticipantApp({ isTestMode }) {
       try {
         const payload = await apiGet("/api/bundesliga-public-data", accessHeaders());
         setData(payload);
+        if (archivePreview && payload.showcaseParticipant && !participant?.id) {
+          const showcase = {
+            id: payload.showcaseParticipant.id,
+            name: payload.showcaseParticipant.display_name,
+            competitionId,
+            showcase: true,
+          };
+          setParticipant(showcase);
+          setName(showcase.name);
+          setLoginState("success");
+          setLoginFeedback("Schreibgeschützte Demo-Ansicht geöffnet.");
+        }
         const mappedMatches = (payload.matches ?? []).map(mapBundesligaMatch);
         setTips(createInitialTips(mappedMatches));
         setSelectedMatchday(Number(mappedMatches[0]?.matchday) || 1);
         await refreshRanking();
-        setMessage("Bundesliga bereit");
+        setMessage(archivePreview ? "Archiv-Demo bereit" : "Bundesliga bereit");
       } catch (error) {
         setMessage(error.message);
       }
     }
     loadData();
-  }, [isTestMode, participant?.code, competitionId, retiredLiveProbe]);
+  }, [isTestMode, participant?.code, competitionId, archivePreview, retiredLiveProbe]);
 
   useEffect(() => {
     async function resolveParticipant() {
@@ -4926,7 +4943,7 @@ function BundesligaParticipantApp({ isTestMode }) {
     setName("");
     setCodeStatus("missing");
     setLoginState("idle");
-    setLoginFeedback(archivePreview ? "Archivvorschau: Bitte mit einem bereits zugeordneten Code anmelden." : "Gib deinen Bundesliga-Code ein.");
+    setLoginFeedback(archivePreview ? "Archiv-Demo wird geöffnet..." : "Gib deinen Bundesliga-Code ein.");
     setTips(createInitialTips(matches));
     setBonusTip(createBundesligaBonusTip());
     setBonusDirty(false);
@@ -5941,13 +5958,13 @@ function BundesligaParticipantApp({ isTestMode }) {
       <main className="bundesliga-public-main">
         {archivePreview && (
           <section className="bundesliga-archive-banner" aria-live="polite">
-            <strong>Interne Archivvorschau 2025/2026</strong>
-            <span>Nur lesbar. Neue Codes, Tipps und Bonusänderungen laufen ausschließlich in 2026/2027.</span>
+            <strong>Archiv-Demo 2025/2026</strong>
+            <span>Ohne Login ansehen: Beispieltipps zeigen den Ablauf. Änderungen sind nicht möglich.</span>
           </section>
         )}
         {displayedTab !== "bundesliga-start" && (
           <section className="bundesliga-public-status" aria-live="polite">
-            <span>{participant ? `Angemeldet als ${participant.name}` : "Bundesliga-Code erforderlich"}</span>
+            <span>{participant ? (archivePreview ? `Demo-Profil ${participant.name}` : `Angemeldet als ${participant.name}`) : "Bundesliga-Code erforderlich"}</span>
             <strong>{participant ? `${savedTipCount} von ${matches.length} Tipps gespeichert` : loginFeedback}</strong>
             <span>{message}</span>
           </section>
@@ -5959,12 +5976,12 @@ function BundesligaParticipantApp({ isTestMode }) {
               <div className="bundesliga-dashboard-hero">
                 <BundesligaBrandLogo variant="header" />
                 <div>
-                  <h1>Bundesliga starten</h1>
-                  <p>Gib deinen persönlichen Code ein. Ist er bereits verknüpft, öffnet sich deine Zentrale sofort.</p>
+                  <h1>{archivePreview ? "Archiv-Demo wird geladen" : "Bundesliga starten"}</h1>
+                  <p>{archivePreview ? "Die schreibgeschützte Saisonansicht mit Beispieltipps wird vorbereitet." : "Gib deinen persönlichen Code ein. Ist er bereits verknüpft, öffnet sich deine Zentrale sofort."}</p>
                 </div>
               </div>
-              {renderLoginPanel()}
-              <p className="bundesliga-login-note">Deine Tipps, Bonusfragen und Ranglistenposition bleiben deinem Code zugeordnet.</p>
+              {!archivePreview && renderLoginPanel()}
+              <p className="bundesliga-login-note">{archivePreview ? message || "Einen Augenblick bitte." : "Deine Tipps, Bonusfragen und Ranglistenposition bleiben deinem Code zugeordnet."}</p>
             </section>
           </section>
         )}
@@ -5976,17 +5993,17 @@ function BundesligaParticipantApp({ isTestMode }) {
               <div className="bundesliga-dashboard-hero">
                 <BundesligaBrandLogo variant="header" />
                 <div>
-                  <span>Deine Zentrale</span>
+                  <span>{archivePreview ? "Archiv-Demo" : "Deine Zentrale"}</span>
                   <h1>Hallo {participant.name}</h1>
-                  <p>Deine Tipps, dein Bonus, dein aktueller Stand und die nächsten Schritte auf einen Blick.</p>
+                  <p>{archivePreview ? "So wirkt die Bundesliga-Saisonansicht mit vorab angelegten Beispieltipps." : "Deine Tipps, dein Bonus, dein aktueller Stand und die nächsten Schritte auf einen Blick."}</p>
                 </div>
               </div>
               <div className="bundesliga-session-row">
                 <div>
-                  <strong>Zugang aktiv</strong>
-                  <span>{loginState === "success" ? loginFeedback : `Eingeloggt als ${participant.name}.`}</span>
+                  <strong>{archivePreview ? "Nur ansehen" : "Zugang aktiv"}</strong>
+                  <span>{archivePreview ? "Archiv-Demo ohne Login. Eingaben und Speichern sind deaktiviert." : loginState === "success" ? loginFeedback : `Eingeloggt als ${participant.name}.`}</span>
                 </div>
-                <button type="button" onClick={resetBundesligaLogin}>Abmelden</button>
+                {!archivePreview && <button type="button" onClick={resetBundesligaLogin}>Abmelden</button>}
               </div>
               <div className="bundesliga-dashboard-metrics">
                 <article>
