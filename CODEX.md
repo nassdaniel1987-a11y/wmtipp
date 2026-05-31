@@ -145,6 +145,7 @@ cd android-app
 - Personalisierte Offline-Tippbögen enthalten einen scannbaren QR-Code je Teilnehmer.
 - Admin-Daten laden Spieltipps und Bonus-Tipps paginiert, damit Counter und Nachträge auch über dem Supabase-Standardlimit von 1000 Zeilen stimmen.
 - Bundesliga-Admin ist als geführte Betriebszentrale aufgebaut: gruppierte Navigation, Saisonstatus, vorbereitete Zugänge, nächste Schritte und Fachbereiche mit `Diagnose & Freigabe`.
+- Bundesliga-Admin erhielt einen gezielten UI-Polish: klarere Button-Hierarchie, einheitliche Focus-/Hover-/Active-Zustände, ruhigere Teilnehmerliste, stärkere Operations-/Release-Statuschips und deutlicher getrennten Gefahrenbereich; keine Routen, APIs oder Datenlogik wurden geändert.
 - Bundesliga-Codes können im Bundesliga-Admin wieder gelöscht werden, solange sie frei und keinem Teilnehmer zugeordnet sind.
 - Echte Bundesliga-Teilnehmer können im Bundesliga-Admin direkt mit verknüpftem Code angelegt werden.
 - Bundesliga-Teilnehmer sind im Admin standardmäßig eingeklappt; pro Teilnehmer öffnet sich ein Detailbereich für Name, Spieltag-Tipps, Bonus und QR-Code.

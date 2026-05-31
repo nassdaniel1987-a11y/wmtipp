@@ -7146,7 +7146,7 @@ function BundesligaAdminArea({
         )}
         <div className="bundesliga-probe-grid">
           {releaseProbeChecks.map((item) => (
-            <article key={item.label} className={item.done ? "done" : ""}>
+            <article key={item.label} className={item.done ? "done" : "pending"}>
               <span>{item.done ? "OK" : "offen"}</span>
               <strong>{item.label}</strong>
               <small>{item.detail}</small>
