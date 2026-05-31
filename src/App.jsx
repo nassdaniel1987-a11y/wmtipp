@@ -182,9 +182,82 @@ const bundesligaTabIds = new Set([
   "bundesliga-spielplan",
 ]);
 const BUNDESLIGA_MATCH_DETAIL_PREFIX = "bundesliga-spiel/";
+const BUNDESLIGA_DESIGN_ROUTE_PREFIX = "bundesliga-design-";
+const BUNDESLIGA_DESIGN_MATCH_DETAIL_PREFIX = "bundesliga-design-spiel/";
+const BUNDESLIGA_C_ROUTE_PREFIX = "bundesliga-c-";
+const BUNDESLIGA_C_MATCH_DETAIL_PREFIX = "bundesliga-c-spiel/";
+const BUNDESLIGA_D_ROUTE_PREFIX = "bundesliga-d-";
+const BUNDESLIGA_D_MATCH_DETAIL_PREFIX = "bundesliga-d-spiel/";
+
+function getCurrentHashId() {
+  return window.location.hash.replace("#", "").trim();
+}
+
+function isBundesligaDesignRoute(tabId = getCurrentHashId()) {
+  return tabId.startsWith(BUNDESLIGA_DESIGN_ROUTE_PREFIX) || tabId.startsWith(BUNDESLIGA_DESIGN_MATCH_DETAIL_PREFIX);
+}
+
+function isBundesligaCRoute(tabId = getCurrentHashId()) {
+  return tabId.startsWith(BUNDESLIGA_C_ROUTE_PREFIX) || tabId.startsWith(BUNDESLIGA_C_MATCH_DETAIL_PREFIX);
+}
+
+function isBundesligaDRoute(tabId = getCurrentHashId()) {
+  return tabId.startsWith(BUNDESLIGA_D_ROUTE_PREFIX) || tabId.startsWith(BUNDESLIGA_D_MATCH_DETAIL_PREFIX);
+}
+
+function getBundesligaRouteVariant(tabId = getCurrentHashId()) {
+  if (isBundesligaDRoute(tabId)) return "d";
+  if (isBundesligaCRoute(tabId)) return "c";
+  if (isBundesligaDesignRoute(tabId)) return "design";
+  return "default";
+}
+
+function normalizeBundesligaTabId(tabId = getCurrentHashId()) {
+  if (tabId.startsWith(BUNDESLIGA_D_MATCH_DETAIL_PREFIX) && tabId.length > BUNDESLIGA_D_MATCH_DETAIL_PREFIX.length) {
+    return `${BUNDESLIGA_MATCH_DETAIL_PREFIX}${tabId.slice(BUNDESLIGA_D_MATCH_DETAIL_PREFIX.length)}`;
+  }
+  if (tabId.startsWith(BUNDESLIGA_D_ROUTE_PREFIX)) {
+    return `bundesliga-${tabId.slice(BUNDESLIGA_D_ROUTE_PREFIX.length)}`;
+  }
+  if (tabId.startsWith(BUNDESLIGA_C_MATCH_DETAIL_PREFIX) && tabId.length > BUNDESLIGA_C_MATCH_DETAIL_PREFIX.length) {
+    return `${BUNDESLIGA_MATCH_DETAIL_PREFIX}${tabId.slice(BUNDESLIGA_C_MATCH_DETAIL_PREFIX.length)}`;
+  }
+  if (tabId.startsWith(BUNDESLIGA_C_ROUTE_PREFIX)) {
+    return `bundesliga-${tabId.slice(BUNDESLIGA_C_ROUTE_PREFIX.length)}`;
+  }
+  if (tabId.startsWith(BUNDESLIGA_DESIGN_MATCH_DETAIL_PREFIX) && tabId.length > BUNDESLIGA_DESIGN_MATCH_DETAIL_PREFIX.length) {
+    return `${BUNDESLIGA_MATCH_DETAIL_PREFIX}${tabId.slice(BUNDESLIGA_DESIGN_MATCH_DETAIL_PREFIX.length)}`;
+  }
+  if (tabId.startsWith(BUNDESLIGA_DESIGN_ROUTE_PREFIX)) {
+    return `bundesliga-${tabId.slice(BUNDESLIGA_DESIGN_ROUTE_PREFIX.length)}`;
+  }
+  return tabId;
+}
+
+function getBundesligaHashForTab(tabId, routeVariant) {
+  if (routeVariant === "d" && tabId.startsWith(BUNDESLIGA_MATCH_DETAIL_PREFIX)) {
+    return `${BUNDESLIGA_D_MATCH_DETAIL_PREFIX}${tabId.slice(BUNDESLIGA_MATCH_DETAIL_PREFIX.length)}`;
+  }
+  if (routeVariant === "d") {
+    return tabId.replace(/^bundesliga-/, BUNDESLIGA_D_ROUTE_PREFIX);
+  }
+  if (routeVariant === "c" && tabId.startsWith(BUNDESLIGA_MATCH_DETAIL_PREFIX)) {
+    return `${BUNDESLIGA_C_MATCH_DETAIL_PREFIX}${tabId.slice(BUNDESLIGA_MATCH_DETAIL_PREFIX.length)}`;
+  }
+  if (routeVariant === "c") {
+    return tabId.replace(/^bundesliga-/, BUNDESLIGA_C_ROUTE_PREFIX);
+  }
+  if (routeVariant === "design" && tabId.startsWith(BUNDESLIGA_MATCH_DETAIL_PREFIX)) {
+    return `${BUNDESLIGA_DESIGN_MATCH_DETAIL_PREFIX}${tabId.slice(BUNDESLIGA_MATCH_DETAIL_PREFIX.length)}`;
+  }
+  if (routeVariant === "design") {
+    return tabId.replace(/^bundesliga-/, BUNDESLIGA_DESIGN_ROUTE_PREFIX);
+  }
+  return tabId;
+}
 
 function getBundesligaTabFromHash() {
-  const tabId = window.location.hash.replace("#", "").trim();
+  const tabId = normalizeBundesligaTabId();
   if (tabId.startsWith(BUNDESLIGA_MATCH_DETAIL_PREFIX) && tabId.length > BUNDESLIGA_MATCH_DETAIL_PREFIX.length) {
     return tabId;
   }
@@ -196,6 +269,19 @@ function getBundesligaMatchDetailId(tabId) {
   return decodeURIComponent(tabId.slice(BUNDESLIGA_MATCH_DETAIL_PREFIX.length));
 }
 
+function getBundesligaTabLabel(tabId) {
+  if (tabId === "bundesliga-start") return "Zentrale";
+  if (tabId === "bundesliga-tippen") return "Spieltag tippen";
+  if (tabId === "bundesliga-bonus") return "Bonus";
+  if (tabId === "bundesliga-rangliste") return "Rangliste";
+  if (tabId === "bundesliga-live") return "Live-Spieltag";
+  if (tabId === "bundesliga-tabelle") return "Tabelle";
+  if (tabId === "bundesliga-torschuetzen") return "Torschützen";
+  if (tabId === "bundesliga-spielplan") return "Spielplan";
+  if (getBundesligaMatchDetailId(tabId)) return "Spielauswertung";
+  return "Bundesliga";
+}
+
 function getBundesligaCompetitionFromUrl() {
   const requested = new URLSearchParams(window.location.search).get("blCompetition");
   if (requested === BUNDESLIGA_ARCHIVE_COMPETITION_ID || requested === BUNDESLIGA_RETIRED_LIVE_PROBE_ID) {
@@ -205,7 +291,7 @@ function getBundesligaCompetitionFromUrl() {
 }
 
 function isBundesligaRoute() {
-  return window.location.hash.replace("#", "").startsWith("bundesliga-");
+  return getCurrentHashId().startsWith("bundesliga-");
 }
 
 function getInviteUrl(code) {
@@ -4505,6 +4591,7 @@ function BundesligaParticipantApp({ isTestMode }) {
   }, [selectedCompetitionAtLoad]);
   const competitionId = selectedCompetitionAtLoad;
   const [activeTab, setActiveTab] = useState(getBundesligaTabFromHash);
+  const [routeVariant, setRouteVariant] = useState(() => getBundesligaRouteVariant());
   const [data, setData] = useState(() => (isTestMode ? createTestBundesligaData() : null));
   const [participant, setParticipant] = useState(() => (isTestMode ? { id: "bl-test", name: "Daniel BL", code: "BL-TEST" } : savedParticipant));
   const [code, setCode] = useState(() => (
@@ -4594,6 +4681,7 @@ function BundesligaParticipantApp({ isTestMode }) {
   useEffect(() => {
     function syncTab() {
       setActiveTab(getBundesligaTabFromHash());
+      setRouteVariant(getBundesligaRouteVariant());
     }
     window.addEventListener("hashchange", syncTab);
     return () => window.removeEventListener("hashchange", syncTab);
@@ -4837,7 +4925,7 @@ function BundesligaParticipantApp({ isTestMode }) {
   function setBundesligaTab(tabId) {
     if (!bundesligaTabIds.has(tabId)) return;
     setMobileMoreOpen(false);
-    window.location.hash = tabId;
+    window.location.hash = getBundesligaHashForTab(tabId, routeVariant);
     setActiveTab(tabId);
     window.scrollTo(0, 0);
   }
@@ -4845,7 +4933,7 @@ function BundesligaParticipantApp({ isTestMode }) {
   function openBundesligaMatchDetail(matchId, returnTab) {
     setMatchDetailReturnTab(returnTab);
     const detailTab = `${BUNDESLIGA_MATCH_DETAIL_PREFIX}${encodeURIComponent(matchId)}`;
-    window.location.hash = detailTab;
+    window.location.hash = getBundesligaHashForTab(detailTab, routeVariant);
     setActiveTab(detailTab);
     window.scrollTo(0, 0);
   }
@@ -5883,10 +5971,27 @@ function BundesligaParticipantApp({ isTestMode }) {
         ? "Saison 2026/2027"
         : "Vorschau 2026/2027";
   const moreNavigationActive = ["bundesliga-tabelle", "bundesliga-torschuetzen", "bundesliga-spielplan"].includes(displayedTab);
+  const shellClassName = [
+    "bundesliga-public-shell",
+    routeVariant === "design" ? "bundesliga-design-shell" : "",
+    routeVariant === "c" ? "bundesliga-c-shell" : "",
+    routeVariant === "d" ? "bundesliga-d-shell" : "",
+  ].filter(Boolean).join(" ");
+  const isVariantD = routeVariant === "d";
+  const showVariantDCommand = isVariantD && participant;
+  const variantDCommandCompact = showVariantDCommand && displayedTab !== "bundesliga-start";
+  const variantDPrimaryAction = (() => {
+    if (displayedTab === "bundesliga-tippen") return { label: "Live öffnen", tab: "bundesliga-live" };
+    if (displayedTab === "bundesliga-live") return { label: "Tippen", tab: "bundesliga-tippen" };
+    if (displayedTab === "bundesliga-rangliste") return { label: "Spielplan", tab: "bundesliga-spielplan" };
+    if (displayedTab === "bundesliga-bonus") return { label: "Tippen", tab: "bundesliga-tippen" };
+    return { label: "Tippen", tab: "bundesliga-tippen" };
+  })();
 
   if (retiredLiveProbe) {
     return (
-      <div className="bundesliga-public-shell">
+      <div className={shellClassName}>
+        {isVariantD && <div className="bundesliga-d-atmosphere" aria-hidden="true"><span></span><span></span><span></span></div>}
         <main className="bundesliga-retired-probe">
           <img src={BUNDESLIGA_BRAND_ASSETS.header} alt="Österfeld Tippspiel" />
           <section className="bundesliga-public-card">
@@ -5912,7 +6017,8 @@ function BundesligaParticipantApp({ isTestMode }) {
   }
 
   return (
-    <div className="bundesliga-public-shell">
+    <div className={shellClassName}>
+      {isVariantD && <div className="bundesliga-d-atmosphere" aria-hidden="true"><span></span><span></span><span></span></div>}
       <header className={`bundesliga-public-header ${participant ? "" : "is-login"}`}>
         <button type="button" className="bundesliga-header-brand" onClick={() => setBundesligaTab("bundesliga-start")}>
           <BundesligaBrandLogo decorative variant="compact" />
@@ -5933,19 +6039,21 @@ function BundesligaParticipantApp({ isTestMode }) {
               <button className={displayedTab === "bundesliga-torschuetzen" ? "active" : ""} onClick={() => setBundesligaTab("bundesliga-torschuetzen")}>Torschützen</button>
               <button className={displayedTab === "bundesliga-spielplan" ? "active" : ""} onClick={() => setBundesligaTab("bundesliga-spielplan")}>Spielplan</button>
             </span>
-            <button
-              type="button"
-              className={`bundesliga-more-toggle ${moreNavigationActive || mobileMoreOpen ? "active" : ""}`}
-              aria-expanded={mobileMoreOpen}
-              aria-controls="bundesliga-mobile-more-menu"
-              onClick={() => setMobileMoreOpen((current) => !current)}
-            >
-              Mehr
-              <ChevronDown size={16} />
-            </button>
+            {!isVariantD && (
+              <button
+                type="button"
+                className={`bundesliga-more-toggle ${moreNavigationActive || mobileMoreOpen ? "active" : ""}`}
+                aria-expanded={mobileMoreOpen}
+                aria-controls="bundesliga-mobile-more-menu"
+                onClick={() => setMobileMoreOpen((current) => !current)}
+              >
+                Mehr
+                <ChevronDown size={16} />
+              </button>
+            )}
           </nav>
         )}
-        {participant && mobileMoreOpen && (
+        {participant && mobileMoreOpen && !isVariantD && (
           <div id="bundesliga-mobile-more-menu" className="bundesliga-mobile-more-menu" role="navigation" aria-label="Weitere Bundesliga-Bereiche">
             <button className={displayedTab === "bundesliga-tabelle" ? "active" : ""} onClick={() => setBundesligaTab("bundesliga-tabelle")}>Tabelle</button>
             <button className={displayedTab === "bundesliga-torschuetzen" ? "active" : ""} onClick={() => setBundesligaTab("bundesliga-torschuetzen")}>Torschützen</button>
@@ -5956,13 +6064,53 @@ function BundesligaParticipantApp({ isTestMode }) {
       </header>
 
       <main className="bundesliga-public-main">
+        {showVariantDCommand && (
+          <section className={`bundesliga-d-command${variantDCommandCompact ? " is-compact" : ""}`} aria-label="Bundesliga Variante D Übersicht">
+            <div className="bundesliga-d-command-copy">
+              <span>{archivePreview ? "Archive Signal" : isTestMode ? "Sandbox Signal" : "Live Season Signal"}</span>
+              <h1>{variantDCommandCompact ? getBundesligaTabLabel(displayedTab) : "Matchday Operating System"}</h1>
+              <p>
+                {variantDCommandCompact
+                  ? `${participant.name} · ${savedTipCount} von ${matches.length} Tipps · ${message}`
+                  : `${participant.name}, dein Spieltag läuft als persönliches Kontrollzentrum.`}
+              </p>
+            </div>
+            <div className="bundesliga-d-command-metrics">
+              <article>
+                <small>Tips</small>
+                <strong>{preseasonPending ? "--" : `${savedTipCount}/${matches.length}`}</strong>
+              </article>
+              <article>
+                <small>Bonus</small>
+                <strong>{bonusAvailable ? `${bonusStatus.doneCount}/${bonusStatus.totalCount}` : "--"}</strong>
+              </article>
+              <article>
+                <small>Rank</small>
+                <strong>{currentParticipantRank ? `${currentParticipantRank.points}P` : "--"}</strong>
+              </article>
+            </div>
+            {!variantDCommandCompact ? (
+              <nav className="bundesliga-d-quicknav" aria-label="Schnellaktionen Variante D">
+                <button type="button" onClick={() => setBundesligaTab("bundesliga-tippen")}>Tippen</button>
+                <button type="button" onClick={() => setBundesligaTab("bundesliga-live")}>Live</button>
+                <button type="button" onClick={() => { setBundesligaTab("bundesliga-rangliste"); void refreshRanking(); }}>Rangliste</button>
+                <button type="button" onClick={() => setBundesligaTab("bundesliga-spielplan")}>Spielplan</button>
+              </nav>
+            ) : (
+              <div className="bundesliga-d-context-actions">
+                <button type="button" onClick={() => setBundesligaTab(variantDPrimaryAction.tab)}>{variantDPrimaryAction.label}</button>
+                <button type="button" onClick={() => setBundesligaTab("bundesliga-start")}>Zentrale</button>
+              </div>
+            )}
+          </section>
+        )}
         {archivePreview && (
           <section className="bundesliga-archive-banner" aria-live="polite">
             <strong>Archiv-Demo 2025/2026</strong>
             <span>Ohne Login ansehen: Beispieltipps zeigen den Ablauf. Änderungen sind nicht möglich.</span>
           </section>
         )}
-        {displayedTab !== "bundesliga-start" && (
+        {displayedTab !== "bundesliga-start" && !isVariantD && (
           <section className="bundesliga-public-status" aria-live="polite">
             <span>{participant ? (archivePreview ? `Demo-Profil ${participant.name}` : `Angemeldet als ${participant.name}`) : "Bundesliga-Code erforderlich"}</span>
             <strong>{participant ? `${savedTipCount} von ${matches.length} Tipps gespeichert` : loginFeedback}</strong>
@@ -5987,7 +6135,7 @@ function BundesligaParticipantApp({ isTestMode }) {
         )}
 
         {displayedTab === "bundesliga-start" && participant && (
-          <section className="bundesliga-home-dashboard">
+          <section className={`bundesliga-home-dashboard${isVariantD ? " is-d-start" : ""}`}>
             <section className="bundesliga-home-primary">
             <section className="bundesliga-welcome-card bundesliga-public-card">
               <div className="bundesliga-dashboard-hero">
