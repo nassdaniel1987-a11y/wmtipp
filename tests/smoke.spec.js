@@ -81,7 +81,7 @@ test("hidden Bundesliga test flow supports tips, bonus and ranking", async ({ pa
   await page.getByRole("button", { name: "Tippen" }).click();
   await expect(page).toHaveURL(/#bundesliga-tippen$/);
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
-  await expect(page.getByRole("heading", { name: "Spieltag tippen" })).toBeVisible();
+  await expect(page.locator(".bundesliga-tip-stage").getByRole("heading", { name: "Spieltag tippen" })).toBeVisible();
   const mobileInfoToggle = page.getByText("Infos & Statistik", { exact: true });
   if (await mobileInfoToggle.isVisible()) await mobileInfoToggle.click();
   await expect(page.getByRole("heading", { name: "Was fehlt noch?" })).toBeVisible();
@@ -121,6 +121,166 @@ test("hidden Bundesliga test flow supports tips, bonus and ranking", async ({ pa
   await page.getByRole("button", { name: "Punkteschnitt" }).click();
   await expect(page.locator(".bundesliga-ranking-podium article").filter({ hasText: "Daniel BL" }).getByText("1 gewertete Tipps")).toBeVisible();
   await expect(page.getByText("Bonuspunkte zählen nicht in den Schnitt.")).toBeVisible();
+});
+
+test("Bundesliga design variant keeps separate hashes and fits mobile", async ({ page }) => {
+  await page.goto("/?test=1#bundesliga-design-start");
+
+  await expect(page.locator(".bundesliga-design-shell")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Hallo Daniel BL" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Tippen", exact: true }).click();
+  await expect(page).toHaveURL(/#bundesliga-design-tippen$/);
+  await expect(page.locator(".bundesliga-tip-stage").getByRole("heading", { name: "Spieltag tippen" })).toBeVisible();
+  await expect(page.locator(".bundesliga-design-shell .bundesliga-user-match-card").first()).toBeVisible();
+
+  await page.getByRole("button", { name: "Auswertung ansehen" }).first().click();
+  await expect(page).toHaveURL(/#bundesliga-design-spiel\/bl-test-1$/);
+  await expect(page.getByRole("heading", { name: "Dein Tipp" })).toBeVisible();
+
+  await page.setViewportSize({ width: 360, height: 900 });
+  await page.goto("/?test=1#bundesliga-design-tippen");
+  await expect(page.locator(".bundesliga-design-shell")).toBeVisible();
+  const mobileLayout = await page.locator(".bundesliga-user-match-card").nth(1).locator(".score-control").first().evaluate((control) => {
+    const controlRect = control.getBoundingClientRect();
+    return {
+      buttonsFit: [...control.querySelectorAll("button")].every((button) => {
+        const rect = button.getBoundingClientRect();
+        return rect.top >= controlRect.top - 1 && rect.bottom <= controlRect.bottom + 1;
+      }),
+      bodyOverflows: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    };
+  });
+  expect(mobileLayout.buttonsFit).toBe(true);
+  expect(mobileLayout.bodyOverflows).toBe(false);
+});
+
+test("Bundesliga variant C keeps experimental hashes and fits mobile", async ({ page }) => {
+  await page.goto("/?test=1#bundesliga-c-start");
+
+  await expect(page.locator(".bundesliga-c-shell")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Hallo Daniel BL" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Tippen", exact: true }).click();
+  await expect(page).toHaveURL(/#bundesliga-c-tippen$/);
+  await expect(page.locator(".bundesliga-tip-stage").getByRole("heading", { name: "Spieltag tippen" })).toBeVisible();
+  await expect(page.locator(".bundesliga-c-shell .bundesliga-user-match-card").first()).toBeVisible();
+
+  await page.getByRole("button", { name: "Auswertung ansehen" }).first().click();
+  await expect(page).toHaveURL(/#bundesliga-c-spiel\/bl-test-1$/);
+  await expect(page.getByRole("heading", { name: "Dein Tipp" })).toBeVisible();
+
+  await page.setViewportSize({ width: 360, height: 900 });
+  await page.goto("/?test=1#bundesliga-c-tippen");
+  await expect(page.locator(".bundesliga-c-shell")).toBeVisible();
+  const mobileLayout = await page.locator(".bundesliga-user-match-card").nth(1).locator(".score-control").first().evaluate((control) => {
+    const controlRect = control.getBoundingClientRect();
+    return {
+      buttonsFit: [...control.querySelectorAll("button")].every((button) => {
+        const rect = button.getBoundingClientRect();
+        return rect.top >= controlRect.top - 1 && rect.bottom <= controlRect.bottom + 1;
+      }),
+      bodyOverflows: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    };
+  });
+  expect(mobileLayout.buttonsFit).toBe(true);
+  expect(mobileLayout.bodyOverflows).toBe(false);
+});
+
+test("Bundesliga variant D uses new UX shell and route family", async ({ page }) => {
+  await page.goto("/?test=1#bundesliga-d-start");
+
+  await expect(page.locator(".bundesliga-d-shell")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Matchday Operating System" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Hallo Daniel BL" })).toHaveCount(0);
+  await expect(page.getByRole("navigation", { name: "Schnellaktionen Variante D" })).toBeVisible();
+
+  await page.getByRole("navigation", { name: "Schnellaktionen Variante D" }).getByRole("button", { name: "Tippen" }).click();
+  await expect(page).toHaveURL(/#bundesliga-d-tippen$/);
+  await expect(page.locator(".bundesliga-d-command.is-compact")).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Schnellaktionen Variante D" })).toHaveCount(0);
+  await expect(page.locator(".bundesliga-tip-stage").getByRole("heading", { name: "Spieltag tippen" })).toBeVisible();
+  await expect(page.locator(".bundesliga-public-status")).toHaveCount(0);
+  await expect(page.locator(".bundesliga-d-shell .bundesliga-user-match-card").first()).toBeVisible();
+
+  await page.getByRole("button", { name: "Auswertung ansehen" }).first().click();
+  await expect(page).toHaveURL(/#bundesliga-d-spiel\/bl-test-1$/);
+  await expect(page.getByRole("heading", { name: "Dein Tipp" })).toBeVisible();
+
+  await page.setViewportSize({ width: 360, height: 900 });
+  await page.goto("/?test=1#bundesliga-d-tippen");
+  await expect(page.locator(".bundesliga-d-shell")).toBeVisible();
+  await expect(page.locator(".bundesliga-d-shell .bundesliga-more-toggle")).toBeHidden();
+  await expect(page.getByRole("button", { name: "Tabelle", exact: true })).toBeVisible();
+  const mobileLayout = await page.locator(".bundesliga-user-match-card").nth(1).locator(".score-control").first().evaluate((control) => {
+    const controlRect = control.getBoundingClientRect();
+    return {
+      buttonsFit: [...control.querySelectorAll("button")].every((button) => {
+        const rect = button.getBoundingClientRect();
+        return rect.top >= controlRect.top - 1 && rect.bottom <= controlRect.bottom + 1;
+      }),
+      bodyOverflows: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    };
+  });
+  expect(mobileLayout.buttonsFit).toBe(true);
+  expect(mobileLayout.bodyOverflows).toBe(false);
+});
+
+test("Bundesliga variants keep controls and text inside their layouts", async ({ page }) => {
+  const routes = [
+    "bundesliga-start",
+    "bundesliga-tippen",
+    "bundesliga-rangliste",
+    "bundesliga-tabelle",
+    "bundesliga-spielplan",
+    "bundesliga-design-start",
+    "bundesliga-design-tippen",
+    "bundesliga-design-rangliste",
+    "bundesliga-c-start",
+    "bundesliga-c-tippen",
+    "bundesliga-c-rangliste",
+    "bundesliga-d-start",
+    "bundesliga-d-tippen",
+    "bundesliga-d-rangliste",
+    "bundesliga-d-tabelle",
+    "bundesliga-d-spielplan",
+  ];
+
+  for (const width of [390, 360, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    for (const route of routes) {
+      await page.goto(`/?test=1#${route}`);
+      const layout = await page.evaluate(() => {
+        const isVisible = (element) => {
+          const style = getComputedStyle(element);
+          const rect = element.getBoundingClientRect();
+          return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+        };
+        const clippedControls = [...document.querySelectorAll("button, a")]
+          .filter(isVisible)
+          .filter((element) => element.scrollWidth > element.clientWidth + 2 || element.scrollHeight > element.clientHeight + 3)
+          .map((element) => element.textContent.trim().replace(/\s+/g, " "))
+          .filter(Boolean);
+        const scoreControlsFit = [...document.querySelectorAll(".score-control")]
+          .filter(isVisible)
+          .every((control) => {
+            const controlRect = control.getBoundingClientRect();
+            return [...control.querySelectorAll("button")].every((button) => {
+              const rect = button.getBoundingClientRect();
+              return rect.top >= controlRect.top - 1 && rect.bottom <= controlRect.bottom + 1;
+            });
+          });
+        return {
+          bodyOverflows: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+          clippedControls,
+          scoreControlsFit,
+        };
+      });
+      expect(layout.bodyOverflows, `${route} at ${width}px should not overflow document`).toBe(false);
+      expect(layout.clippedControls, `${route} at ${width}px has clipped controls`).toEqual([]);
+      expect(layout.scoreControlsFit, `${route} at ${width}px score controls should fit`).toBe(true);
+    }
+  }
 });
 
 test("Bundesliga logout returns to the focused code login", async ({ page }) => {
