@@ -4946,6 +4946,24 @@ function BundesligaParticipantApp({ isTestMode }) {
     window.scrollTo(0, 0);
   }
 
+  function renderBundesligaVariantSwitcher() {
+    return (
+      <section className="bundesliga-variant-switcher" role="group" aria-label="Bundesliga Variante testen">
+        {bundesligaVariantOptions.map((option) => (
+          <button
+            key={option.id}
+            type="button"
+            className={routeVariant === option.id ? "active" : ""}
+            aria-pressed={routeVariant === option.id}
+            onClick={() => setBundesligaVariant(option.id)}
+          >
+            {option.label}
+          </button>
+        ))}
+      </section>
+    );
+  }
+
   function openBundesligaMatchDetail(matchId, returnTab) {
     setMatchDetailReturnTab(returnTab);
     const detailTab = `${BUNDESLIGA_MATCH_DETAIL_PREFIX}${encodeURIComponent(matchId)}`;
@@ -6097,21 +6115,7 @@ function BundesligaParticipantApp({ isTestMode }) {
       </header>
 
       <main className="bundesliga-public-main">
-        {isTestMode && (
-          <section className="bundesliga-variant-switcher" role="group" aria-label="Bundesliga Variante testen">
-            {bundesligaVariantOptions.map((option) => (
-              <button
-                key={option.id}
-                type="button"
-                className={routeVariant === option.id ? "active" : ""}
-                aria-pressed={routeVariant === option.id}
-                onClick={() => setBundesligaVariant(option.id)}
-              >
-                {option.label}
-              </button>
-            ))}
-          </section>
-        )}
+        {(!isVariantD || !showVariantDCommand) && renderBundesligaVariantSwitcher()}
         {showVariantDCommand && (
           <section className={`bundesliga-d-command${variantDCommandCompact ? " is-compact" : ""}`} aria-label="Bundesliga Variante D Übersicht">
             <div className="bundesliga-d-command-copy">
@@ -6137,6 +6141,11 @@ function BundesligaParticipantApp({ isTestMode }) {
                 <strong>{currentParticipantRank ? `${currentParticipantRank.points}P` : "--"}</strong>
               </article>
             </div>
+            {showVariantDCommand && (
+              <div className="bundesliga-d-variant-row">
+                {renderBundesligaVariantSwitcher()}
+              </div>
+            )}
             {!variantDCommandCompact ? (
               <nav className="bundesliga-d-quicknav" aria-label="Schnellaktionen Variante D">
                 <button type="button" onClick={() => setBundesligaTab("bundesliga-tippen")}>Tippen</button>

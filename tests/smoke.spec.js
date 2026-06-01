@@ -316,7 +316,10 @@ test("Bundesliga variant D avoids duplicated detail headers", async ({ page }) =
   }
 });
 
-test("Bundesliga test mode switches variants without leaving the current area", async ({ page }) => {
+test("Bundesliga preview switches variants without leaving the current area", async ({ page }) => {
+  await page.goto("/#bundesliga-start");
+  await expect(page.getByRole("group", { name: "Bundesliga Variante testen" })).toBeVisible();
+
   await page.goto("/?test=1#bundesliga-tippen");
 
   const variantSwitch = page.getByRole("group", { name: "Bundesliga Variante testen" });
