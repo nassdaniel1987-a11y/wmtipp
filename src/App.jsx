@@ -1215,6 +1215,8 @@ export default function App() {
   const [codeStatus, setCodeStatus] = useState(isTestMode ? "claimed" : scannedCode ? "checking" : "missing");
   const [adminSession, setAdminSession] = useState(null);
   const [adminData, setAdminData] = useState({ codes: [], participants: [], tips: [], tipCount: 0, bonusTips: [], bonusTipCount: 0, bonusResults: null, results: [], players: [] });
+  const [wmTestData, setWmTestData] = useState(null);
+  const [wmTestLoading, setWmTestLoading] = useState(false);
   const tipsRef = useRef(tips);
   const bonusTipsRef = useRef(bonusTips);
   const canViewRanking = Boolean(participant);
@@ -1768,6 +1770,7 @@ export default function App() {
     await signOutAdmin();
     setAdminSession(null);
     setAdminData({ codes: [], participants: [], tips: [], tipCount: 0, bonusTips: [], bonusTipCount: 0, bonusResults: null, results: [], players: [] });
+    setWmTestData(null);
   }
 
   async function handleCreateCodes(count) {
@@ -1796,6 +1799,41 @@ export default function App() {
       ],
     }));
     await refreshRanking();
+  }
+
+  async function refreshWmTestData(session = adminSession) {
+    if (!session?.access_token) return null;
+    setWmTestLoading(true);
+    try {
+      const payload = await apiGetWithAuth("/api/admin-wm-test-data", session.access_token);
+      setWmTestData(payload);
+      return payload;
+    } finally {
+      setWmTestLoading(false);
+    }
+  }
+
+  async function handleSaveWmTestResult(matchId, scoreA, scoreB) {
+    await apiPost(
+      "/api/admin-save-wm-test-result",
+      { matchId, scoreA, scoreB, status: "final" },
+      adminSession?.access_token,
+    );
+    return refreshWmTestData();
+  }
+
+  async function handleSaveWmTestBonusResults(testBonusResults) {
+    await apiPost(
+      "/api/admin-save-wm-test-bonus-results",
+      testBonusResults,
+      adminSession?.access_token,
+    );
+    return refreshWmTestData();
+  }
+
+  async function handleResetWmTest() {
+    await apiPost("/api/admin-reset-wm-test", {}, adminSession?.access_token);
+    return refreshWmTestData();
   }
 
   async function handlePreviewOfficialResults() {
@@ -2013,9 +2051,15 @@ export default function App() {
                 groupTables={groupTables}
                 bonusResults={bonusResults}
                 resultsByMatch={resultsByMatch}
+                wmTestData={wmTestData}
+                wmTestLoading={wmTestLoading}
                 onLogin={handleAdminLogin}
                 onLogout={handleAdminLogout}
                 onRefresh={() => refreshAdminData()}
+                onRefreshWmTestData={() => refreshWmTestData()}
+                onSaveWmTestResult={handleSaveWmTestResult}
+                onSaveWmTestBonusResults={handleSaveWmTestBonusResults}
+                onResetWmTest={handleResetWmTest}
                 onCreateCodes={handleCreateCodes}
                 onCreateParticipant={async (displayName) => {
                   const payload = await apiPost(
@@ -3295,9 +3339,15 @@ function AdminPanel({
   groupTables,
   bonusResults,
   resultsByMatch,
+  wmTestData,
+  wmTestLoading,
   onLogin,
   onLogout,
   onRefresh,
+  onRefreshWmTestData,
+  onSaveWmTestResult,
+  onSaveWmTestBonusResults,
+  onResetWmTest,
   onCreateCodes,
   onCreateParticipant,
   onDeleteParticipant,
@@ -3334,11 +3384,13 @@ function AdminPanel({
   const [officialLoading, setOfficialLoading] = useState(false);
   const [playerDraft, setPlayerDraft] = useState({ displayName: "", teamName: "", aliases: "", active: true });
   const [adminCompetition, setAdminCompetition] = useState(competitions.wm2026.id);
+  const [wmAdminMode, setWmAdminMode] = useState("live");
   const [bundesligaData, setBundesligaData] = useState(null);
   const [bundesligaMessage, setBundesligaMessage] = useState("");
   const [bundesligaLoading, setBundesligaLoading] = useState(false);
   const activePlayers = players.filter((player) => player.active !== false);
   const isBundesligaAdmin = adminCompetition === competitions.bundesliga.id;
+  const isWmTestAdmin = !isBundesligaAdmin && wmAdminMode === "test";
 
   useEffect(() => {
     setBonusResultDraft(createInitialBonusResults(matches, bonusResults, players));
@@ -3348,6 +3400,11 @@ function AdminPanel({
     if (!isBundesligaAdmin || !session?.access_token) return;
     void loadBundesligaData();
   }, [isBundesligaAdmin, session?.access_token]);
+
+  useEffect(() => {
+    if (!isWmTestAdmin || !session?.access_token) return;
+    void onRefreshWmTestData();
+  }, [isWmTestAdmin, session?.access_token]);
 
   const unresolvedTopScorers = useMemo(() => {
     const rows = new Map();
@@ -3784,6 +3841,31 @@ function AdminPanel({
         </div>
       </section>
 
+      {!isBundesligaAdmin && (
+        <section className="admin-competition-switch" aria-label="WM-Betriebsmodus auswählen">
+          <div>
+            <span>WM-Betriebsmodus</span>
+            <strong>{isWmTestAdmin ? "Testmodus" : "Livebetrieb"}</strong>
+          </div>
+          <div className="segmented-control">
+            <button
+              type="button"
+              className={!isWmTestAdmin ? "active" : ""}
+              onClick={() => setWmAdminMode("live")}
+            >
+              Livebetrieb
+            </button>
+            <button
+              type="button"
+              className={isWmTestAdmin ? "active" : ""}
+              onClick={() => setWmAdminMode("test")}
+            >
+              Testmodus
+            </button>
+          </div>
+        </section>
+      )}
+
       {isBundesligaAdmin && (
         <BundesligaAdminArea
           data={bundesligaData}
@@ -3907,7 +3989,25 @@ function AdminPanel({
         />
       )}
 
-      {!isBundesligaAdmin && (
+      {isWmTestAdmin && (
+        <WmTestAdminArea
+          data={wmTestData}
+          loading={wmTestLoading}
+          matches={matches}
+          teamOptions={teamOptions}
+          players={players}
+          groupTables={groupTables}
+          onRefresh={onRefreshWmTestData}
+          onSaveResult={onSaveWmTestResult}
+          onSaveBonusResults={onSaveWmTestBonusResults}
+          onReset={async () => {
+            if (!window.confirm("WM-Testmodus wirklich zurücksetzen? Nur Sandbox-Ergebnisse und Sandbox-Bonuswerte werden gelöscht.")) return null;
+            return onResetWmTest();
+          }}
+        />
+      )}
+
+      {!isBundesligaAdmin && !isWmTestAdmin && (
         <>
       <div className="admin-actions">
         <button type="button" className="ghost-button" onClick={onRefresh}>Daten aktualisieren</button>
@@ -4582,6 +4682,205 @@ function AdminPanel({
       )}
         </>
       )}
+    </section>
+  );
+}
+
+function WmTestAdminArea({
+  data,
+  loading,
+  matches,
+  teamOptions,
+  players,
+  groupTables,
+  onRefresh,
+  onSaveResult,
+  onSaveBonusResults,
+  onReset,
+}) {
+  const [message, setMessage] = useState("");
+  const [resultDrafts, setResultDrafts] = useState({});
+  const [bonusResultDraft, setBonusResultDraft] = useState(createInitialBonusResults(matches));
+  const testResultsByMatch = useMemo(
+    () => new Map((data?.testResults ?? []).map((result) => [result.match_id, result])),
+    [data?.testResults],
+  );
+  const liveResultsByMatch = useMemo(
+    () => new Map((data?.liveResults ?? []).map((result) => [result.match_id, result])),
+    [data?.liveResults],
+  );
+  const activePlayers = players.filter((player) => player.active !== false);
+
+  useEffect(() => {
+    setBonusResultDraft(createInitialBonusResults(matches, data?.testBonusResults, players));
+  }, [matches, data?.testBonusResults, players]);
+
+  async function saveTestResult(matchId) {
+    const draft = resultDrafts[matchId] ?? {};
+    const current = testResultsByMatch.get(matchId);
+    try {
+      await onSaveResult(matchId, draft.scoreA ?? current?.score_a ?? 0, draft.scoreB ?? current?.score_b ?? 0);
+      setMessage("Test-Ergebnis gespeichert. Live-Ergebnisse bleiben unverändert.");
+    } catch (error) {
+      setMessage(error.message);
+    }
+  }
+
+  async function saveTestBonusResults() {
+    try {
+      await onSaveBonusResults(bonusResultDraft);
+      setMessage("Test-Bonus-Ergebnisse gespeichert. Live-Bonus bleibt unverändert.");
+    } catch (error) {
+      setMessage(error.message);
+    }
+  }
+
+  async function resetSandbox() {
+    try {
+      const payload = await onReset();
+      if (payload !== null) {
+        setResultDrafts({});
+        setMessage("WM-Testmodus zurückgesetzt.");
+      }
+    } catch (error) {
+      setMessage(error.message);
+    }
+  }
+
+  return (
+    <section className="wm-test-admin">
+      <header className="admin-test-banner">
+        <div>
+          <span>Admin-Sandbox</span>
+          <h3>WM-Testmodus</h3>
+          <p>Die Rangliste nutzt echte Teilnehmer-Tipps, aber ausschließlich Test-Ergebnisse und Test-Bonuswerte.</p>
+        </div>
+        <div className="admin-actions inline-actions">
+          <button type="button" className="ghost-button" onClick={onRefresh} disabled={loading}>Testdaten aktualisieren</button>
+          <button type="button" className="danger-button" onClick={resetSandbox} disabled={loading}>Testmodus zurücksetzen</button>
+        </div>
+      </header>
+
+      {message && <p className="admin-message">{message}</p>}
+
+      <div className="admin-stats">
+        <strong>{data?.participants?.length ?? 0}<span>echte Teilnehmer</span></strong>
+        <strong>{data?.tips?.length ?? 0}<span>echte Tipps</span></strong>
+        <strong>{data?.testResults?.length ?? 0}<span>Test-Ergebnisse</span></strong>
+      </div>
+
+      <section className="admin-bonus-editor">
+        <h3>Test-Bonus-Ergebnisse</h3>
+        <p className="fine-print">Diese Werte zählen nur für die Test-Rangliste und schreiben nicht in die offiziellen Bonus-Ergebnisse.</p>
+        <div className="bonus-select-grid">
+          <label>
+            Weltmeister
+            <select
+              value={bonusResultDraft.champion}
+              onChange={(event) => setBonusResultDraft((current) => ({ ...current, champion: event.target.value }))}
+            >
+              <option value="">Bitte wählen</option>
+              {teamOptions.map((team) => (
+                <option key={team.name} value={team.name}>{team.name}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Torschützenkönig
+            <PlayerSelect
+              players={activePlayers}
+              value={bonusResultDraft.topScorerPlayerIds}
+              fallbackText={bonusResultDraft.topScorer}
+              multiple
+              onChange={(playerIds, selectedPlayers) =>
+                setBonusResultDraft((current) => ({
+                  ...current,
+                  topScorerPlayerIds: playerIds,
+                  topScorer: selectedPlayers.map((player) => player.display_name).join(", ") || current.topScorer,
+                }))
+              }
+            />
+          </label>
+        </div>
+        <div className="group-winner-grid compact">
+          {groupTables.map((group) => (
+            <label key={group.groupKey}>
+              Gruppe {group.groupKey}
+              <select
+                value={bonusResultDraft.groupWinners?.[group.groupKey] ?? ""}
+                onChange={(event) =>
+                  setBonusResultDraft((current) => ({
+                    ...current,
+                    groupWinners: {
+                      ...current.groupWinners,
+                      [group.groupKey]: event.target.value,
+                    },
+                  }))
+                }
+              >
+                <option value="">Bitte wählen</option>
+                {group.teams.map((team) => (
+                  <option key={team.name} value={team.name}>{team.name}</option>
+                ))}
+              </select>
+            </label>
+          ))}
+        </div>
+        <button type="button" className="primary-button compact" onClick={saveTestBonusResults} disabled={loading}>
+          Test-Bonus speichern
+        </button>
+      </section>
+
+      <section className="admin-test-ranking">
+        <h3>Test-Rangliste</h3>
+        <p className="fine-print">Diese Rangliste ist eine Simulation und wirkt sich nicht auf den Livebetrieb aus.</p>
+        <RankingPanel ranking={data?.ranking ?? []} expanded />
+      </section>
+
+      <h3>Test-Ergebnisse</h3>
+      <div className="result-list">
+        {matches.map((match) => {
+          const result = testResultsByMatch.get(match.id);
+          const liveResult = liveResultsByMatch.get(match.id);
+          const draft = resultDrafts[match.id] ?? {};
+          return (
+            <div className="result-row" key={match.id}>
+              <span>Spiel {match.matchNumber}</span>
+              <strong>{match.teamA} - {match.teamB}</strong>
+              <small>
+                Live: {liveResult?.status === "final" ? `${liveResult.score_a}:${liveResult.score_b}` : "offen"} · Testmodus
+              </small>
+              <input
+                type="number"
+                min="0"
+                max="30"
+                value={draft.scoreA ?? result?.score_a ?? 0}
+                onChange={(event) =>
+                  setResultDrafts((current) => ({
+                    ...current,
+                    [match.id]: { ...current[match.id], scoreA: Number(event.target.value) },
+                  }))
+                }
+              />
+              <input
+                type="number"
+                min="0"
+                max="30"
+                value={draft.scoreB ?? result?.score_b ?? 0}
+                onChange={(event) =>
+                  setResultDrafts((current) => ({
+                    ...current,
+                    [match.id]: { ...current[match.id], scoreB: Number(event.target.value) },
+                  }))
+                }
+              />
+              <button type="button" className="save-tip" onClick={() => saveTestResult(match.id)} disabled={loading}>
+                Test speichern
+              </button>
+            </div>
+          );
+        })}
+      </div>
     </section>
   );
 }
