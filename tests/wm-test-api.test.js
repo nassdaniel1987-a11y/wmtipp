@@ -53,6 +53,21 @@ test("WM test data ranks real tips with sandbox results", () => {
   assert.equal(ranking[0].matchPoints, 4);
 });
 
+test("WM test data accepts paginated tip arrays from the real admin tables", () => {
+  const payload = adminWmTestData.buildWmTestDataPayloadFromSources({
+    participants: { data: [{ id: "p1", display_name: "Ada" }] },
+    tips: [{ participant_id: "p1", match_id: "m1", score_a: 2, score_b: 1 }],
+    liveResults: { data: [] },
+    testResults: { data: [{ match_id: "m1", score_a: 2, score_b: 1, status: "final" }] },
+    bonusTips: [],
+    liveBonusResults: { data: null },
+    testBonusResults: { data: null },
+  });
+
+  assert.equal(payload.tips.length, 1);
+  assert.equal(payload.ranking[0].matchPoints, 4);
+});
+
 test("WM test result payload is validated and normalized", () => {
   assert.deepEqual(adminSaveWmTestResult.toWmTestResultRow({ matchId: "m1", scoreA: "3", scoreB: 2 }), {
     match_id: "m1",

@@ -27,6 +27,26 @@ export function buildWmTestRankingPayload({
   };
 }
 
+export function buildWmTestDataPayloadFromSources({
+  participants,
+  tips,
+  liveResults,
+  testResults,
+  bonusTips,
+  liveBonusResults,
+  testBonusResults,
+}) {
+  return buildWmTestRankingPayload({
+    participants: participants.data ?? [],
+    tips: tips ?? [],
+    liveResults: liveResults.data ?? [],
+    testResults: testResults.data ?? [],
+    bonusTips: bonusTips ?? [],
+    liveBonusResults: liveBonusResults.data ?? null,
+    testBonusResults: testBonusResults.data ?? null,
+  });
+}
+
 export default async (req) => {
   if (req.method !== "GET") return json({ error: "Method not allowed" }, 405);
 
@@ -46,14 +66,14 @@ export default async (req) => {
       if (response.error) throw response.error;
     }
 
-    return json(buildWmTestRankingPayload({
-      participants: participants.data ?? [],
-      tips: tips.data ?? [],
-      liveResults: liveResults.data ?? [],
-      testResults: testResults.data ?? [],
-      bonusTips: bonusTips.data ?? [],
-      liveBonusResults: liveBonusResults.data ?? null,
-      testBonusResults: testBonusResults.data ?? null,
+    return json(buildWmTestDataPayloadFromSources({
+      participants,
+      tips,
+      liveResults,
+      testResults,
+      bonusTips,
+      liveBonusResults,
+      testBonusResults,
     }));
   } catch (error) {
     return json({ error: error.message || "WM-Testdaten konnten nicht geladen werden." }, 401);
