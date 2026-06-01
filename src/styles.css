@@ -10708,6 +10708,17 @@ tbody tr:nth-child(1) td:first-child {
   line-height: 0.86;
 }
 
+.bundesliga-d-variant-row {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.bundesliga-d-variant-row .bundesliga-variant-switcher {
+  justify-self: end;
+  background: rgba(5, 7, 11, 0.72);
+}
+
 .bundesliga-d-quicknav {
   grid-area: nav;
   display: grid;
