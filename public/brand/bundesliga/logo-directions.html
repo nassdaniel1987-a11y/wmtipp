@@ -1,0 +1,668 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Österfeld Tippspiel · Bundesliga Logo-Richtungen</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --ink: #07090d;
+        --panel: #11161c;
+        --panel-2: #171d24;
+        --line: #303842;
+        --line-soft: rgba(255, 255, 255, 0.1);
+        --text: #f8fafc;
+        --muted: #aab4c0;
+        --red: #ef332b;
+        --red-deep: #a91618;
+        --gold: #f4c95d;
+        --green: #27c47c;
+        --white: #ffffff;
+        --silver: #b9c0c8;
+        --shadow: 0 22px 58px rgba(0, 0, 0, 0.28);
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-width: 320px;
+        color: var(--text);
+        background:
+          linear-gradient(120deg, rgba(239, 51, 43, 0.12), transparent 30%),
+          linear-gradient(240deg, rgba(39, 196, 124, 0.08), transparent 34%),
+          var(--ink);
+      }
+
+      main {
+        width: min(1420px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 28px 0 72px;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(280px, 0.42fr);
+        gap: 18px;
+        align-items: stretch;
+        margin-bottom: 18px;
+      }
+
+      .hero-copy,
+      .system-card,
+      .direction,
+      .reference-strip,
+      .test-card {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: rgba(17, 22, 28, 0.9);
+        box-shadow: var(--shadow);
+      }
+
+      .hero-copy {
+        display: grid;
+        align-content: center;
+        gap: 14px;
+        min-height: 260px;
+        padding: clamp(22px, 4vw, 48px);
+      }
+
+      .hero-copy strong {
+        width: fit-content;
+        padding: 7px 11px;
+        border: 1px solid rgba(239, 51, 43, 0.48);
+        border-radius: 999px;
+        color: #ffd9d6;
+        background: rgba(239, 51, 43, 0.12);
+        font-size: 0.82rem;
+      }
+
+      .hero-copy h1 {
+        max-width: 820px;
+        font-size: clamp(2.4rem, 6vw, 5rem);
+        line-height: 0.95;
+        letter-spacing: 0;
+        text-transform: uppercase;
+        text-wrap: balance;
+      }
+
+      .hero-copy p {
+        max-width: 760px;
+        color: var(--muted);
+        font-size: 1.06rem;
+        font-weight: 750;
+        line-height: 1.5;
+      }
+
+      .reference-strip {
+        display: grid;
+        gap: 12px;
+        padding: 16px;
+      }
+
+      .reference-strip h2 {
+        font-size: 1rem;
+      }
+
+      .reference-assets {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .reference-assets figure {
+        display: grid;
+        gap: 8px;
+        align-content: center;
+        min-height: 112px;
+        margin: 0;
+        padding: 10px;
+        border: 1px solid var(--line-soft);
+        border-radius: 8px;
+        background: rgba(0, 0, 0, 0.24);
+      }
+
+      .reference-assets img {
+        max-width: 100%;
+        max-height: 72px;
+        object-fit: contain;
+      }
+
+      .reference-assets figcaption,
+      .direction-meta,
+      .spec-list,
+      .prompt {
+        color: var(--muted);
+        font-size: 0.86rem;
+        line-height: 1.45;
+      }
+
+      .system-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+        margin: 18px 0;
+      }
+
+      .system-card {
+        display: grid;
+        gap: 10px;
+        padding: 16px;
+      }
+
+      .system-card h2 {
+        font-size: 1rem;
+      }
+
+      .system-card p {
+        color: var(--muted);
+        font-weight: 700;
+        line-height: 1.45;
+      }
+
+      .directions {
+        display: grid;
+        gap: 16px;
+      }
+
+      .direction {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(360px, 0.45fr);
+        gap: 16px;
+        overflow: hidden;
+      }
+
+      .direction-visual {
+        min-width: 0;
+        padding: 18px;
+        background:
+          linear-gradient(118deg, rgba(255, 255, 255, 0.04), transparent 42%),
+          rgba(0, 0, 0, 0.16);
+      }
+
+      .direction-copy {
+        display: grid;
+        gap: 14px;
+        align-content: start;
+        padding: 20px;
+        border-left: 1px solid var(--line-soft);
+      }
+
+      .direction-copy header {
+        display: grid;
+        gap: 6px;
+      }
+
+      .direction-copy h2 {
+        font-size: 1.45rem;
+        line-height: 1.1;
+      }
+
+      .direction-copy header span {
+        color: var(--red);
+        font-weight: 950;
+      }
+
+      .direction-copy ul {
+        display: grid;
+        gap: 8px;
+        margin: 0;
+        padding-left: 18px;
+        color: var(--muted);
+        font-weight: 720;
+        line-height: 1.42;
+      }
+
+      .direction-copy li::marker {
+        color: var(--red);
+      }
+
+      .prompt {
+        padding: 12px;
+        border: 1px solid var(--line-soft);
+        border-radius: 8px;
+        background: rgba(0, 0, 0, 0.2);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      }
+
+      .asset-svg {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+
+      .tests {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 16px;
+      }
+
+      .test-card {
+        display: grid;
+        gap: 12px;
+        min-height: 160px;
+        padding: 14px;
+      }
+
+      .test-card h3 {
+        font-size: 0.96rem;
+      }
+
+      .size-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: end;
+      }
+
+      .mini-mark {
+        display: grid;
+        place-items: center;
+        border: 1px solid var(--line-soft);
+        border-radius: 8px;
+        color: var(--white);
+        background: #0b0f14;
+        font-weight: 950;
+      }
+
+      .mini-mark.s32 {
+        width: 32px;
+        height: 32px;
+        font-size: 0.56rem;
+      }
+
+      .mini-mark.s48 {
+        width: 48px;
+        height: 48px;
+        font-size: 0.86rem;
+      }
+
+      .mini-mark.s96 {
+        width: 96px;
+        height: 96px;
+        font-size: 1.8rem;
+      }
+
+      .mini-mark span {
+        color: var(--red);
+      }
+
+      @media (max-width: 980px) {
+        .hero,
+        .direction {
+          grid-template-columns: 1fr;
+        }
+
+        .direction-copy {
+          border-left: 0;
+          border-top: 1px solid var(--line-soft);
+        }
+
+        .system-grid,
+        .tests {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 560px) {
+        main {
+          width: min(100% - 20px, 1420px);
+          padding-top: 14px;
+        }
+
+        .reference-assets {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="hero" aria-labelledby="page-title">
+        <div class="hero-copy">
+          <strong>ÖT bleibt Kern · Bundesliga als Edition</strong>
+          <h1 id="page-title">5 Logo-Richtungen</h1>
+          <p>
+            Ein reviewbares Konzeptsystem für App-Icon, Header-Logo, Share-Karte, Live-Status,
+            Top-3-Badge und Spieltagssieger-Badge. Die bestehenden Assets werden nicht ersetzt.
+          </p>
+        </div>
+
+        <aside class="reference-strip" aria-label="Aktuelle Referenzassets">
+          <h2>Referenz im Bestand</h2>
+          <div class="reference-assets">
+            <figure>
+              <img src="./logo-compact.png" alt="Aktuelles kompaktes Österfeld Tippspiel Logo" />
+              <figcaption>Scoreboard-Wordmark</figcaption>
+            </figure>
+            <figure>
+              <img src="./icon-512.png" alt="Aktuelles App-Icon" />
+              <figcaption>Tippzettel-Icon</figcaption>
+            </figure>
+            <figure>
+              <img src="./badge-matchday-winner.png" alt="Aktuelles Spieltagssieger-Badge" />
+              <figcaption>Spieltagssieger</figcaption>
+            </figure>
+            <figure>
+              <img src="./badge-ranking-top3.png" alt="Aktuelles Top 3 Badge" />
+              <figcaption>Top 3</figcaption>
+            </figure>
+          </div>
+        </aside>
+      </section>
+
+      <section class="system-grid" aria-label="Systemvorgaben">
+        <article class="system-card">
+          <h2>Markenanker</h2>
+          <p>ÖSTERFELD TIPPSPIEL bleibt dominant. Bundesliga ist Edition, Saison oder Modus.</p>
+        </article>
+        <article class="system-card">
+          <h2>Farbe</h2>
+          <p>Dunkles Panel, Weiß und Rot als Signal. Gold nur für Gewinner, Grün nur für Live/Erledigt.</p>
+        </article>
+        <article class="system-card">
+          <h2>Badge-Regel</h2>
+          <p>Jedes Badge braucht eine große Label-Version und eine kleine, textarme UI-Version.</p>
+        </article>
+      </section>
+
+      <section class="directions" aria-label="Logo-Richtungen">
+        <article class="direction" id="scoreboard-core">
+          <div class="direction-visual">
+            <svg class="asset-svg" viewBox="0 0 980 560" role="img" aria-labelledby="scoreboard-title scoreboard-desc">
+              <title id="scoreboard-title">Scoreboard Core Logo-System</title>
+              <desc id="scoreboard-desc">Horizontales Scoreboard mit App-Icon, Live-Badge und Gewinnerbadge.</desc>
+              <defs>
+                <linearGradient id="score-glow" x1="0" x2="1">
+                  <stop offset="0" stop-color="#ff4038" />
+                  <stop offset="1" stop-color="#9e1719" />
+                </linearGradient>
+                <filter id="soft-shadow" x="-20%" y="-20%" width="140%" height="140%">
+                  <feDropShadow dx="0" dy="14" stdDeviation="14" flood-color="#000000" flood-opacity="0.38" />
+                </filter>
+              </defs>
+              <rect width="980" height="560" fill="#090d12" />
+              <rect x="46" y="52" width="780" height="164" rx="18" fill="#11171d" stroke="#5b636d" stroke-width="4" filter="url(#soft-shadow)" />
+              <rect x="70" y="78" width="250" height="110" rx="16" fill="#090d12" stroke="#363e48" stroke-width="4" />
+              <text x="100" y="153" fill="url(#score-glow)" font-size="74" font-weight="950" font-family="ui-monospace, monospace">2:1</text>
+              <line x1="350" y1="82" x2="780" y2="82" stroke="#ef332b" stroke-width="5" />
+              <text x="370" y="148" fill="#ffffff" font-size="64" font-weight="950" letter-spacing="2">ÖSTERFELD</text>
+              <text x="375" y="188" fill="#ef332b" font-size="34" font-weight="900" letter-spacing="18">TIPPSPIEL</text>
+              <text x="653" y="118" fill="#aab4c0" font-size="18" font-weight="850">BUNDESLIGA EDITION</text>
+              <path d="M808 68 Q836 130 808 200" fill="none" stroke="#ef332b" stroke-width="9" />
+
+              <rect x="70" y="300" width="156" height="156" rx="30" fill="#10161d" stroke="#ef332b" stroke-width="5" />
+              <rect x="96" y="333" width="104" height="60" rx="10" fill="#090d12" stroke="#424b56" stroke-width="3" />
+              <text x="111" y="376" fill="#ef332b" font-size="38" font-weight="950" font-family="ui-monospace, monospace">2:1</text>
+              <text x="105" y="430" fill="#ffffff" font-size="32" font-weight="950">ÖT</text>
+
+              <rect x="285" y="317" width="230" height="92" rx="15" fill="#0a0f14" stroke="#ef332b" stroke-width="4" />
+              <text x="312" y="374" fill="#ef332b" font-size="52" font-weight="950" font-family="ui-monospace, monospace">LIVE</text>
+              <circle cx="472" cy="349" r="7" fill="#ef332b" />
+              <circle cx="472" cy="377" r="7" fill="#ef332b" opacity="0.45" />
+
+              <path d="M638 306 H850 L888 356 L850 448 H638 L600 356 Z" fill="#121820" stroke="#ef332b" stroke-width="5" />
+              <text x="643" y="362" fill="#ffffff" font-size="34" font-weight="950">SPIELTAG</text>
+              <text x="656" y="404" fill="#f4c95d" font-size="42" font-weight="950">SIEGER</text>
+              <text x="815" y="397" fill="#ef332b" font-size="34" font-weight="950">ST</text>
+            </svg>
+          </div>
+          <div class="direction-copy">
+            <header>
+              <span>Richtung 1</span>
+              <h2>Scoreboard Core</h2>
+              <p class="direction-meta">Maximal nah am Bestand, stärkster Wiedererkennungswert für Header und Share-Karte.</p>
+            </header>
+            <ul>
+              <li>Header bleibt horizontales LED-Scoreboard mit `2:1` als Signatur.</li>
+              <li>Icon reduziert Scoreboard und `ÖT`, damit es bei 48px lesbar bleibt.</li>
+              <li>Live-Badge wird eine reine LED-Fläche, Spieltagssieger ein kantiges Scoreboard-Schild.</li>
+            </ul>
+            <p class="prompt">Vector-friendly dark sports tipping app logo system for ‘Österfeld Tippspiel’, horizontal LED scoreboard motif, red digital score 2:1, bold white wordmark, compact app icon variant, achievement badge variants for matchday winner, top 3 ranking, live status, premium but private community feel, no official Bundesliga logo, no betting aesthetic.</p>
+          </div>
+        </article>
+
+        <article class="direction" id="ot-crest">
+          <div class="direction-visual">
+            <svg class="asset-svg" viewBox="0 0 980 560" role="img" aria-labelledby="crest-title crest-desc">
+              <title id="crest-title">ÖT Crest Logo-System</title>
+              <desc id="crest-desc">Rundes und schildförmiges ÖT-Crest mit Badge-Familie.</desc>
+              <rect width="980" height="560" fill="#0a0d12" />
+              <circle cx="215" cy="180" r="128" fill="#11171d" stroke="#ef332b" stroke-width="8" />
+              <circle cx="215" cy="180" r="108" fill="none" stroke="#6b747e" stroke-width="4" />
+              <path d="M130 120 H300" stroke="#ef332b" stroke-width="5" />
+              <text x="148" y="210" fill="#ffffff" font-size="118" font-weight="950">ÖT</text>
+              <circle cx="215" cy="250" r="28" fill="#ffffff" />
+              <path d="M193 250 H237 M204 231 L226 269 M226 231 L204 269" stroke="#11171d" stroke-width="5" />
+              <text x="132" y="300" fill="#ffffff" font-size="20" font-weight="900" letter-spacing="3">ÖSTERFELD TIPPSPIEL</text>
+
+              <path d="M420 76 H785 L850 138 V238 L785 300 H420 L355 238 V138 Z" fill="#11171d" stroke="#ef332b" stroke-width="6" />
+              <text x="405" y="176" fill="#ffffff" font-size="70" font-weight="950">ÖSTERFELD</text>
+              <text x="448" y="230" fill="#ef332b" font-size="36" font-weight="950" letter-spacing="10">TIPPSPIEL</text>
+              <text x="598" y="268" fill="#aab4c0" font-size="18" font-weight="850">BUNDESLIGA EDITION</text>
+
+              <circle cx="455" cy="410" r="74" fill="#11171d" stroke="#f4c95d" stroke-width="6" />
+              <text x="413" y="418" fill="#ffffff" font-size="48" font-weight="950">TOP</text>
+              <text x="493" y="432" fill="#f4c95d" font-size="58" font-weight="950">3</text>
+
+              <path d="M595 343 H756 L805 388 L783 482 H568 L546 388 Z" fill="#11171d" stroke="#ef332b" stroke-width="6" />
+              <text x="603" y="407" fill="#ffffff" font-size="44" font-weight="950">ST</text>
+              <text x="657" y="407" fill="#f4c95d" font-size="32" font-weight="950">SIEGER</text>
+              <circle cx="676" cy="450" r="22" fill="#ffffff" />
+              <path d="M658 450 H694 M666 435 L686 466 M686 435 L666 466" stroke="#11171d" stroke-width="4" />
+            </svg>
+          </div>
+          <div class="direction-copy">
+            <header>
+              <span>Richtung 2</span>
+              <h2>ÖT Crest</h2>
+              <p class="direction-meta">Das beste Achievement-System: Wappenlogik für App-Icon, Top 3 und Spieltagssieger.</p>
+            </header>
+            <ul>
+              <li>`ÖT` wird Hauptzeichen, `Österfeld Tippspiel` bleibt im Ring oder Schild erhalten.</li>
+              <li>Top-3- und Spieltagssieger-Badge teilen Ring, Kontur und Monogramm-Proportion.</li>
+              <li>Wirkt privat und clubnah, ohne offizielles Liga-Branding zu imitieren.</li>
+            </ul>
+            <p class="prompt">Vector-friendly crest logo system for ‘ÖT Österfeld Tippspiel’, black shield and circular badge variants, red outline, white ÖT monogram, subtle football and scoreline elements, matching badges for Spieltagssieger, Top 3, Live, clean mobile app identity, no gambling style.</p>
+          </div>
+        </article>
+
+        <article class="direction" id="tippzettel-matchmark">
+          <div class="direction-visual">
+            <svg class="asset-svg" viewBox="0 0 980 560" role="img" aria-labelledby="matchmark-title matchmark-desc">
+              <title id="matchmark-title">Tippzettel Matchmark Logo-System</title>
+              <desc id="matchmark-desc">Stilisierter Tippschein mit Haken, Ball und Badge-Varianten.</desc>
+              <rect width="980" height="560" fill="#090d12" />
+              <rect x="64" y="64" width="188" height="220" rx="18" fill="#eef2f5" stroke="#b9c0c8" stroke-width="5" />
+              <path d="M115 136 H202 M115 178 H202 M115 220 H178" stroke="#10161d" stroke-width="12" stroke-linecap="round" />
+              <path d="M100 232 L145 272 L238 136" fill="none" stroke="#ef332b" stroke-width="22" stroke-linecap="round" stroke-linejoin="round" />
+              <circle cx="270" cy="252" r="45" fill="#ffffff" />
+              <path d="M236 252 H304 M250 220 L290 286 M290 220 L250 286" stroke="#11171d" stroke-width="7" />
+              <text x="352" y="151" fill="#ffffff" font-size="74" font-weight="950">ÖSTERFELD</text>
+              <text x="358" y="207" fill="#ef332b" font-size="40" font-weight="950" letter-spacing="11">TIPPSPIEL</text>
+              <text x="358" y="244" fill="#aab4c0" font-size="20" font-weight="850">BUNDESLIGA EDITION</text>
+              <line x1="358" y1="268" x2="812" y2="268" stroke="#ef332b" stroke-width="5" />
+
+              <rect x="80" y="348" width="154" height="154" rx="28" fill="#11171d" stroke="#ef332b" stroke-width="5" />
+              <rect x="122" y="378" width="68" height="88" rx="8" fill="#f8fafc" />
+              <path d="M132 438 L152 456 L192 398" fill="none" stroke="#ef332b" stroke-width="13" stroke-linecap="round" stroke-linejoin="round" />
+
+              <rect x="330" y="360" width="216" height="116" rx="15" fill="#11171d" stroke="#f4c95d" stroke-width="5" />
+              <path d="M374 432 H414 V396 H454 V432 H494 V376" fill="none" stroke="#f4c95d" stroke-width="14" stroke-linecap="round" />
+              <text x="366" y="456" fill="#ffffff" font-size="26" font-weight="950">TOP 3</text>
+
+              <rect x="637" y="342" width="230" height="154" rx="18" fill="#11171d" stroke="#ef332b" stroke-width="5" />
+              <text x="670" y="402" fill="#ffffff" font-size="52" font-weight="950">ST</text>
+              <text x="728" y="402" fill="#f4c95d" font-size="32" font-weight="950">SIEG</text>
+              <path d="M674 438 L710 468 L800 362" fill="none" stroke="#ef332b" stroke-width="16" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </div>
+          <div class="direction-copy">
+            <header>
+              <span>Richtung 3</span>
+              <h2>Tippzettel Matchmark</h2>
+              <p class="direction-meta">Kommuniziert die App-Funktion am schnellsten und vereinfacht das aktuelle Icon.</p>
+            </header>
+            <ul>
+              <li>Der Tippzettel wird flacher, klarer und weniger textabhängig.</li>
+              <li>Haken und Ball bilden das wiederkehrende Zeichen für gespeicherte Tipps.</li>
+              <li>Badges verwenden `ST`, Podiumsbalken und Haken statt langer Labels.</li>
+            </ul>
+            <p class="prompt">Vector-friendly mobile app logo system, stylized prediction slip with red checkmark and football, ‘Österfeld Tippspiel’ wordmark, dark high-contrast interface style, matching compact icon and badges for matchday winner, ranking top 3, live, private sports community.</p>
+          </div>
+        </article>
+
+        <article class="direction" id="matchday-ribbon">
+          <div class="direction-visual">
+            <svg class="asset-svg" viewBox="0 0 980 560" role="img" aria-labelledby="ribbon-title ribbon-desc">
+              <title id="ribbon-title">Matchday Ribbon Logo-System</title>
+              <desc id="ribbon-desc">Banner- und Ribbon-System für saisonale Auszeichnungen.</desc>
+              <rect width="980" height="560" fill="#0b0e13" />
+              <path d="M70 88 H778 L842 148 L778 208 H70 L116 148 Z" fill="#121820" stroke="#ef332b" stroke-width="6" />
+              <path d="M116 148 H812" stroke="#ef332b" stroke-width="4" />
+              <text x="168" y="143" fill="#ffffff" font-size="64" font-weight="950">ÖSTERFELD</text>
+              <text x="228" y="184" fill="#ef332b" font-size="32" font-weight="950" letter-spacing="12">TIPPSPIEL</text>
+              <rect x="642" y="118" width="116" height="58" rx="6" fill="#ef332b" />
+              <text x="674" y="158" fill="#ffffff" font-size="30" font-weight="950">ST</text>
+
+              <rect x="90" y="312" width="150" height="150" rx="20" fill="#121820" stroke="#ef332b" stroke-width="5" />
+              <path d="M112 340 H218 L198 386 L218 432 H112 Z" fill="#ef332b" />
+              <text x="135" y="408" fill="#ffffff" font-size="52" font-weight="950">ÖT</text>
+
+              <path d="M330 330 H530 L565 374 L530 486 H330 L295 374 Z" fill="#121820" stroke="#f4c95d" stroke-width="6" />
+              <path d="M334 330 H526 L506 382 H354 Z" fill="#f4c95d" />
+              <text x="356" y="374" fill="#11161c" font-size="31" font-weight="950">WINNER</text>
+              <text x="348" y="440" fill="#ffffff" font-size="48" font-weight="950">ST 1</text>
+
+              <rect x="650" y="336" width="218" height="114" rx="16" fill="#121820" stroke="#27c47c" stroke-width="5" />
+              <path d="M678 364 H838" stroke="#27c47c" stroke-width="7" />
+              <text x="692" y="421" fill="#ffffff" font-size="42" font-weight="950">LIVE</text>
+              <circle cx="816" cy="405" r="10" fill="#27c47c" />
+            </svg>
+          </div>
+          <div class="direction-copy">
+            <header>
+              <span>Richtung 4</span>
+              <h2>Matchday Ribbon</h2>
+              <p class="direction-meta">Beste Wahl, wenn Share-Karten und saisonale Auszeichnungen im Mittelpunkt stehen.</p>
+            </header>
+            <ul>
+              <li>Das Logo wird als Banner gedacht, der Matchday-Streifen bleibt variabel.</li>
+              <li>Gewinnerstatus bekommt Gold, aktive Live-Zustände bekommen Grün.</li>
+              <li>Gut für Spieltagssieger, Monats-/Saison-Auszeichnungen und Social-Teaser.</li>
+            </ul>
+            <p class="prompt">Vector-friendly sports badge and logo system for ‘Österfeld Tippspiel’, matchday ribbon language, dark graphite background, red winner stripe, gold used only for winner status, app icon, share card mark, Spieltagssieger and Top 3 badge family.</p>
+          </div>
+        </article>
+
+        <article class="direction" id="private-league-system">
+          <div class="direction-visual">
+            <svg class="asset-svg" viewBox="0 0 980 560" role="img" aria-labelledby="private-title private-desc">
+              <title id="private-title">Private League System Logo-System</title>
+              <desc id="private-desc">Reduziertes ÖT-Monogramm mit UI-naher Badge-Familie.</desc>
+              <rect width="980" height="560" fill="#090d12" />
+              <rect x="76" y="86" width="164" height="164" rx="24" fill="#11171d" stroke="#ef332b" stroke-width="5" />
+              <text x="113" y="180" fill="#ffffff" font-size="82" font-weight="950">ÖT</text>
+              <g fill="#ef332b">
+                <circle cx="120" cy="218" r="4" />
+                <circle cx="138" cy="218" r="4" />
+                <circle cx="156" cy="218" r="4" />
+                <circle cx="174" cy="218" r="4" />
+                <circle cx="192" cy="218" r="4" />
+              </g>
+              <text x="292" y="154" fill="#ffffff" font-size="68" font-weight="950">ÖSTERFELD</text>
+              <text x="296" y="204" fill="#ef332b" font-size="34" font-weight="950" letter-spacing="10">TIPPSPIEL</text>
+              <text x="298" y="236" fill="#aab4c0" font-size="18" font-weight="850">PRIVATE BUNDESLIGA EDITION</text>
+
+              <rect x="86" y="342" width="198" height="92" rx="12" fill="#11171d" stroke="#303842" stroke-width="3" />
+              <text x="114" y="400" fill="#ffffff" font-size="38" font-weight="950">TOP 3</text>
+              <rect x="236" y="370" width="24" height="40" rx="4" fill="#f4c95d" />
+              <rect x="204" y="384" width="24" height="26" rx="4" fill="#f4c95d" opacity="0.7" />
+
+              <rect x="360" y="342" width="226" height="92" rx="12" fill="#11171d" stroke="#303842" stroke-width="3" />
+              <text x="390" y="400" fill="#ffffff" font-size="36" font-weight="950">ST-SIEGER</text>
+              <path d="M542 360 L562 378 L536 414 L514 392 Z" fill="#ef332b" />
+
+              <rect x="664" y="342" width="186" height="92" rx="12" fill="#11171d" stroke="#303842" stroke-width="3" />
+              <circle cx="708" cy="388" r="12" fill="#27c47c" />
+              <text x="736" y="401" fill="#ffffff" font-size="38" font-weight="950">LIVE</text>
+            </svg>
+          </div>
+          <div class="direction-copy">
+            <header>
+              <span>Richtung 5</span>
+              <h2>Private League System</h2>
+              <p class="direction-meta">Die ruhigste, professionellste Richtung für Mobile-App, Admin und langfristige Pflege.</p>
+            </header>
+            <ul>
+              <li>`ÖT` wird zu einem UI-tauglichen Monogramm mit Score-Dots.</li>
+              <li>Badges werden eher Status-Plaketten als illustrative Sammelabzeichen.</li>
+              <li>Beste Richtung, wenn die App seriöser und weniger stadionhaft wirken soll.</li>
+            </ul>
+            <p class="prompt">Minimal premium product logo system for private football tipping app ‘Österfeld Tippspiel’, clean ÖT monogram, subtle LED dots and score markers, dark UI-ready palette, restrained red accent, readable at small app-icon sizes, matching achievement badge set.</p>
+          </div>
+        </article>
+      </section>
+
+      <section class="tests" aria-label="Größentests">
+        <article class="test-card">
+          <h3>Scoreboard Core</h3>
+          <div class="size-row">
+            <span class="mini-mark s32">2<span>:</span>1</span>
+            <span class="mini-mark s48">ÖT</span>
+            <span class="mini-mark s96">2<span>:</span>1</span>
+          </div>
+          <p class="spec-list">Stark bei Header, Live und Share-Karte.</p>
+        </article>
+        <article class="test-card">
+          <h3>ÖT Crest</h3>
+          <div class="size-row">
+            <span class="mini-mark s32">ÖT</span>
+            <span class="mini-mark s48">ÖT</span>
+            <span class="mini-mark s96">ÖT</span>
+          </div>
+          <p class="spec-list">Stärkstes Icon- und Badge-System.</p>
+        </article>
+        <article class="test-card">
+          <h3>Tippzettel Matchmark</h3>
+          <div class="size-row">
+            <span class="mini-mark s32">✓</span>
+            <span class="mini-mark s48">✓</span>
+            <span class="mini-mark s96">✓</span>
+          </div>
+          <p class="spec-list">Schnellste Funktionskommunikation.</p>
+        </article>
+        <article class="test-card">
+          <h3>Matchday Ribbon</h3>
+          <div class="size-row">
+            <span class="mini-mark s32">ST</span>
+            <span class="mini-mark s48">ST</span>
+            <span class="mini-mark s96">ST</span>
+          </div>
+          <p class="spec-list">Beste Share- und Winner-Mechanik.</p>
+        </article>
+        <article class="test-card">
+          <h3>Private League</h3>
+          <div class="size-row">
+            <span class="mini-mark s32">ÖT</span>
+            <span class="mini-mark s48">ÖT</span>
+            <span class="mini-mark s96">ÖT</span>
+          </div>
+          <p class="spec-list">Ruhigste Richtung für Produkt-UI.</p>
+        </article>
+      </section>
+    </main>
+  </body>
+</html>

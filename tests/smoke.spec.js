@@ -226,6 +226,117 @@ test("Bundesliga variant D uses new UX shell and route family", async ({ page })
   expect(mobileLayout.bodyOverflows).toBe(false);
 });
 
+test("Bundesliga variant D has accessible polish for focus, touch and motion", async ({ page }) => {
+  const routes = [
+    "bundesliga-d-start",
+    "bundesliga-d-tippen",
+    "bundesliga-d-rangliste",
+    "bundesliga-d-spielplan",
+  ];
+
+  for (const width of [390, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    for (const route of routes) {
+      await page.goto(`/?test=1#${route}`);
+      const audit = await page.evaluate(() => {
+        const isVisible = (element) => {
+          const style = getComputedStyle(element);
+          const rect = element.getBoundingClientRect();
+          return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+        };
+        const controls = [...document.querySelectorAll(".bundesliga-d-shell button, .bundesliga-d-shell a")]
+          .filter(isVisible);
+        const tinyControls = controls
+          .map((element) => {
+            const rect = element.getBoundingClientRect();
+            return {
+              text: element.textContent.trim().replace(/\s+/g, " "),
+              width: Math.round(rect.width),
+              height: Math.round(rect.height),
+            };
+          })
+          .filter((control) => control.width < 40 || control.height < 40);
+        const transitionAll = controls
+          .map((element) => getComputedStyle(element).transitionProperty)
+          .filter((value) => value.split(",").map((part) => part.trim()).includes("all"));
+        const h1 = document.querySelector(".bundesliga-d-command-copy h1");
+        const h1FontSize = h1 ? Number.parseFloat(getComputedStyle(h1).fontSize) : 0;
+        return {
+          bodyOverflows: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+          tinyControls,
+          transitionAll,
+          h1FontSize,
+        };
+      });
+
+      expect(audit.bodyOverflows, `${route} at ${width}px should not overflow`).toBe(false);
+      expect(audit.tinyControls, `${route} at ${width}px should keep touch targets at least 40px`).toEqual([]);
+      expect(audit.transitionAll, `${route} at ${width}px should not use transition: all on visible controls`).toEqual([]);
+      expect(audit.h1FontSize, `${route} at ${width}px should keep D display type below 96px`).toBeLessThanOrEqual(96);
+    }
+  }
+
+  await page.goto("/?test=1#bundesliga-d-start");
+  const quickNavTippen = page.getByRole("navigation", { name: "Schnellaktionen Variante D" }).getByRole("button", { name: "Tippen", exact: true });
+  await quickNavTippen.focus();
+  const focusStyle = await quickNavTippen.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return { outlineStyle: style.outlineStyle, outlineWidth: style.outlineWidth, boxShadow: style.boxShadow };
+  });
+  expect(focusStyle.outlineStyle).not.toBe("none");
+  expect(focusStyle.outlineWidth).not.toBe("0px");
+
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/?test=1&motion=reduce#bundesliga-d-live");
+  const reducedMotion = await page.evaluate(() => {
+    const atmosphere = document.querySelector(".bundesliga-d-atmosphere");
+    const liveStatus = document.querySelector(".bundesliga-d-shell .bundesliga-match-status.status-live");
+    return {
+      atmosphereOpacity: atmosphere ? Number.parseFloat(getComputedStyle(atmosphere).opacity) : 1,
+      liveAnimationName: liveStatus ? getComputedStyle(liveStatus).animationName : "none",
+    };
+  });
+  expect(reducedMotion.atmosphereOpacity).toBeLessThanOrEqual(0.25);
+  expect(reducedMotion.liveAnimationName).toBe("none");
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+});
+
+test("Bundesliga variant D avoids duplicated detail headers", async ({ page }) => {
+  const routes = [
+    ["bundesliga-d-tabelle", "Alle Teams mit Spielen, Toren, Differenz und Punkten."],
+    ["bundesliga-d-torschuetzen", "OpenLigaDB-Liste für Torschützenkönig und Saisonüberblick."],
+    ["bundesliga-d-spielplan", "Spieltag 1 · 2 Spiele · 1 deiner Tipps gespeichert."],
+  ];
+
+  for (const [route, summary] of routes) {
+    await page.goto(`/?test=1#${route}`);
+    await expect(page.locator(".bundesliga-d-command.is-compact")).toBeVisible();
+    await expect(page.locator(".bundesliga-d-shell .bundesliga-detail-head")).toHaveCount(0);
+    await expect(page.locator(".bundesliga-d-page-summary").getByText(summary, { exact: true })).toBeVisible();
+  }
+});
+
+test("Bundesliga test mode switches variants without leaving the current area", async ({ page }) => {
+  await page.goto("/?test=1#bundesliga-tippen");
+
+  const variantSwitch = page.getByRole("group", { name: "Bundesliga Variante testen" });
+  await expect(variantSwitch).toBeVisible();
+  await expect(variantSwitch.getByRole("button", { name: "A", exact: true })).toHaveClass(/active/);
+
+  await variantSwitch.getByRole("button", { name: "D", exact: true }).click();
+  await expect(page).toHaveURL(/#bundesliga-d-tippen$/);
+  await expect(page.locator(".bundesliga-d-shell")).toBeVisible();
+  await expect(variantSwitch.getByRole("button", { name: "D", exact: true })).toHaveClass(/active/);
+
+  await variantSwitch.getByRole("button", { name: "C", exact: true }).click();
+  await expect(page).toHaveURL(/#bundesliga-c-tippen$/);
+  await expect(page.locator(".bundesliga-c-shell")).toBeVisible();
+
+  await variantSwitch.getByRole("button", { name: "A", exact: true }).click();
+  await expect(page).toHaveURL(/#bundesliga-tippen$/);
+  await expect(page.locator(".bundesliga-design-shell, .bundesliga-c-shell, .bundesliga-d-shell")).toHaveCount(0);
+});
+
 test("Bundesliga variants keep controls and text inside their layouts", async ({ page }) => {
   const routes = [
     "bundesliga-start",
