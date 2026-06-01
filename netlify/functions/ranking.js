@@ -1,61 +1,5 @@
 import { getServiceClient, json } from "./_shared/supabase.js";
-
-const bonusPointValues = {
-  champion: 8,
-  topScorer: 6,
-  groupWinner: 2,
-};
-
-function normalize(value) {
-  return String(value || "").trim().toLocaleLowerCase("de-DE");
-}
-
-function pointsFor(tip, result) {
-  if (!result || result.status !== "final") return 0;
-  if (tip.score_a === result.score_a && tip.score_b === result.score_b) return 4;
-
-  const tipGoalDiff = tip.score_a - tip.score_b;
-  const resultGoalDiff = result.score_a - result.score_b;
-  const tipTrend = Math.sign(tipGoalDiff);
-  const resultTrend = Math.sign(resultGoalDiff);
-  if (tipTrend !== resultTrend) return 0;
-  if (tipTrend === 0) return 2;
-  if (tipGoalDiff === resultGoalDiff) return 3;
-
-  return 2;
-}
-
-function bonusPointsFor(bonusTip, bonusResult) {
-  if (!bonusTip || !bonusResult) return 0;
-
-  let points = 0;
-  if (normalize(bonusTip.champion) && normalize(bonusTip.champion) === normalize(bonusResult.champion)) {
-    points += bonusPointValues.champion;
-  }
-  const officialTopScorerIds = bonusResult.top_scorer_player_ids ?? [];
-  if (
-    bonusTip.top_scorer_player_id &&
-    officialTopScorerIds.includes(bonusTip.top_scorer_player_id)
-  ) {
-    points += bonusPointValues.topScorer;
-  } else if (
-    officialTopScorerIds.length === 0 &&
-    normalize(bonusTip.top_scorer) &&
-    normalize(bonusTip.top_scorer) === normalize(bonusResult.top_scorer)
-  ) {
-    points += bonusPointValues.topScorer;
-  }
-
-  const tipGroups = bonusTip.group_winners ?? {};
-  const resultGroups = bonusResult.group_winners ?? {};
-  Object.entries(resultGroups).forEach(([groupKey, winner]) => {
-    if (normalize(tipGroups[groupKey]) && normalize(tipGroups[groupKey]) === normalize(winner)) {
-      points += bonusPointValues.groupWinner;
-    }
-  });
-
-  return points;
-}
+import { buildWmRanking } from "./_shared/wm-scoring.js";
 
 export default async (req) => {
   if (req.method !== "GET") return json({ error: "Method not allowed" }, 405);
@@ -74,45 +18,13 @@ export default async (req) => {
       if (response.error) throw response.error;
     }
 
-    const resultsByMatch = new Map((results.data ?? []).map((result) => [result.match_id, result]));
-    const bonusTipByParticipant = new Map((bonusTips.data ?? []).map((tip) => [tip.participant_id, tip]));
-    const officialBonusResult = bonusResults.data ?? null;
-    const totals = new Map(
-      (participants.data ?? []).map((participant) => [
-        participant.id,
-        {
-          name: participant.display_name,
-          points: 0,
-          matchPoints: 0,
-          bonusPoints: 0,
-          tipCount: 0,
-          scoredTipCount: 0,
-          averagePoints: 0,
-        },
-      ]),
+    const ranking = buildWmRanking(
+      participants.data ?? [],
+      tips.data ?? [],
+      results.data ?? [],
+      bonusTips.data ?? [],
+      bonusResults.data ?? null,
     );
-
-    (tips.data ?? []).forEach((tip) => {
-      const row = totals.get(tip.participant_id);
-      if (!row) return;
-      row.tipCount += 1;
-      const result = resultsByMatch.get(tip.match_id);
-      const points = pointsFor(tip, result);
-      if (result?.status === "final") {
-        row.scoredTipCount += 1;
-      }
-      row.matchPoints += points;
-      row.points += points;
-    });
-
-    totals.forEach((row, participantId) => {
-      const points = bonusPointsFor(bonusTipByParticipant.get(participantId), officialBonusResult);
-      row.bonusPoints = points;
-      row.points += points;
-      row.averagePoints = row.scoredTipCount > 0 ? row.matchPoints / row.scoredTipCount : 0;
-    });
-
-    const ranking = Array.from(totals.values()).sort((a, b) => b.points - a.points || a.name.localeCompare(b.name));
     return json({ ranking });
   } catch (error) {
     return json({ error: error.message || "Rangliste konnte nicht geladen werden." }, 500);

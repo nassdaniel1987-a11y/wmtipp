@@ -102,6 +102,23 @@ create table if not exists public.results (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.wm_test_results (
+  match_id text primary key references public.matches(id) on delete cascade,
+  score_a integer not null check (score_a between 0 and 30),
+  score_b integer not null check (score_b between 0 and 30),
+  status text not null default 'final' check (status in ('scheduled', 'live', 'final')),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.wm_test_bonus_results (
+  id text primary key default 'sandbox' check (id = 'sandbox'),
+  champion text,
+  top_scorer text,
+  top_scorer_player_ids uuid[] not null default '{}'::uuid[],
+  group_winners jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists public.participant_devices (
   id uuid primary key default gen_random_uuid(),
   participant_id uuid not null references public.participants(id) on delete cascade,
@@ -135,6 +152,8 @@ alter table public.players enable row level security;
 alter table public.bonus_tips enable row level security;
 alter table public.bonus_results enable row level security;
 alter table public.results enable row level security;
+alter table public.wm_test_results enable row level security;
+alter table public.wm_test_bonus_results enable row level security;
 alter table public.participant_devices enable row level security;
 alter table public.push_reminders enable row level security;
 alter table public.admins enable row level security;
@@ -151,6 +170,8 @@ grant select, insert, update, delete on public.bonus_tips to authenticated;
 grant select on public.bonus_results to anon, authenticated;
 grant select, insert, update, delete on public.bonus_results to authenticated;
 grant select, insert, update, delete on public.results to authenticated;
+grant select, insert, update, delete on public.wm_test_results to authenticated;
+grant select, insert, update, delete on public.wm_test_bonus_results to authenticated;
 grant select, insert, update, delete on public.participant_devices to authenticated;
 grant select, insert, update, delete on public.push_reminders to authenticated;
 grant select on public.admins to authenticated;
@@ -242,6 +263,20 @@ using (true);
 drop policy if exists "admins can manage bonus results" on public.bonus_results;
 create policy "admins can manage bonus results"
 on public.bonus_results for all
+to authenticated
+using (public.is_admin())
+with check (public.is_admin());
+
+drop policy if exists "admins manage wm test results" on public.wm_test_results;
+create policy "admins manage wm test results"
+on public.wm_test_results for all
+to authenticated
+using (public.is_admin())
+with check (public.is_admin());
+
+drop policy if exists "admins manage wm test bonus results" on public.wm_test_bonus_results;
+create policy "admins manage wm test bonus results"
+on public.wm_test_bonus_results for all
 to authenticated
 using (public.is_admin())
 with check (public.is_admin());
