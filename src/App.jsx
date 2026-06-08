@@ -1530,16 +1530,21 @@ export default function App() {
   }
 
   function changeScore(matchId, side, delta) {
-    setTips((current) => ({
-      ...current,
-      [matchId]: {
-        ...current[matchId],
-        [side]: Number.isInteger(current[matchId]?.[side])
-          ? clampScore(current[matchId][side] + delta)
-          : 0,
+    setTips((current) => {
+      const tip = current[matchId] ?? {};
+      const otherSide = side === "scoreA" ? "scoreB" : "scoreA";
+      const hasValue = Number.isInteger(tip[side]);
+      const next = {
+        ...tip,
+        [side]: hasValue ? clampScore(tip[side] + delta) : 0,
         saved: false,
-      },
-    }));
+      };
+      // Erster Tipp von -:- aus: beide Seiten gemeinsam auf 0 -> 0:0
+      if (!hasValue && !Number.isInteger(tip[otherSide])) {
+        next[otherSide] = 0;
+      }
+      return { ...current, [matchId]: next };
+    });
     setTipSaveStatuses((current) => ({
       ...current,
       [matchId]: "pending",
@@ -5384,14 +5389,21 @@ function BundesligaParticipantApp({ isTestMode }) {
       setMessage("Archivvorschau: Änderungen sind nicht möglich.");
       return;
     }
-    setTips((current) => ({
-      ...current,
-      [matchId]: {
-        ...current[matchId],
-        [side]: Number.isInteger(current[matchId]?.[side]) ? clampScore(current[matchId][side] + delta) : 0,
+    setTips((current) => {
+      const tip = current[matchId] ?? {};
+      const otherSide = side === "scoreA" ? "scoreB" : "scoreA";
+      const hasValue = Number.isInteger(tip[side]);
+      const next = {
+        ...tip,
+        [side]: hasValue ? clampScore(tip[side] + delta) : 0,
         saved: false,
-      },
-    }));
+      };
+      // Erster Tipp von -:- aus: beide Seiten gemeinsam auf 0 -> 0:0
+      if (!hasValue && !Number.isInteger(tip[otherSide])) {
+        next[otherSide] = 0;
+      }
+      return { ...current, [matchId]: next };
+    });
     setTipStatuses((current) => ({ ...current, [matchId]: "pending" }));
   }
 
