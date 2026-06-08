@@ -10559,6 +10559,12 @@ tbody tr:nth-child(1) td:first-child {
 
 .bundesliga-d-shell .bundesliga-header-brand > span small {
   color: var(--bl-muted);
+  font-size: 0.8rem;
+}
+
+/* Logo groesser zeigen (Platz ist da, seit die Wortmarke ausgeblendet ist) */
+.bundesliga-d-shell .bundesliga-public-header > button.bundesliga-header-brand .bundesliga-brand-logo {
+  width: 200px;
 }
 
 .bundesliga-d-shell .bundesliga-public-header nav {
@@ -10721,11 +10727,13 @@ tbody tr:nth-child(1) td:first-child {
 .bundesliga-d-command-metrics article {
   display: grid;
   gap: 8px;
+  min-width: 0;
   min-height: 150px;
   padding: 16px;
   border: 1px solid rgba(223, 235, 255, 0.13);
   border-radius: 8px;
   background: rgba(5, 7, 11, 0.5);
+  overflow: hidden;
 }
 
 .bundesliga-d-command.is-compact .bundesliga-d-command-metrics {
@@ -10751,8 +10759,10 @@ tbody tr:nth-child(1) td:first-child {
 
 .bundesliga-d-command-metrics strong {
   color: #ffffff;
-  font-size: clamp(2rem, 4vw, 4rem);
+  font-size: clamp(1.5rem, 6vw, 4rem);
   line-height: 0.86;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .bundesliga-d-variant-row {
