@@ -373,3 +373,66 @@ Release-Lücken:
   - Für kontrollierte Logiktests gibt es `/api/test-tip-reminder` mit Preview- und Send-Modus für `24h` und `3h`.
   - Versandläufe deaktivieren ungültige FCM-Tokens automatisch, damit alte Installationen keine Fehlversuche sammeln.
 - Admin-Funktionen bleiben Web-only.
+
+## WM K.o.-Phase & Session-Stand (Übergabe für /clear)
+
+Branch `claude/admiring-franklin-DxxIj` wird automatisch nach `main` gemergt und
+deployt live. Nur SQL-Migrationen führt der Nutzer manuell im Supabase-SQL-Editor aus.
+
+### In dieser Session erledigt (auf main)
+- WM-Rangliste zählte zu wenige Tipps: `ranking.js` lud `tips`/`bonus_tips` ohne
+  Pagination (Supabase-1000-Limit; real 3021 Tipps). Fix via `fetchAllPages`.
+- Gleiche Pagination-Klasse zusätzlich gefixt in `tip-trends.js`,
+  `bundesliga-ranking.js`, `bundesliga-matchday-live.js`.
+- Tippeingabe: ein Klick aus `-:-` setzt beide Seiten auf `0:0` (WM + Bundesliga).
+- WM-Test-Sandbox: Button „Demo-Ergebnisse generieren"
+  (`admin-generate-wm-test-results.js` + reiner Generator
+  `_shared/wm-test-results.js`) füllt alle Spiele mit Demo-Ergebnissen
+  (`wm_test_results`, Live-Daten unberührt).
+- Bundesliga: neues kohärentes Brand-Set (`public/brand/bundesliga/*`, Wappen-Familie)
+  + Variante-D Farb-/Button-Polish (dunkel+rot, Grün nur Live) + Share-Card/Metriken/
+  Header-Logo-Fixes.
+
+### K.o.-Phase – Architektur
+- `src/koBracket.js` (rein, getestet): `computeGroupStandings`, `rankThirdPlaced`
+  (beste 8 Dritte), `knockoutMatches` (R32→Finale + Spiel um Platz 3),
+  `resolveKnockout` (Auto-Auflösung + `manualPairings`-Override, Sieger/Verlierer-
+  Propagation), `buildKnockout` (Wrapper).
+- Wertungsregeln (entschieden): Tipp-Punkte nach **90-Min-Ergebnis, 4/3/2/0**
+  (wie Gruppenphase). Bei K.o.-Remis entscheidet ein **`winner: "A"|"B"`**
+  (Elfmeterschießen) NUR übers Weiterkommen, nicht über Tipp-Punkte.
+- **Provisorisch:** Die R32-Zuordnung der besten Dritten (`R32_PAIRINGS` in
+  koBracket.js) ist eine gültige, aber NICHT die offizielle FIFA-2026-Tabelle.
+  Vor Echtbetrieb offizielle Tabelle hinterlegen; Admin-Override deckt Sonderfälle.
+- Phase 2 (fertig): `src/KnockoutSimulator.jsx`, Tab „simulation" sichtbar bei
+  `isTestMode || adminSession` (in-memory, keine DB) → komplette WM durchspielbar.
+  `?test=1` respektiert jetzt den Hash (Deep-Link `#simulation`).
+
+### K.o.-Phase 3 – Fahrplan
+1. ERLEDIGT: Seed-Migration `supabase/migrations/20260609120000_wm_knockout_matches.sql`
+   (32 K.o.-Platzhalter, match_number 73–104, phase r32/r16/quarter/semi/third/final,
+   team_a/team_b = Platzhalter-Labels). **NOCH NICHT AUSGEFÜHRT** – erst nach Schritt 2,
+   sonst sehen Teilnehmer leere K.o.-Spiele.
+2. OFFEN – Frontend phase-bewusst: Gruppenspiele (`phase==='group'`) vs. K.o. trennen.
+   K.o. als eigener „K.o.-Phase"-Block im „Tippen"-Tab, **anfangs nur für Admins**
+   (gate `adminSession`); Platzhalter „Sieger Gruppe A" anzeigen solange unaufgelöst.
+   Frontend bezieht `matches` aus DB (`loadResults`/matches API gibt ALLE zurück → im
+   Frontend nach phase filtern/gaten).
+3. OFFEN – Auflösen & Admin: Auto-Paarungen aus Gruppentabellen (`buildKnockout`) +
+   neue Admin-Aktion „K.o.-Paarung setzen/Override" (schreibt echte team_a/team_b in
+   die K.o.-`matches`-Zeilen) + K.o.-Ergebniseingabe. ACHTUNG: `results` hat keine
+   Sieger-Spalte für Remis-Weiterkommen → entweder Spalte ergänzen (Migration) oder
+   Sieger separat ablegen. Vor Bau entscheiden.
+4. OFFEN – Teilnehmer-Freischaltung: Schalter (z.B. Settings-Zeile `ko_visible`) macht
+   K.o. für alle sichtbar; Sperre/Sichtbarkeit wie Gruppenspiele; optional Turnierbaum.
+
+### Weitere offene Punkte (aus Audit)
+- Nr. 1 Sicherheit: WM `save-tips.js`/`tips.js` akzeptieren `participantId` aus dem
+  Body OHNE Besitzprüfung. Sollte aufs Bundesliga-Muster (validierter Code-Header,
+  `resolveBundesligaParticipant`) gehoben werden. Frontend müsste Code mitsenden.
+- 2 vorbestehende Smoke-Fehler: `bundesliga-rangliste` Overflow bei 360px (Variante A) –
+  bestehen schon vor dieser Session.
+
+### Tests
+`node --test tests/*.test.js` (37 grün) + Playwright `tests/ko-simulation.spec.js`.
+Neu: `tests/{pagination,wm-test-results,ko-bracket}.test.js`, `tests/ko-simulation.spec.js`.
