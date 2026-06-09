@@ -11331,3 +11331,40 @@ tbody tr:nth-child(1) td:first-child {
     animation-iteration-count: 1 !important;
   }
 }
+
+/* ===== WM-Simulation (Testmodus) ===== */
+.ko-sim { display: grid; gap: 16px; }
+.ko-sim-head { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: flex-start; }
+.ko-sim-head h2 { margin: 0 0 4px; }
+.ko-sim-head p { margin: 0; color: var(--muted); max-width: 60ch; }
+.ko-sim-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.ko-sim-score {
+  display: flex; flex-wrap: wrap; gap: 16px; align-items: center;
+  padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px;
+  background: var(--surface);
+}
+.ko-sim-champion { color: var(--green-dark); font-weight: 700; }
+.ko-sim-empty { color: var(--muted); }
+.ko-sim h3 { margin: 8px 0 0; }
+.ko-sim-groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+.ko-sim-group { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: var(--surface); }
+.ko-sim-group h4 { margin: 0 0 6px; font-size: 0.95rem; }
+.ko-sim-group ol, .ko-sim-thirds { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; counter-reset: rank; }
+.ko-sim-group li, .ko-sim-thirds li {
+  display: flex; justify-content: space-between; gap: 10px;
+  font-size: 0.86rem; padding: 3px 6px; border-radius: 6px;
+}
+.ko-sim-group li.is-advance, .ko-sim-thirds li.is-advance { background: rgba(11, 140, 66, 0.12); }
+.ko-sim-group li.is-third { background: rgba(242, 138, 26, 0.12); }
+.ko-sim-thirds li.is-out { color: var(--muted); opacity: 0.65; }
+.ko-sim-thirds { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+.ko-sim-round { display: grid; gap: 6px; }
+.ko-sim-round h4 { margin: 6px 0 0; }
+.ko-sim-matches { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px; }
+.ko-sim-match { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; background: var(--surface); }
+.ko-sim-match.is-pending { opacity: 0.55; }
+.ko-sim-teams { display: grid; grid-template-columns: 1fr auto 1fr; gap: 6px; align-items: center; font-size: 0.9rem; }
+.ko-sim-teams > span:first-child { text-align: right; }
+.ko-sim-teams .is-winner { font-weight: 700; color: var(--green-dark); }
+.ko-sim-vs { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--navy); white-space: nowrap; }
+.ko-sim-tip { margin-top: 5px; font-size: 0.78rem; color: var(--muted); text-align: center; }

@@ -35,6 +35,7 @@ import {
   matches as bundledMatches,
   scheduleSource,
 } from "./data.js";
+import KnockoutSimulator from "./KnockoutSimulator.jsx";
 import { displayTeamName } from "./teamNames.js";
 
 const STORAGE_KEY = "wm-tippspiel-participant";
@@ -56,6 +57,7 @@ const tabs = [
   { id: "start", label: "Start", icon: House },
   { id: "tippen", label: "Tippen", icon: Goal },
   { id: "rangliste", label: "Rangliste", icon: Trophy },
+  { id: "simulation", label: "Simulation", icon: Trophy },
   { id: "info", label: "Info", icon: Info },
   { id: "admin", label: "Admin", icon: ShieldCheck },
 ];
@@ -1343,6 +1345,12 @@ export default function App() {
   }, [activeTab, canViewRanking, setActiveTab]);
 
   useEffect(() => {
+    if (activeTab === "simulation" && !isTestMode) {
+      setActiveTab("start", { replace: true });
+    }
+  }, [activeTab, isTestMode, setActiveTab]);
+
+  useEffect(() => {
     if (activeTab === "rangliste" && canViewRanking) {
       void refreshRanking();
     }
@@ -1361,7 +1369,7 @@ export default function App() {
         setCodeStatus("claimed");
         setAppStatus("Testmodus aktiv");
         window.localStorage.setItem(STORAGE_KEY, JSON.stringify(TEST_PARTICIPANT));
-        setActiveTab("start", { replace: true });
+        setActiveTab(getTabFromHash(), { replace: true });
         return;
       }
 
@@ -1893,7 +1901,7 @@ export default function App() {
 
         <nav className="main-nav" aria-label="Hauptnavigation">
           {tabs
-            .filter((tab) => tab.id !== "rangliste" || canViewRanking)
+            .filter((tab) => (tab.id !== "rangliste" || canViewRanking) && (tab.id !== "simulation" || isTestMode))
             .map(({ id, label, icon: Icon }) => (
             <button
               type="button"
@@ -2049,6 +2057,10 @@ export default function App() {
 
             {activeTab === "info" && (
               <InfoScreen />
+            )}
+
+            {activeTab === "simulation" && isTestMode && (
+              <KnockoutSimulator />
             )}
 
             {activeTab === "admin" && (
