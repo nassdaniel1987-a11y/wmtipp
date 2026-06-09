@@ -421,13 +421,37 @@ deployt live. Nur SQL-Migrationen führt der Nutzer manuell im Supabase-SQL-Edit
    wiederverwendet `MatchCard`. `mapDbMatch` setzt für K.o. das Label „K.o.-Phase"
    statt „Gruppe null". CSS: `.ko-tip-block` in styles.css.
    → Seed-Migration aus Schritt 1 kann jetzt nach Deploy ausgeführt werden.
-3. OFFEN – Auflösen & Admin: Auto-Paarungen aus Gruppentabellen (`buildKnockout`) +
-   neue Admin-Aktion „K.o.-Paarung setzen/Override" (schreibt echte team_a/team_b in
-   die K.o.-`matches`-Zeilen) + K.o.-Ergebniseingabe. ACHTUNG: `results` hat keine
-   Sieger-Spalte für Remis-Weiterkommen → entweder Spalte ergänzen (Migration) oder
-   Sieger separat ablegen. Vor Bau entscheiden.
+3. ERLEDIGT – Auflösen & Admin:
+   - Entscheidung Sieger-Speicherung: **neue nullable Spalte `winner ('A'|'B')` in
+     `results`** (+ `wm_test_results` für Parität). Migration
+     `supabase/migrations/20260609140000_wm_knockout_winner.sql` (**NOCH AUSFÜHREN**).
+     `winner` betrifft NUR das Weiterkommen bei K.o.-Remis (Elfmeter), nicht die
+     Tipp-Punkte. `schema.sql` für Neuinstallationen ebenfalls aktualisiert.
+   - Backend `admin-save-result.js` nimmt `winner` an (nur bei Remis gespeichert,
+     sonst null). `api.js loadResults` + Frontend selektieren `winner`.
+   - Neue Function `netlify/functions/admin-resolve-knockout.js`: rechnet
+     `buildKnockout` aus finalen Gruppenergebnissen, schreibt aufgelöste
+     team_a/team_b (+Flaggen) in die K.o.-`matches`-Zeilen, optionaler
+     `manualPairings`-Override pro Spiel. Importiert `src/koBracket.js` (eine Quelle).
+   - Admin-UI: neuer „K.o.-Phase"-Block (Button „Paarungen auflösen" + Override-Felder
+     je Spiel) über „Ergebnisse"; Ergebniszeilen für K.o.-Spiele bei Remis mit
+     Sieger-Selektor (A/B). `handleResolveKnockout` lädt danach matches neu.
+   - CAVEAT: Auto-Auflösen überschreibt manuelle Team-Edits in den matches-Zeilen,
+     außer der Override steht beim erneuten Auflösen in den Override-Feldern. Für
+     dauerhafte Sonderfälle Override-Feld gesetzt lassen.
 4. OFFEN – Teilnehmer-Freischaltung: Schalter (z.B. Settings-Zeile `ko_visible`) macht
-   K.o. für alle sichtbar; Sperre/Sichtbarkeit wie Gruppenspiele; optional Turnierbaum.
+   K.o. für alle sichtbar (aktuell nur `isAdmin`-Gate in `KnockoutTipBlock` +
+   `filteredMatches`/`sortedResultMatches`); Sperre/Sichtbarkeit wie Gruppenspiele;
+   optional Turnierbaum.
+
+### K.o.-Phase – Reihenfolge beim Echtbetrieb
+1. Beide Migrationen ausführen: `20260609120000_wm_knockout_matches.sql` (Platzhalter)
+   + `20260609140000_wm_knockout_winner.sql` (Sieger-Spalte).
+2. Gruppenphase fertig werten lassen → im Admin „Paarungen aus Gruppentabellen
+   auflösen". Bei Bedarf offizielle FIFA-Drittel-Zuordnung per Override korrigieren
+   (R32_PAIRINGS in koBracket.js ist provisorisch).
+3. K.o.-Ergebnisse + ggf. Sieger bei Remis eintragen, danach erneut auflösen
+   (propagiert Sieger in die nächste Runde).
 
 ### Weitere offene Punkte (aus Audit)
 - Nr. 1 Sicherheit: WM `save-tips.js`/`tips.js` akzeptieren `participantId` aus dem
