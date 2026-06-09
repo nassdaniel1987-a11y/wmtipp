@@ -1,4 +1,5 @@
 import { getServiceClient, json } from "./_shared/supabase.js";
+import { fetchAllPages } from "./_shared/pagination.js";
 import { buildWmRanking } from "./_shared/wm-scoring.js";
 
 export default async (req) => {
@@ -6,23 +7,31 @@ export default async (req) => {
 
   try {
     const supabase = getServiceClient();
+    // tips und bonus_tips paginiert laden, sonst kappt Supabase bei 1000 Zeilen
+    // und die Rangliste zählt zu wenige Tipps (vgl. Admin, der ebenfalls paginiert).
     const [participants, tips, results, bonusTips, bonusResults] = await Promise.all([
       supabase.from("participants").select("id, display_name"),
-      supabase.from("tips").select("participant_id, match_id, score_a, score_b"),
+      fetchAllPages(() => supabase
+        .from("tips")
+        .select("participant_id, match_id, score_a, score_b")),
       supabase.from("results").select("match_id, score_a, score_b, status"),
-      supabase.from("bonus_tips").select("participant_id, champion, top_scorer, top_scorer_player_id, group_winners"),
+      fetchAllPages(() => supabase
+        .from("bonus_tips")
+        .select("participant_id, champion, top_scorer, top_scorer_player_id, group_winners")),
       supabase.from("bonus_results").select("id, champion, top_scorer, top_scorer_player_ids, group_winners").eq("id", "official").maybeSingle(),
     ]);
 
-    for (const response of [participants, tips, results, bonusTips, bonusResults]) {
+    // fetchAllPages liefert direkt Arrays (und wirft bei Fehlern); nur die übrigen
+    // Antworten tragen ein error-Feld.
+    for (const response of [participants, results, bonusResults]) {
       if (response.error) throw response.error;
     }
 
     const ranking = buildWmRanking(
       participants.data ?? [],
-      tips.data ?? [],
+      tips ?? [],
       results.data ?? [],
-      bonusTips.data ?? [],
+      bonusTips ?? [],
       bonusResults.data ?? null,
     );
     return json({ ranking });
