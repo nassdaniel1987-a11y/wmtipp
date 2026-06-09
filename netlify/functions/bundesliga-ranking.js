@@ -1,4 +1,5 @@
 import { getServiceClient, json } from "./_shared/supabase.js";
+import { fetchAllPages } from "./_shared/pagination.js";
 import {
   bundesligaErrorResponse,
   filterBundesligaArchiveShowcaseParticipants,
@@ -18,24 +19,27 @@ export default async (req) => {
   try {
     const supabase = getServiceClient();
     const { participant, competitionId } = await requireBundesligaViewAccess(req, supabase);
+    // competition_tips/-bonus_tips paginiert laden, sonst kappt Supabase bei
+    // 1000 Zeilen und die Rangliste zählt zu wenige Tipps (vgl. WM-Rangliste).
     const [participants, tips, results, bonusTips, bonusResults, topScorers, matches, ruleSettings] = await Promise.all([
       supabase.from("competition_participants").select("id, display_name").eq("competition_id", competitionId),
-      supabase.from("competition_tips").select("participant_id, match_id, score_a, score_b").eq("competition_id", competitionId),
+      fetchAllPages(() => supabase.from("competition_tips").select("participant_id, match_id, score_a, score_b").eq("competition_id", competitionId)),
       supabase.from("competition_results").select("match_id, score_a, score_b, status").eq("competition_id", competitionId),
-      supabase.from("competition_participant_bonus_tips").select("*").eq("competition_id", competitionId),
+      fetchAllPages(() => supabase.from("competition_participant_bonus_tips").select("*").eq("competition_id", competitionId)),
       supabase.from("competition_bonus_results").select("*").eq("competition_id", competitionId).maybeSingle(),
       supabase.from("competition_top_scorers").select("id, display_name").eq("competition_id", competitionId),
       supabase.from("competition_matches").select("id, matchday").eq("competition_id", competitionId).in("phase", ["league", "relegation"]),
       loadCompetitionRuleSettings(supabase, competitionId),
     ]);
 
-    for (const response of [participants, tips, results, bonusTips, bonusResults, topScorers, matches]) {
+    // tips und bonusTips sind bereits Arrays (fetchAllPages wirft bei Fehlern).
+    for (const response of [participants, results, bonusResults, topScorers, matches]) {
       if (response.error) throw response.error;
     }
 
     const participantRows = filterBundesligaArchiveShowcaseParticipants(participants.data, competitionId, participant);
-    const tipRows = filterBundesligaArchiveShowcaseTips(tips.data, participantRows, competitionId, participant);
-    const bonusTipRows = filterBundesligaArchiveShowcaseTips(bonusTips.data, participantRows, competitionId, participant);
+    const tipRows = filterBundesligaArchiveShowcaseTips(tips, participantRows, competitionId, participant);
+    const bonusTipRows = filterBundesligaArchiveShowcaseTips(bonusTips, participantRows, competitionId, participant);
     const matchRows = matches.data ?? [];
     const resultRows = results.data ?? [];
     const ranking = buildCompetitionRanking(
