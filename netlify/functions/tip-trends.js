@@ -1,4 +1,5 @@
 import { getServiceClient, json } from "./_shared/supabase.js";
+import { fetchAllPages } from "./_shared/pagination.js";
 
 function buildTrend(rows) {
   const total = rows.length;
@@ -34,11 +35,11 @@ export default async (req) => {
 
   try {
     const supabase = getServiceClient();
-    const { data, error } = await supabase
+    // Alle Tipps paginiert laden, sonst kappt Supabase bei 1000 Zeilen und der
+    // Community-Trend basiert nur auf einem Teil der Tipps.
+    const data = await fetchAllPages(() => supabase
       .from("tips")
-      .select("match_id, score_a, score_b");
-
-    if (error) throw error;
+      .select("match_id, score_a, score_b"));
 
     const grouped = new Map();
     (data ?? []).forEach((tip) => {
