@@ -724,11 +724,13 @@ function mapDbMatch(row) {
   const teamA = displayTeamName(row.team_a);
   const teamB = displayTeamName(row.team_b);
 
+  const isKo = KO_PHASES.includes(row.phase);
+
   return {
     id: row.id,
     matchNumber: row.match_number,
     phase: row.phase,
-    group: `Gruppe ${row.group_key}`,
+    group: row.group_key ? `Gruppe ${row.group_key}` : (isKo ? "K.o.-Phase" : ""),
     groupKey: row.group_key,
     date: row.match_date,
     time: row.match_time,
@@ -806,6 +808,27 @@ function getGroupFilterLabel(filter) {
   if (filter === "deutschland") return "Deutschland";
   return `Gr. ${filter}`;
 }
+
+// Gruppenphase vs. K.o.-Phase. Spiele ohne phase gelten als Gruppenspiele,
+// damit der gebundelte Fallback-Spielplan (ohne KO) unveraendert bleibt.
+const KO_PHASES = ["r32", "r16", "quarter", "semi", "third", "final"];
+
+function isGroupPhase(match) {
+  return !match?.phase || match.phase === "group";
+}
+
+function isKnockoutPhase(match) {
+  return KO_PHASES.includes(match?.phase);
+}
+
+const KO_PHASE_LABELS = {
+  r32: "Sechzehntelfinale",
+  r16: "Achtelfinale",
+  quarter: "Viertelfinale",
+  semi: "Halbfinale",
+  third: "Spiel um Platz 3",
+  final: "Finale",
+};
 
 function normalizePlayerName(value) {
   return normalizeText(value).replace(/\s+/g, " ");
@@ -1273,9 +1296,18 @@ export default function App() {
     [results],
   );
 
+  const koMatches = useMemo(
+    () =>
+      matches
+        .filter(isKnockoutPhase)
+        .sort((first, second) => (first.matchNumber ?? 0) - (second.matchNumber ?? 0)),
+    [matches],
+  );
+
   const filteredMatches = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
     return matches.filter((match) => {
+      if (!isGroupPhase(match)) return false;
       const groupMatch =
         groupFilter === "alle" ||
         (groupFilter === "deutschland" &&
@@ -2022,6 +2054,8 @@ export default function App() {
             {activeTab === "tippen" && (
               <TipScreen
                 filteredMatches={filteredMatches}
+                koMatches={koMatches}
+                isAdmin={Boolean(adminSession)}
                 groupFilter={groupFilter}
                 searchTerm={searchTerm}
                 setGroupFilter={setGroupFilter}
@@ -2526,8 +2560,67 @@ function TestModePanel({ matches, tips, resultsByMatch, bonusPoints, totalPoints
   );
 }
 
+function KnockoutTipBlock({
+  koMatches,
+  tips,
+  resultsByMatch,
+  changeScore,
+  saveTip,
+  lastSavedMatch,
+  tipSaveStatuses,
+  tipTrends,
+  locked,
+}) {
+  const phaseGroups = useMemo(() => {
+    return KO_PHASES.map((phase) => ({
+      phase,
+      label: KO_PHASE_LABELS[phase] ?? phase,
+      matches: koMatches.filter((match) => match.phase === phase),
+    })).filter((group) => group.matches.length > 0);
+  }, [koMatches]);
+
+  return (
+    <section className="ko-tip-block panel">
+      <div className="ko-tip-block-head">
+        <Trophy size={22} />
+        <div>
+          <h2>K.o.-Phase</h2>
+          <p>
+            Nur für Admins sichtbar. Paarungen zeigen Platzhalter, bis sie aus den
+            Gruppentabellen aufgelöst werden.
+          </p>
+        </div>
+      </div>
+
+      {phaseGroups.map((group) => (
+        <div key={group.phase} className="ko-tip-phase">
+          <h3 className="ko-tip-phase-title">{group.label}</h3>
+          <div className="match-stack">
+            {group.matches.map((match) => (
+              <MatchCard
+                key={match.id}
+                match={match}
+                tip={tips[match.id]}
+                result={resultsByMatch.get(match.id)}
+                changeScore={changeScore}
+                saveTip={saveTip}
+                lastSavedMatch={lastSavedMatch}
+                saveStatus={tipSaveStatuses[match.id]}
+                trend={tipTrends[match.id]}
+                locked={locked}
+              />
+            ))}
+          </div>
+        </div>
+      ))}
+    </section>
+  );
+}
+
 function TipScreen({
   filteredMatches,
+  koMatches = [],
+  isAdmin = false,
   groupFilter,
   searchTerm,
   setGroupFilter,
@@ -2554,6 +2647,7 @@ function TipScreen({
   const [tipView, setTipView] = useState("spiele");
   const filterStats = useMemo(() => {
     const matchesForFilter = (filter) => matches.filter((match) => {
+      if (!isGroupPhase(match)) return false;
       if (filter === "alle") return true;
       if (filter === "deutschland") return [match.teamA, match.teamB].includes("Deutschland");
       return match.groupKey === filter;
@@ -2673,22 +2767,37 @@ function TipScreen({
       </section>
 
       {tipView === "spiele" ? (
-        <div className="match-stack">
-          {filteredMatches.map((match) => (
-            <MatchCard
-              key={match.id}
-              match={match}
-              tip={tips[match.id]}
-              result={resultsByMatch.get(match.id)}
+        <>
+          <div className="match-stack">
+            {filteredMatches.map((match) => (
+              <MatchCard
+                key={match.id}
+                match={match}
+                tip={tips[match.id]}
+                result={resultsByMatch.get(match.id)}
+                changeScore={changeScore}
+                saveTip={saveTip}
+                lastSavedMatch={lastSavedMatch}
+                saveStatus={tipSaveStatuses[match.id]}
+                trend={tipTrends[match.id]}
+                locked={locked}
+              />
+            ))}
+          </div>
+          {isAdmin && koMatches.length > 0 && (
+            <KnockoutTipBlock
+              koMatches={koMatches}
+              tips={tips}
+              resultsByMatch={resultsByMatch}
               changeScore={changeScore}
               saveTip={saveTip}
               lastSavedMatch={lastSavedMatch}
-              saveStatus={tipSaveStatuses[match.id]}
-              trend={tipTrends[match.id]}
+              tipSaveStatuses={tipSaveStatuses}
+              tipTrends={tipTrends}
               locked={locked}
             />
-          ))}
-        </div>
+          )}
+        </>
       ) : (
         <>
           <BonusTipsPanel

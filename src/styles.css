@@ -571,6 +571,42 @@ p {
   gap: 18px;
 }
 
+.ko-tip-block {
+  display: grid;
+  gap: 18px;
+  padding: 20px 22px;
+  border: 1px solid rgba(250, 204, 21, 0.35);
+}
+
+.ko-tip-block-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.ko-tip-block-head h2 {
+  margin: 0;
+}
+
+.ko-tip-block-head p {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  opacity: 0.75;
+}
+
+.ko-tip-phase {
+  display: grid;
+  gap: 12px;
+}
+
+.ko-tip-phase-title {
+  margin: 0;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.8;
+}
+
 .schedule-summary,
 .tip-toolbar {
   padding: 20px 22px;

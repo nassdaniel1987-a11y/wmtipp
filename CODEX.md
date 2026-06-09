@@ -413,11 +413,14 @@ deployt live. Nur SQL-Migrationen führt der Nutzer manuell im Supabase-SQL-Edit
    (32 K.o.-Platzhalter, match_number 73–104, phase r32/r16/quarter/semi/third/final,
    team_a/team_b = Platzhalter-Labels). **NOCH NICHT AUSGEFÜHRT** – erst nach Schritt 2,
    sonst sehen Teilnehmer leere K.o.-Spiele.
-2. OFFEN – Frontend phase-bewusst: Gruppenspiele (`phase==='group'`) vs. K.o. trennen.
-   K.o. als eigener „K.o.-Phase"-Block im „Tippen"-Tab, **anfangs nur für Admins**
-   (gate `adminSession`); Platzhalter „Sieger Gruppe A" anzeigen solange unaufgelöst.
-   Frontend bezieht `matches` aus DB (`loadResults`/matches API gibt ALLE zurück → im
-   Frontend nach phase filtern/gaten).
+2. ERLEDIGT: Frontend phase-bewusst. `isGroupPhase`/`isKnockoutPhase`/`KO_PHASES`/
+   `KO_PHASE_LABELS` in App.jsx. `filteredMatches` + `filterStats` zeigen nur noch
+   Gruppenspiele → Teilnehmer sehen keine leeren K.o.-Platzhalter. Neuer
+   `KnockoutTipBlock` rendert die K.o.-Spiele phasenweise (R32→Finale) als eigener
+   Block im „Tippen"-Tab, **nur für Admins** (`isAdmin={Boolean(adminSession)}`),
+   wiederverwendet `MatchCard`. `mapDbMatch` setzt für K.o. das Label „K.o.-Phase"
+   statt „Gruppe null". CSS: `.ko-tip-block` in styles.css.
+   → Seed-Migration aus Schritt 1 kann jetzt nach Deploy ausgeführt werden.
 3. OFFEN – Auflösen & Admin: Auto-Paarungen aus Gruppentabellen (`buildKnockout`) +
    neue Admin-Aktion „K.o.-Paarung setzen/Override" (schreibt echte team_a/team_b in
    die K.o.-`matches`-Zeilen) + K.o.-Ergebniseingabe. ACHTUNG: `results` hat keine
