@@ -1345,10 +1345,10 @@ export default function App() {
   }, [activeTab, canViewRanking, setActiveTab]);
 
   useEffect(() => {
-    if (activeTab === "simulation" && !isTestMode) {
+    if (activeTab === "simulation" && !isTestMode && !adminSession) {
       setActiveTab("start", { replace: true });
     }
-  }, [activeTab, isTestMode, setActiveTab]);
+  }, [activeTab, isTestMode, adminSession, setActiveTab]);
 
   useEffect(() => {
     if (activeTab === "rangliste" && canViewRanking) {
@@ -1901,7 +1901,7 @@ export default function App() {
 
         <nav className="main-nav" aria-label="Hauptnavigation">
           {tabs
-            .filter((tab) => (tab.id !== "rangliste" || canViewRanking) && (tab.id !== "simulation" || isTestMode))
+            .filter((tab) => (tab.id !== "rangliste" || canViewRanking) && (tab.id !== "simulation" || isTestMode || Boolean(adminSession)))
             .map(({ id, label, icon: Icon }) => (
             <button
               type="button"
@@ -2059,7 +2059,7 @@ export default function App() {
               <InfoScreen />
             )}
 
-            {activeTab === "simulation" && isTestMode && (
+            {activeTab === "simulation" && (isTestMode || adminSession) && (
               <KnockoutSimulator />
             )}
 
