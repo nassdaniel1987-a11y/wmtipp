@@ -6,11 +6,14 @@ export default async (req) => {
 
   try {
     const { supabase } = await requireAdmin(req);
-    const { matchId, scoreA, scoreB, status = "final" } = await req.json();
+    const { matchId, scoreA, scoreB, status = "final", winner = null } = await req.json();
+    const normalizedWinner = winner === "A" || winner === "B" ? winner : null;
     const row = {
       match_id: matchId,
       score_a: Number(scoreA),
       score_b: Number(scoreB),
+      // Sieger nur bei K.o.-Remis relevant; bei Entscheidung in 90 Min ignoriert.
+      winner: Number(scoreA) === Number(scoreB) ? normalizedWinner : null,
       status,
       updated_at: new Date().toISOString(),
     };
@@ -30,7 +33,7 @@ export default async (req) => {
     const { data, error } = await supabase
       .from("results")
       .upsert(row, { onConflict: "match_id" })
-      .select("match_id, score_a, score_b, status, updated_at")
+      .select("match_id, score_a, score_b, winner, status, updated_at")
       .single();
 
     if (error) throw error;

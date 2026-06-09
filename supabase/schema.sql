@@ -98,6 +98,7 @@ create table if not exists public.results (
   match_id text primary key references public.matches(id) on delete cascade,
   score_a integer not null check (score_a between 0 and 30),
   score_b integer not null check (score_b between 0 and 30),
+  winner text check (winner in ('A', 'B')),
   status text not null default 'final' check (status in ('scheduled', 'live', 'final')),
   updated_at timestamptz not null default now()
 );
@@ -106,6 +107,7 @@ create table if not exists public.wm_test_results (
   match_id text primary key references public.matches(id) on delete cascade,
   score_a integer not null check (score_a between 0 and 30),
   score_b integer not null check (score_b between 0 and 30),
+  winner text check (winner in ('A', 'B')),
   status text not null default 'final' check (status in ('scheduled', 'live', 'final')),
   updated_at timestamptz not null default now()
 );

@@ -1826,10 +1826,10 @@ export default function App() {
     }));
   }
 
-  async function handleSaveResult(matchId, scoreA, scoreB) {
+  async function handleSaveResult(matchId, scoreA, scoreB, winner = null) {
     const payload = await apiPost(
       "/api/admin-save-result",
-      { matchId, scoreA, scoreB, status: "final" },
+      { matchId, scoreA, scoreB, status: "final", winner },
       adminSession?.access_token,
     );
     setResults((current) => [
@@ -1844,6 +1844,18 @@ export default function App() {
       ],
     }));
     await refreshRanking();
+  }
+
+  async function handleResolveKnockout(manualPairings = {}) {
+    const payload = await apiPost(
+      "/api/admin-resolve-knockout",
+      { manualPairings },
+      adminSession?.access_token,
+    );
+    // Aufgeloeste Teams stehen jetzt in den matches-Zeilen -> neu laden.
+    const dbMatches = await loadDbMatches();
+    if (dbMatches.length) setMatches(dbMatches.map(mapDbMatch));
+    return payload;
   }
 
   async function refreshWmTestData(session = adminSession) {
@@ -2278,6 +2290,7 @@ export default function App() {
                   return payload;
                 }}
                 onSaveResult={handleSaveResult}
+                onResolveKnockout={handleResolveKnockout}
                 onPreviewOfficialResults={handlePreviewOfficialResults}
                 onImportOfficialResults={handleImportOfficialResults}
               />
@@ -3492,6 +3505,7 @@ function AdminPanel({
   onSavePlayer,
   onMapTopScorer,
   onSaveResult,
+  onResolveKnockout,
   onPreviewOfficialResults,
   onImportOfficialResults,
 }) {
@@ -3502,6 +3516,7 @@ function AdminPanel({
   const [adminMessage, setAdminMessage] = useState("");
   const [resultDrafts, setResultDrafts] = useState({});
   const [resultFilter, setResultFilter] = useState("open");
+  const [knockoutOverrides, setKnockoutOverrides] = useState({});
   const [selectedParticipant, setSelectedParticipant] = useState(null);
   const [participantTipDrafts, setParticipantTipDrafts] = useState({});
   const [participantBonusDraft, setParticipantBonusDraft] = useState(createInitialBonusTips(matches));
@@ -3585,6 +3600,14 @@ function AdminPanel({
       });
   }, [matches, resultsByMatch, resultFilter]);
 
+  const koAdminMatches = useMemo(
+    () =>
+      matches
+        .filter(isKnockoutPhase)
+        .sort((first, second) => (first.matchNumber ?? 0) - (second.matchNumber ?? 0)),
+    [matches],
+  );
+
   async function submitLogin(event) {
     event.preventDefault();
     try {
@@ -3617,13 +3640,24 @@ function AdminPanel({
   async function saveResult(matchId) {
     const draft = resultDrafts[matchId] ?? {};
     const current = resultsByMatch.get(matchId);
+    const scoreA = draft.scoreA ?? current?.score_a ?? 0;
+    const scoreB = draft.scoreB ?? current?.score_b ?? 0;
+    const winner = draft.winner ?? current?.winner ?? null;
     try {
-      await onSaveResult(
-        matchId,
-        draft.scoreA ?? current?.score_a ?? 0,
-        draft.scoreB ?? current?.score_b ?? 0,
-      );
+      await onSaveResult(matchId, scoreA, scoreB, scoreA === scoreB ? winner : null);
       setAdminMessage("Ergebnis gespeichert.");
+    } catch (error) {
+      setAdminMessage(error.message);
+    }
+  }
+
+  async function resolveKnockout() {
+    if (!onResolveKnockout) return;
+    try {
+      const payload = await onResolveKnockout(knockoutOverrides);
+      setAdminMessage(
+        `K.o.-Paarungen aufgelöst: ${payload?.resolved ?? 0} von ${payload?.updated ?? 0} Spielen mit echten Teams.`,
+      );
     } catch (error) {
       setAdminMessage(error.message);
     }
@@ -4561,6 +4595,60 @@ function AdminPanel({
         })}
       </div>
 
+      {koAdminMatches.length > 0 && (
+        <section className="ko-admin-panel">
+          <div className="ko-admin-head">
+            <h3>K.o.-Phase</h3>
+            <button type="button" className="primary-button compact" onClick={resolveKnockout}>
+              Paarungen aus Gruppentabellen auflösen
+            </button>
+          </div>
+          <p className="fine-print">
+            Berechnet die Teams aus den finalen Gruppenergebnissen (Sieger, Zweite, beste
+            Dritte) und schreibt sie in die K.o.-Spiele. Optionale Korrekturen je Spiel
+            unten überschreiben die automatische Zuordnung. Ergebnisse und Sieger bei Remis
+            werden im Bereich „Ergebnisse" eingetragen.
+          </p>
+          <div className="ko-admin-list">
+            {koAdminMatches.map((match) => {
+              const override = knockoutOverrides[match.id] ?? {};
+              return (
+                <div className="ko-admin-row" key={match.id}>
+                  <span className="ko-admin-tag">
+                    {KO_PHASE_LABELS[match.phase] ?? "K.o."} · Spiel {match.matchNumber}
+                  </span>
+                  <strong>{match.teamA} – {match.teamB}</strong>
+                  <div className="ko-admin-override">
+                    <input
+                      type="text"
+                      placeholder="Team A überschreiben"
+                      value={override.teamA ?? ""}
+                      onChange={(event) =>
+                        setKnockoutOverrides((current) => ({
+                          ...current,
+                          [match.id]: { ...current[match.id], teamA: event.target.value },
+                        }))
+                      }
+                    />
+                    <input
+                      type="text"
+                      placeholder="Team B überschreiben"
+                      value={override.teamB ?? ""}
+                      onChange={(event) =>
+                        setKnockoutOverrides((current) => ({
+                          ...current,
+                          [match.id]: { ...current[match.id], teamB: event.target.value },
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
       <h3>Ergebnisse</h3>
       <section className="official-results-panel">
         <div>
@@ -4644,16 +4732,21 @@ function AdminPanel({
         {sortedResultMatches.map((match) => {
           const result = resultsByMatch.get(match.id);
           const draft = resultDrafts[match.id] ?? {};
+          const scoreA = draft.scoreA ?? result?.score_a ?? 0;
+          const scoreB = draft.scoreB ?? result?.score_b ?? 0;
+          const isKo = isKnockoutPhase(match);
+          const isDraw = Number(scoreA) === Number(scoreB);
+          const winner = draft.winner ?? result?.winner ?? null;
           return (
-            <div className="result-row" key={match.id}>
-              <span>Spiel {match.matchNumber}</span>
+            <div className={`result-row${isKo ? " result-row-ko" : ""}`} key={match.id}>
+              <span>Spiel {match.matchNumber}{isKo ? ` · ${KO_PHASE_LABELS[match.phase] ?? "K.o."}` : ""}</span>
               <strong>{match.teamA} - {match.teamB}</strong>
               <small>{formatDate(match.date)} · {match.time} Uhr</small>
               <input
                 type="number"
                 min="0"
                 max="30"
-                value={draft.scoreA ?? result?.score_a ?? 0}
+                value={scoreA}
                 onChange={(event) =>
                   setResultDrafts((current) => ({
                     ...current,
@@ -4665,7 +4758,7 @@ function AdminPanel({
                 type="number"
                 min="0"
                 max="30"
-                value={draft.scoreB ?? result?.score_b ?? 0}
+                value={scoreB}
                 onChange={(event) =>
                   setResultDrafts((current) => ({
                     ...current,
@@ -4673,6 +4766,34 @@ function AdminPanel({
                   }))
                 }
               />
+              {isKo && isDraw && (
+                <div className="ko-winner-select" role="group" aria-label="Weiterkommen bei Remis">
+                  <button
+                    type="button"
+                    className={winner === "A" ? "active" : ""}
+                    onClick={() =>
+                      setResultDrafts((current) => ({
+                        ...current,
+                        [match.id]: { ...current[match.id], winner: "A" },
+                      }))
+                    }
+                  >
+                    {match.teamA} ✓
+                  </button>
+                  <button
+                    type="button"
+                    className={winner === "B" ? "active" : ""}
+                    onClick={() =>
+                      setResultDrafts((current) => ({
+                        ...current,
+                        [match.id]: { ...current[match.id], winner: "B" },
+                      }))
+                    }
+                  >
+                    {match.teamB} ✓
+                  </button>
+                </div>
+              )}
               <button type="button" className="save-tip" onClick={() => saveResult(match.id)}>Speichern</button>
             </div>
           );
