@@ -1841,6 +1841,11 @@ export default function App() {
     return refreshWmTestData();
   }
 
+  async function handleGenerateWmTestResults() {
+    await apiPost("/api/admin-generate-wm-test-results", {}, adminSession?.access_token);
+    return refreshWmTestData();
+  }
+
   async function handlePreviewOfficialResults() {
     return apiGetWithAuth("/api/admin-official-results", adminSession?.access_token);
   }
@@ -2065,6 +2070,7 @@ export default function App() {
                 onSaveWmTestResult={handleSaveWmTestResult}
                 onSaveWmTestBonusResults={handleSaveWmTestBonusResults}
                 onResetWmTest={handleResetWmTest}
+                onGenerateWmTestResults={handleGenerateWmTestResults}
                 onCreateCodes={handleCreateCodes}
                 onCreateParticipant={async (displayName) => {
                   const payload = await apiPost(
@@ -3353,6 +3359,7 @@ function AdminPanel({
   onSaveWmTestResult,
   onSaveWmTestBonusResults,
   onResetWmTest,
+  onGenerateWmTestResults,
   onCreateCodes,
   onCreateParticipant,
   onDeleteParticipant,
@@ -4005,6 +4012,10 @@ function AdminPanel({
           onRefresh={onRefreshWmTestData}
           onSaveResult={onSaveWmTestResult}
           onSaveBonusResults={onSaveWmTestBonusResults}
+          onGenerateResults={async () => {
+            if (!window.confirm("Demo-Ergebnisse für ALLE Spiele erzeugen? Vorhandene Sandbox-Ergebnisse werden überschrieben.")) return null;
+            return onGenerateWmTestResults();
+          }}
           onReset={async () => {
             if (!window.confirm("WM-Testmodus wirklich zurücksetzen? Nur Sandbox-Ergebnisse und Sandbox-Bonuswerte werden gelöscht.")) return null;
             return onResetWmTest();
@@ -4701,6 +4712,7 @@ function WmTestAdminArea({
   onRefresh,
   onSaveResult,
   onSaveBonusResults,
+  onGenerateResults,
   onReset,
 }) {
   const [message, setMessage] = useState("");
@@ -4752,6 +4764,18 @@ function WmTestAdminArea({
     }
   }
 
+  async function generateResults() {
+    try {
+      const payload = await onGenerateResults();
+      if (payload !== null) {
+        setResultDrafts({});
+        setMessage("Demo-Ergebnisse für alle Spiele erzeugt. Rangliste und Punkte sind jetzt befüllt.");
+      }
+    } catch (error) {
+      setMessage(error.message);
+    }
+  }
+
   return (
     <section className="wm-test-admin">
       <header className="admin-test-banner">
@@ -4762,6 +4786,7 @@ function WmTestAdminArea({
         </div>
         <div className="admin-actions inline-actions">
           <button type="button" className="ghost-button" onClick={onRefresh} disabled={loading}>Testdaten aktualisieren</button>
+          <button type="button" className="primary-button" onClick={generateResults} disabled={loading}>Demo-Ergebnisse generieren</button>
           <button type="button" className="danger-button" onClick={resetSandbox} disabled={loading}>Testmodus zurücksetzen</button>
         </div>
       </header>
