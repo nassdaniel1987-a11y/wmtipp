@@ -469,6 +469,26 @@ deployt live. Nur SQL-Migrationen führt der Nutzer manuell im Supabase-SQL-Edit
   `winner` fließt jetzt durch `ranking.js`, `results.js`, `admin-wm-test-data.js`,
   `admin-save-wm-test-result.js`. Tests in `wm-scoring.test.js`.
 
+### K.o.-Phase: offizielle FIFA-Struktur + Turnierbaum (erledigt)
+- `koBracket.js` enthält jetzt die OFFIZIELLE FIFA-2026-Struktur (Spiele 73-104):
+  exakte Sieger/Zweite-Paarungen, Drittel-Slots mit den festen FIFA-Gruppensets
+  (Annex C) und die offizielle Feeder-Verzahnung R16/QF/SF/Finale/Platz 3.
+  `R32_PAIRINGS` (provisorisch) ist ersetzt.
+- `assignThirdSlots`: perfektes Matching der 8 besten Dritten in erlaubte Slots
+  (deterministisch, greedy-Fallback bei unfertiger Gruppenphase). Die exakte
+  Annex-C-Permutation kann je Kombination abweichen -> Admin-Override deckt das ab.
+- Seed-Migration `20260609120000` an offizielle Platzhalter angeglichen.
+- Turnierbaum (read-only): `KnockoutBracket` in TipScreen, einklappbar, rundenweise
+  Spalten mit Flaggen/Ergebnis/Sieger-Hervorhebung (+ i.E.), sichtbar wie der
+  K.o.-Tippblock (`isAdmin || koVisible`).
+
+### Audit Nr. 1 (Sicherheit) – bewusst zurückgestellt
+- Entscheidung Nutzer (10.06.2026, kurz vor Turnierstart): WM `save-tips.js`/`tips.js`/
+  `bonus-tips`/`save-bonus-tips` akzeptieren weiter `participantId` aus Body/Query OHNE
+  Besitzprüfung. Geplanter Fix: validierter `X-WM-Code`-Header analog
+  `resolveBundesligaParticipant` (+ Web- UND Android-Anpassung, Versionsbump).
+  UUIDs sind nicht erratbar -> Restrisiko gering. NACH Turnierstart sauber nachziehen.
+
 ### Weitere offene Punkte (aus Audit)
 - Nr. 1 Sicherheit: WM `save-tips.js`/`tips.js` akzeptieren `participantId` aus dem
   Body OHNE Besitzprüfung. Sollte aufs Bundesliga-Muster (validierter Code-Header,

@@ -607,6 +607,104 @@ p {
   opacity: 0.8;
 }
 
+.bracket-panel {
+  display: grid;
+  gap: 14px;
+  padding: 16px 18px;
+}
+
+.bracket-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  align-self: start;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid #dbe7f2;
+  border-radius: 10px;
+  background: #ffffff;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.bracket-scroll {
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.bracket-column {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 200px;
+  flex: 0 0 auto;
+}
+
+.bracket-column h4 {
+  margin: 0;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.75;
+}
+
+.bracket-third-title {
+  margin-top: 10px !important;
+}
+
+.bracket-match {
+  position: relative;
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid #dbe7f2;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.bracket-team {
+  display: grid;
+  grid-template-columns: 22px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+}
+
+.bracket-team.is-winner {
+  font-weight: 800;
+  color: #166534;
+}
+
+.bracket-flag img {
+  width: 22px;
+  height: 15px;
+  object-fit: cover;
+  border-radius: 2px;
+}
+
+.bracket-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bracket-score {
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+
+.bracket-note {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: var(--muted);
+}
+
 .schedule-summary,
 .tip-toolbar {
   padding: 20px 22px;
