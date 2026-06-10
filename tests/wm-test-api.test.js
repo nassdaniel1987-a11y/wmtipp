@@ -73,6 +73,15 @@ test("WM test result payload is validated and normalized", () => {
     match_id: "m1",
     score_a: 3,
     score_b: 2,
+    winner: null,
+    status: "final",
+  });
+  // K.o.-Remis mit Elfmeter-Sieger
+  assert.deepEqual(adminSaveWmTestResult.toWmTestResultRow({ matchId: "m1", scoreA: 0, scoreB: 0, winner: "A" }), {
+    match_id: "m1",
+    score_a: 0,
+    score_b: 0,
+    winner: "A",
     status: "final",
   });
   assert.throws(() => adminSaveWmTestResult.toWmTestResultRow({ matchId: "m1", scoreA: -1, scoreB: 2 }), /ungültig/);

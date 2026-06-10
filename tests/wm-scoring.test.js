@@ -19,6 +19,18 @@ test("WM points award exact score, goal difference, tendency and draw tendency",
   assert.equal(pointsFor({ score_a: 0, score_b: 1 }, { score_a: 2, score_b: 1, status: "final" }), 0);
 });
 
+test("K.o.-Remis: richtig getippter Elfmeter-Sieger bekommt Tendenz-Punkte (2)", () => {
+  // 90 Min 0:0, Team A gewinnt im Elfmeterschießen.
+  const result = { score_a: 0, score_b: 0, winner: "A", status: "final" };
+  assert.equal(pointsFor({ score_a: 2, score_b: 0 }, result), 2); // A getippt, A weiter -> 2
+  assert.equal(pointsFor({ score_a: 3, score_b: 1 }, result), 2); // A getippt, A weiter -> 2
+  assert.equal(pointsFor({ score_a: 0, score_b: 2 }, result), 0); // B getippt, A weiter -> 0
+  assert.equal(pointsFor({ score_a: 1, score_b: 1 }, result), 2); // Remis-Tipp bleibt korrekt
+  assert.equal(pointsFor({ score_a: 0, score_b: 0 }, result), 4); // exaktes 0:0 -> 4
+  // Ohne winner (z.B. echtes Gruppen-Remis) bleibt es bei der alten Regel.
+  assert.equal(pointsFor({ score_a: 2, score_b: 0 }, { score_a: 0, score_b: 0, status: "final" }), 0);
+});
+
 test("WM bonus points use mapped top scorer ids before text fallback", () => {
   const bonusResult = {
     champion: "Deutschland",

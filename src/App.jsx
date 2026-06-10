@@ -1142,6 +1142,15 @@ function pointsFor(tip, result) {
   const resultGoalDiff = result.score_a - result.score_b;
   const tipTrend = Math.sign(tipGoalDiff);
   const resultTrend = Math.sign(resultGoalDiff);
+
+  // K.o.-Phase: 90-Min-Remis per Elfmeterschießen entschieden. Wer den
+  // Weiterkommenden richtig getippt hat, bekommt die Tendenz-Punkte (2).
+  if (resultTrend === 0 && (result.winner === "A" || result.winner === "B")) {
+    if (tipTrend === 0) return 2;
+    const advancingTrend = result.winner === "A" ? 1 : -1;
+    return tipTrend === advancingTrend ? 2 : 0;
+  }
+
   if (tipTrend !== resultTrend) return 0;
   if (tipTrend === 0) return 2;
   return tipGoalDiff === resultGoalDiff ? 3 : 2;
@@ -1870,10 +1879,10 @@ export default function App() {
     }
   }
 
-  async function handleSaveWmTestResult(matchId, scoreA, scoreB) {
+  async function handleSaveWmTestResult(matchId, scoreA, scoreB, winner = null) {
     await apiPost(
       "/api/admin-save-wm-test-result",
-      { matchId, scoreA, scoreB, status: "final" },
+      { matchId, scoreA, scoreB, status: "final", winner },
       adminSession?.access_token,
     );
     return refreshWmTestData();
@@ -3377,6 +3386,14 @@ function InfoScreen() {
             <div>
               <dt>0 Punkte</dt>
               <dd>Falsche Tendenz.</dd>
+            </div>
+            <div>
+              <dt>K.o.-Phase</dt>
+              <dd>
+                Gewertet wird das Ergebnis nach 90 Minuten. Steht es dann unentschieden
+                und fällt die Entscheidung im Elfmeterschießen, zählt für die Tendenz, wer
+                weiterkommt: Wer den Sieger richtig getippt hat, bekommt 2 Punkte.
+              </dd>
             </div>
           </dl>
         </article>

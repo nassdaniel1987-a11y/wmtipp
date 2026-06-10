@@ -453,6 +453,15 @@ deployt live. Nur SQL-Migrationen führt der Nutzer manuell im Supabase-SQL-Edit
 3. K.o.-Ergebnisse + ggf. Sieger bei Remis eintragen, danach erneut auflösen
    (propagiert Sieger in die nächste Runde).
 
+### K.o.-Wertung bei Elfmeterschießen (entschieden)
+- Regel: Tipp-Punkte nach 90-Min-Ergebnis (4/3/2/0). Bei 90-Min-Remis, das per
+  Elfmeter entschieden wird, zählt für die **Tendenz** der Weiterkommende: Wer den
+  Sieger (`result.winner`) richtig getippt hat, bekommt 2 Punkte; Remis-Tipp bleibt
+  korrekt; exakt/Differenz hängen am 90-Min-Ergebnis. Umgesetzt in
+  `_shared/wm-scoring.js` UND Frontend-`pointsFor` (App.jsx), Info-Text ergänzt.
+  `winner` fließt jetzt durch `ranking.js`, `results.js`, `admin-wm-test-data.js`,
+  `admin-save-wm-test-result.js`. Tests in `wm-scoring.test.js`.
+
 ### Weitere offene Punkte (aus Audit)
 - Nr. 1 Sicherheit: WM `save-tips.js`/`tips.js` akzeptieren `participantId` aus dem
   Body OHNE Besitzprüfung. Sollte aufs Bundesliga-Muster (validierter Code-Header,
