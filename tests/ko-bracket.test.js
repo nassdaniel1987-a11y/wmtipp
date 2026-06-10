@@ -128,11 +128,14 @@ test("knockoutMatches ist strukturell vollständig (32 Spiele, jede Gruppenplatz
   assert.equal(r32.length, 16);
 
   const groupSlots = [];
-  const thirdSeeds = [];
+  let thirdSlots = 0;
   for (const match of r32) {
     for (const slot of [match.slotA, match.slotB]) {
       if (slot.kind === "group") groupSlots.push(`${slot.rank}${slot.group}`);
-      if (slot.kind === "third") thirdSeeds.push(slot.seed);
+      if (slot.kind === "third") {
+        thirdSlots += 1;
+        assert.ok(Array.isArray(slot.allowed) && slot.allowed.length > 0, "Drittel-Slot braucht erlaubte Gruppen");
+      }
     }
   }
   // 12 Sieger + 12 Zweite = 24 Gruppen-Slots, jeder genau einmal
@@ -142,8 +145,53 @@ test("knockoutMatches ist strukturell vollständig (32 Spiele, jede Gruppenplatz
     assert.ok(groupSlots.includes(`1${group}`), `Sieger Gruppe ${group} fehlt`);
     assert.ok(groupSlots.includes(`2${group}`), `Zweiter Gruppe ${group} fehlt`);
   }
-  // 8 beste Dritte, seed 1..8 je einmal
-  assert.deepEqual([...thirdSeeds].sort((a, b) => a - b), [1, 2, 3, 4, 5, 6, 7, 8]);
+  // 8 Drittel-Slots aus festen Gruppensets
+  assert.equal(thirdSlots, 8);
+
+  // Stichproben offizieller Paarungen (FIFA 2026)
+  const byNumber = new Map(knockoutMatches.map((m) => [m.matchNumber, m]));
+  assert.deepEqual(
+    [byNumber.get(73).slotA, byNumber.get(73).slotB],
+    [{ kind: "group", group: "A", rank: 2 }, { kind: "group", group: "B", rank: 2 }],
+  );
+  assert.equal(byNumber.get(74).slotA.group, "E");
+  assert.equal(byNumber.get(104).round, "final");
+  assert.equal(byNumber.get(103).round, "third");
+});
+
+test("assignThirdSlots ordnet acht Dritte regelkonform den offiziellen Slots zu", () => {
+  // Alle zwölf Gruppendritten als Kandidaten; beste 8 qualifizieren sich.
+  const standings = new Map(
+    GROUP_KEYS.map((group, index) => [
+      group,
+      [
+        { team: `${group}1`, group, rank: 1 },
+        { team: `${group}2`, group, rank: 2 },
+        // Punktstärke fällt mit dem Gruppenindex, damit A..H die besten 8 sind.
+        { team: `${group}3`, group, rank: 3, points: 12 - index, goalDiff: 0, goalsFor: 0 },
+        { team: `${group}4`, group, rank: 4 },
+      ],
+    ]),
+  );
+  const thirds = rankThirdPlaced(standings);
+  const qualified = thirds.filter((t) => t.qualified);
+  assert.equal(qualified.length, 8);
+
+  const bracket = resolveKnockout({ standings, thirds });
+  const thirdEntries = bracket.filter((m) => m.slotB?.kind === "third" || m.slotA?.kind === "third");
+  // Alle acht Drittel-Slots sind belegt ...
+  const assignedThirds = thirdEntries
+    .map((m) => (m.slotA?.kind === "third" ? m.teamB : m.teamB))
+    .filter(Boolean);
+  assert.equal(assignedThirds.length, 8);
+  // ... jeder qualifizierte Dritte genau einmal, und nur erlaubte Gruppen je Slot.
+  assert.equal(new Set(assignedThirds).size, 8);
+  for (const match of thirdEntries) {
+    const slot = match.slotA?.kind === "third" ? match.slotA : match.slotB;
+    const team = match.slotA?.kind === "third" ? match.teamA : match.teamB;
+    const group = team.replace(/3$/, "");
+    assert.ok(slot.allowed.includes(group), `Gruppe ${group} ist in Slot ${match.id} nicht erlaubt`);
+  }
 });
 
 test("buildKnockout liefert Tabellen, Dritte und aufgelösten Baum zusammen", () => {
