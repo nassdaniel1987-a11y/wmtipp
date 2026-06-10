@@ -14,7 +14,7 @@ export default async (req) => {
       fetchAllPages(() => supabase
         .from("tips")
         .select("participant_id, match_id, score_a, score_b")),
-      supabase.from("results").select("match_id, score_a, score_b, status"),
+      supabase.from("results").select("match_id, score_a, score_b, winner, status"),
       fetchAllPages(() => supabase
         .from("bonus_tips")
         .select("participant_id, champion, top_scorer, top_scorer_player_id, group_winners")),

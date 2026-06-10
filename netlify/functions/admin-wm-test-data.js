@@ -55,8 +55,8 @@ export default async (req) => {
     const [participants, tips, liveResults, testResults, bonusTips, liveBonusResults, testBonusResults] = await Promise.all([
       supabase.from("participants").select("id, display_name").order("created_at", { ascending: false }),
       fetchAllPages(() => supabase.from("tips").select("id, participant_id, match_id, score_a, score_b, saved_at").order("saved_at", { ascending: false })),
-      supabase.from("results").select("match_id, score_a, score_b, status, updated_at"),
-      supabase.from("wm_test_results").select("match_id, score_a, score_b, status, updated_at"),
+      supabase.from("results").select("match_id, score_a, score_b, winner, status, updated_at"),
+      supabase.from("wm_test_results").select("match_id, score_a, score_b, winner, status, updated_at"),
       fetchAllPages(() => supabase.from("bonus_tips").select("participant_id, champion, top_scorer, top_scorer_player_id, group_winners, saved_at").order("saved_at", { ascending: false })),
       supabase.from("bonus_results").select("id, champion, top_scorer, top_scorer_player_ids, group_winners, updated_at").eq("id", "official").maybeSingle(),
       supabase.from("wm_test_bonus_results").select("id, champion, top_scorer, top_scorer_player_ids, group_winners, updated_at").eq("id", "sandbox").maybeSingle(),

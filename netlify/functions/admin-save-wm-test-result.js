@@ -2,10 +2,13 @@ import { requireAdmin } from "./_shared/admin.js";
 import { json } from "./_shared/supabase.js";
 
 export function toWmTestResultRow(payload = {}) {
+  const winner = payload.winner === "A" || payload.winner === "B" ? payload.winner : null;
   const row = {
     match_id: payload.matchId,
     score_a: Number(payload.scoreA),
     score_b: Number(payload.scoreB),
+    // Sieger nur bei K.o.-Remis relevant; bei Entscheidung in 90 Min ignoriert.
+    winner: Number(payload.scoreA) === Number(payload.scoreB) ? winner : null,
     status: payload.status || "final",
   };
 
@@ -37,7 +40,7 @@ export default async (req) => {
     const { data, error } = await supabase
       .from("wm_test_results")
       .upsert(row, { onConflict: "match_id" })
-      .select("match_id, score_a, score_b, status, updated_at")
+      .select("match_id, score_a, score_b, winner, status, updated_at")
       .single();
 
     if (error) throw error;

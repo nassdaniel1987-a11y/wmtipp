@@ -8,7 +8,7 @@ export default async (req) => {
     const supabase = getServiceClient();
     const { data, error } = await supabase
       .from("results")
-      .select("match_id, score_a, score_b, status, updated_at");
+      .select("match_id, score_a, score_b, winner, status, updated_at");
 
     if (error) throw error;
     return json({ results: data ?? [] });
