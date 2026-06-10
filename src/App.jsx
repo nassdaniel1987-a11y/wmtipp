@@ -2607,6 +2607,86 @@ function TestModePanel({ matches, tips, resultsByMatch, bonusPoints, totalPoints
   );
 }
 
+function koWinnerSide(result) {
+  if (!result || result.status !== "final") return null;
+  if (result.score_a > result.score_b) return "A";
+  if (result.score_b > result.score_a) return "B";
+  return result.winner === "A" || result.winner === "B" ? result.winner : null;
+}
+
+function BracketMatch({ match, result }) {
+  const winnerSide = koWinnerSide(result);
+  const decided = result?.status === "final";
+  const penalties = decided && result.score_a === result.score_b && (result.winner === "A" || result.winner === "B");
+  const rows = [
+    { side: "A", name: match.teamA, flagCode: match.flagCodeA, score: decided ? result.score_a : null },
+    { side: "B", name: match.teamB, flagCode: match.flagCodeB, score: decided ? result.score_b : null },
+  ];
+  return (
+    <div className="bracket-match">
+      {rows.map((row) => (
+        <div key={row.side} className={`bracket-team ${winnerSide === row.side ? "is-winner" : ""}`}>
+          <span className="bracket-flag" aria-hidden="true">
+            {row.flagCode ? <img src={`https://flagcdn.com/w40/${row.flagCode}.png`} alt="" /> : null}
+          </span>
+          <span className="bracket-name">{row.name}</span>
+          <span className="bracket-score">{row.score ?? "–"}</span>
+        </div>
+      ))}
+      {penalties && <span className="bracket-note">i.E.</span>}
+    </div>
+  );
+}
+
+function KnockoutBracket({ koMatches, resultsByMatch }) {
+  const [open, setOpen] = useState(false);
+  const columns = useMemo(() => {
+    return ["r32", "r16", "quarter", "semi", "final"]
+      .map((phase) => ({
+        phase,
+        label: KO_PHASE_LABELS[phase] ?? phase,
+        matches: koMatches.filter((match) => match.phase === phase),
+      }))
+      .filter((column) => column.matches.length > 0);
+  }, [koMatches]);
+  const thirdMatch = koMatches.find((match) => match.phase === "third");
+
+  if (!columns.length) return null;
+
+  return (
+    <section className="bracket-panel panel">
+      <button
+        type="button"
+        className="bracket-toggle"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+      >
+        <Trophy size={18} />
+        Turnierbaum {open ? "einklappen" : "anzeigen"}
+        {open ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+      </button>
+      {open && (
+        <div className="bracket-scroll" role="group" aria-label="Turnierbaum">
+          {columns.map((column) => (
+            <div className="bracket-column" key={column.phase}>
+              <h4>{column.label}</h4>
+              {column.matches.map((match) => (
+                <BracketMatch key={match.id} match={match} result={resultsByMatch.get(match.id)} />
+              ))}
+              {column.phase === "final" && thirdMatch && (
+                <>
+                  <h4 className="bracket-third-title">Spiel um Platz 3</h4>
+                  <BracketMatch match={thirdMatch} result={resultsByMatch.get(thirdMatch.id)} />
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function KnockoutTipBlock({
   koMatches,
   adminOnly = false,
@@ -2835,18 +2915,21 @@ function TipScreen({
             ))}
           </div>
           {(isAdmin || koVisible) && koMatches.length > 0 && (
-            <KnockoutTipBlock
-              koMatches={koMatches}
-              adminOnly={isAdmin && !koVisible}
-              tips={tips}
-              resultsByMatch={resultsByMatch}
-              changeScore={changeScore}
-              saveTip={saveTip}
-              lastSavedMatch={lastSavedMatch}
-              tipSaveStatuses={tipSaveStatuses}
-              tipTrends={tipTrends}
-              locked={locked}
-            />
+            <>
+              <KnockoutTipBlock
+                koMatches={koMatches}
+                adminOnly={isAdmin && !koVisible}
+                tips={tips}
+                resultsByMatch={resultsByMatch}
+                changeScore={changeScore}
+                saveTip={saveTip}
+                lastSavedMatch={lastSavedMatch}
+                tipSaveStatuses={tipSaveStatuses}
+                tipTrends={tipTrends}
+                locked={locked}
+              />
+              <KnockoutBracket koMatches={koMatches} resultsByMatch={resultsByMatch} />
+            </>
           )}
         </>
       ) : (
