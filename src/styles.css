@@ -4516,6 +4516,31 @@ tbody tr:nth-child(1) td:first-child {
   margin: 0;
 }
 
+.ko-visible-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  border: 1px solid #ece4c8;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.ko-visible-toggle.on {
+  border-color: #16a34a;
+  background: rgba(22, 163, 74, 0.08);
+}
+
+.ko-visible-toggle strong {
+  display: block;
+}
+
+.ko-visible-toggle p {
+  margin: 2px 0 0;
+}
+
 .ko-admin-list {
   display: grid;
   gap: 10px;
