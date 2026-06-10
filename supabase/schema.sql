@@ -146,6 +146,12 @@ create table if not exists public.admins (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.app_settings (
+  key text primary key,
+  value jsonb not null default 'null'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
 alter table public.matches enable row level security;
 alter table public.invite_codes enable row level security;
 alter table public.participants enable row level security;
@@ -159,8 +165,10 @@ alter table public.wm_test_bonus_results enable row level security;
 alter table public.participant_devices enable row level security;
 alter table public.push_reminders enable row level security;
 alter table public.admins enable row level security;
+alter table public.app_settings enable row level security;
 
 grant select on public.matches to anon, authenticated;
+grant select on public.app_settings to anon, authenticated;
 grant select on public.results to anon, authenticated;
 grant select, insert, update, delete on public.matches to authenticated;
 grant select, insert, update, delete on public.invite_codes to authenticated;
@@ -201,6 +209,12 @@ using (true);
 drop policy if exists "results are readable" on public.results;
 create policy "results are readable"
 on public.results for select
+to anon, authenticated
+using (true);
+
+drop policy if exists "app settings are readable" on public.app_settings;
+create policy "app settings are readable"
+on public.app_settings for select
 to anon, authenticated
 using (true);
 

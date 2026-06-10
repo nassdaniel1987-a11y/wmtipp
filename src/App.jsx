@@ -1240,6 +1240,7 @@ export default function App() {
   const [bonusMessage, setBonusMessage] = useState("");
   const [bonusSaveStatus, setBonusSaveStatus] = useState("");
   const [ranking, setRanking] = useState(() => (isTestMode ? TEST_RANKING_ROWS : []));
+  const [koVisible, setKoVisible] = useState(isTestMode);
   const [tipTrends, setTipTrends] = useState(() => (isTestMode ? createTestTipTrends(bundledMatches) : {}));
   const [lastSavedMatch, setLastSavedMatch] = useState("");
   const [tipSaveStatuses, setTipSaveStatuses] = useState({});
@@ -1296,7 +1297,6 @@ export default function App() {
   }, [canViewRanking]);
 
   const activeCode = participant?.code || scannedCode || manualCode.trim();
-  const savedTipCount = Object.values(tips).filter((tip) => tip.saved).length;
   const featuredMatch =
     matches.find((match) => match.teamA === "Deutschland" || match.teamB === "Deutschland") ??
     matches[0];
@@ -1312,6 +1312,16 @@ export default function App() {
         .sort((first, second) => (first.matchNumber ?? 0) - (second.matchNumber ?? 0)),
     [matches],
   );
+
+  // Spiele, die der aktuelle Nutzer tippen darf: immer Gruppenphase, K.o. nur wenn
+  // freigeschaltet oder als Admin. Basis fuer Fortschritts-/Tippzaehler.
+  const koTippable = koVisible || Boolean(adminSession);
+  const groupMatchCount = useMemo(() => matches.filter(isGroupPhase).length, [matches]);
+  const tippableMatches = useMemo(
+    () => matches.filter((match) => isGroupPhase(match) || (koTippable && isKnockoutPhase(match))),
+    [matches, koTippable],
+  );
+  const savedTipCount = tippableMatches.filter((match) => tips[match.id]?.saved).length;
 
   const filteredMatches = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
@@ -1415,13 +1425,14 @@ export default function App() {
       }
 
       try {
-        const [dbMatches, dbResults, rankPayload, bonusPayload, playerPayload, trendPayload, session] = await Promise.all([
+        const [dbMatches, dbResults, rankPayload, bonusPayload, playerPayload, trendPayload, settingsPayload, session] = await Promise.all([
           loadDbMatches(),
           loadResults(),
           apiGet("/api/ranking").catch(() => ({ ranking: [] })),
           apiGet("/api/bonus-results").catch(() => ({ bonusResults: null })),
           apiGet("/api/players").catch(() => ({ players: [] })),
           apiGet("/api/tip-trends").catch(() => ({ trends: {} })),
+          apiGet("/api/settings").catch(() => ({ settings: {} })),
           getAdminSession(),
         ]);
 
@@ -1432,6 +1443,7 @@ export default function App() {
         setPlayers(nextPlayers);
         setRanking(rankPayload.ranking ?? []);
         setTipTrends(trendPayload.trends ?? {});
+        setKoVisible(Boolean(settingsPayload.settings?.ko_visible));
         setAdminSession(session);
         setTips(createInitialTips(nextMatches));
         setTipSaveStatuses({});
@@ -1855,6 +1867,16 @@ export default function App() {
     await refreshRanking();
   }
 
+  async function handleToggleKoVisible(nextValue) {
+    const payload = await apiPost(
+      "/api/admin-save-setting",
+      { key: "ko_visible", value: Boolean(nextValue) },
+      adminSession?.access_token,
+    );
+    setKoVisible(Boolean(payload.setting?.value));
+    return payload;
+  }
+
   async function handleResolveKnockout(manualPairings = {}) {
     const payload = await apiPost(
       "/api/admin-resolve-knockout",
@@ -1993,8 +2015,8 @@ export default function App() {
 
       <main className="stadium">
         <section className="scoreboard-strip" aria-label="Turnierübersicht">
-          <span>WM 2026 · {matches.length} Gruppenspiele</span>
-          <strong>{savedTipCount} von {matches.length} Tipps gespeichert</strong>
+          <span>WM 2026 · {groupMatchCount} Gruppenspiele</span>
+          <strong>{savedTipCount} von {tippableMatches.length} Tipps gespeichert</strong>
           <span>{appStatus}</span>
         </section>
 
@@ -2034,7 +2056,7 @@ export default function App() {
                 <>
                   <ParticipantLanding
                     participant={participant}
-                    matches={matches}
+                    matches={tippableMatches}
                     tips={tips}
                     bonusTips={bonusTips}
                     groupTables={groupTables}
@@ -2077,6 +2099,7 @@ export default function App() {
                 filteredMatches={filteredMatches}
                 koMatches={koMatches}
                 isAdmin={Boolean(adminSession)}
+                koVisible={koVisible}
                 groupFilter={groupFilter}
                 searchTerm={searchTerm}
                 setGroupFilter={setGroupFilter}
@@ -2300,6 +2323,8 @@ export default function App() {
                 }}
                 onSaveResult={handleSaveResult}
                 onResolveKnockout={handleResolveKnockout}
+                koVisible={koVisible}
+                onToggleKoVisible={handleToggleKoVisible}
                 onPreviewOfficialResults={handlePreviewOfficialResults}
                 onImportOfficialResults={handleImportOfficialResults}
               />
@@ -2455,7 +2480,7 @@ function ParticipantLanding({
   ranking,
   setActiveTab,
 }) {
-  const savedTipCount = Object.values(tips).filter((tip) => tip.saved).length;
+  const savedTipCount = matches.filter((match) => tips[match.id]?.saved).length;
   const openTipCount = Math.max(0, matches.length - savedTipCount);
   const progress = matches.length ? Math.round((savedTipCount / matches.length) * 100) : 0;
   const groupWinnerCount = countGroupWinnerDrafts(bonusTips);
@@ -2584,6 +2609,7 @@ function TestModePanel({ matches, tips, resultsByMatch, bonusPoints, totalPoints
 
 function KnockoutTipBlock({
   koMatches,
+  adminOnly = false,
   tips,
   resultsByMatch,
   changeScore,
@@ -2608,8 +2634,9 @@ function KnockoutTipBlock({
         <div>
           <h2>K.o.-Phase</h2>
           <p>
-            Nur für Admins sichtbar. Paarungen zeigen Platzhalter, bis sie aus den
-            Gruppentabellen aufgelöst werden.
+            {adminOnly
+              ? "Nur für Admins sichtbar. Paarungen zeigen Platzhalter, bis sie aus den Gruppentabellen aufgelöst werden."
+              : "Tippe die Spiele der K.o.-Runde. Solange die Paarungen noch nicht feststehen, zeigen die Karten Platzhalter."}
           </p>
         </div>
       </div>
@@ -2643,6 +2670,7 @@ function TipScreen({
   filteredMatches,
   koMatches = [],
   isAdmin = false,
+  koVisible = false,
   groupFilter,
   searchTerm,
   setGroupFilter,
@@ -2806,9 +2834,10 @@ function TipScreen({
               />
             ))}
           </div>
-          {isAdmin && koMatches.length > 0 && (
+          {(isAdmin || koVisible) && koMatches.length > 0 && (
             <KnockoutTipBlock
               koMatches={koMatches}
+              adminOnly={isAdmin && !koVisible}
               tips={tips}
               resultsByMatch={resultsByMatch}
               changeScore={changeScore}
@@ -3523,6 +3552,8 @@ function AdminPanel({
   onMapTopScorer,
   onSaveResult,
   onResolveKnockout,
+  koVisible = false,
+  onToggleKoVisible,
   onPreviewOfficialResults,
   onImportOfficialResults,
 }) {
@@ -3675,6 +3706,18 @@ function AdminPanel({
       setAdminMessage(
         `K.o.-Paarungen aufgelöst: ${payload?.resolved ?? 0} von ${payload?.updated ?? 0} Spielen mit echten Teams.`,
       );
+    } catch (error) {
+      setAdminMessage(error.message);
+    }
+  }
+
+  async function toggleKoVisible() {
+    if (!onToggleKoVisible) return;
+    const next = !koVisible;
+    if (next && !window.confirm("K.o.-Phase für ALLE Teilnehmer sichtbar und tippbar schalten?")) return;
+    try {
+      await onToggleKoVisible(next);
+      setAdminMessage(next ? "K.o.-Phase ist jetzt für alle sichtbar." : "K.o.-Phase ist wieder nur für Admins sichtbar.");
     } catch (error) {
       setAdminMessage(error.message);
     }
@@ -4618,6 +4661,19 @@ function AdminPanel({
             <h3>K.o.-Phase</h3>
             <button type="button" className="primary-button compact" onClick={resolveKnockout}>
               Paarungen aus Gruppentabellen auflösen
+            </button>
+          </div>
+          <div className={`ko-visible-toggle ${koVisible ? "on" : ""}`}>
+            <div>
+              <strong>Sichtbarkeit für Teilnehmer</strong>
+              <p className="fine-print">
+                {koVisible
+                  ? "Die K.o.-Phase ist für alle Teilnehmer sichtbar und tippbar."
+                  : "Die K.o.-Phase ist aktuell nur für Admins sichtbar."}
+              </p>
+            </div>
+            <button type="button" className={koVisible ? "ghost-button" : "primary-button compact"} onClick={toggleKoVisible}>
+              {koVisible ? "Wieder verstecken" : "Für alle freischalten"}
             </button>
           </div>
           <p className="fine-print">

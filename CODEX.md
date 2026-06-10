@@ -439,10 +439,17 @@ deployt live. Nur SQL-Migrationen führt der Nutzer manuell im Supabase-SQL-Edit
    - CAVEAT: Auto-Auflösen überschreibt manuelle Team-Edits in den matches-Zeilen,
      außer der Override steht beim erneuten Auflösen in den Override-Feldern. Für
      dauerhafte Sonderfälle Override-Feld gesetzt lassen.
-4. OFFEN – Teilnehmer-Freischaltung: Schalter (z.B. Settings-Zeile `ko_visible`) macht
-   K.o. für alle sichtbar (aktuell nur `isAdmin`-Gate in `KnockoutTipBlock` +
-   `filteredMatches`/`sortedResultMatches`); Sperre/Sichtbarkeit wie Gruppenspiele;
-   optional Turnierbaum.
+4. ERLEDIGT – Teilnehmer-Freischaltung: neue Tabelle `app_settings` (Key/Value)
+   mit Schalter `ko_visible` (Migration `20260609160000_wm_app_settings.sql`,
+   **NOCH AUSFÜHREN**; schema.sql aktualisiert). Öffentliche Function
+   `/api/settings` (Defaults bei Fehler: ko_visible=false), Admin-Schreib-Function
+   `/api/admin-save-setting` (nur whitelisted Keys). Frontend lädt `koVisible` beim
+   Start; `KnockoutTipBlock` Gate = `isAdmin || koVisible` (Hinweistext via
+   `adminOnly`); Admin-Toggle „Für alle freischalten/verstecken" im K.o.-Admin-Block.
+   Fortschritts-/Tippzähler nutzen jetzt `tippableMatches` (Gruppen + K.o. nur wenn
+   sichtbar/Admin), damit Teilnehmer keine versteckten K.o.-Spiele mitgezählt
+   bekommen. Tipp-Sperre ab Anpfiff greift automatisch über `kickoffAt`. Turnierbaum
+   bleibt optionales Later.
 
 ### K.o.-Phase – Reihenfolge beim Echtbetrieb
 1. Beide Migrationen ausführen: `20260609120000_wm_knockout_matches.sql` (Platzhalter)

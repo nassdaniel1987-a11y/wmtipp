@@ -30,6 +30,15 @@ function tipPoints(tip, result) {
   const resultDiff = result.score_a - result.score_b;
   const tipTrend = Math.sign(tipDiff);
   const resultTrend = Math.sign(resultDiff);
+
+  // K.o.-Phase: 90-Min-Remis per Elfmeterschießen entschieden. Wer den
+  // Weiterkommenden richtig getippt hat, bekommt die Tendenz-Punkte (2).
+  if (resultTrend === 0 && (result.winner === "A" || result.winner === "B")) {
+    if (tipTrend === 0) return 2;
+    const advancingTrend = result.winner === "A" ? 1 : -1;
+    return tipTrend === advancingTrend ? 2 : 0;
+  }
+
   if (tipTrend !== resultTrend) return 0;
   if (tipTrend === 0) return 2;
   return tipDiff === resultDiff ? 3 : 2;
