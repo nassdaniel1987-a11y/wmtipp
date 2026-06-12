@@ -940,6 +940,61 @@ p {
   color: var(--navy);
 }
 
+.evaluated-results-panel {
+  display: grid;
+  gap: 12px;
+  padding-top: 4px;
+}
+
+.evaluated-results-panel h3 {
+  margin: 0;
+}
+
+.evaluated-results-list {
+  display: grid;
+  gap: 10px;
+}
+
+.evaluated-results-list div {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) auto auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border: 1px solid #d7e2ee;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.evaluated-results-list span {
+  color: var(--muted);
+  font-weight: 850;
+}
+
+.evaluated-results-list strong {
+  color: var(--navy);
+}
+
+.evaluated-results-list b {
+  font-weight: 900;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.evaluated-results-list div.scored b {
+  color: #2f6b1f;
+}
+
+.evaluated-results-list div.scored {
+  border-color: #bfe3ad;
+  background: #f3fbef;
+}
+
+.evaluated-results-list div.missed {
+  border-color: #f1d7d7;
+  background: #fdf6f6;
+}
+
 .test-mode-panel {
   display: grid;
   gap: 16px;
@@ -5342,7 +5397,8 @@ tbody tr:nth-child(1) td:first-child {
   .test-score-grid,
   .test-case-list div,
   .official-result-preview div,
-  .next-open-list div {
+  .next-open-list div,
+  .evaluated-results-list div {
     grid-template-columns: 1fr;
   }
 
