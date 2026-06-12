@@ -1404,8 +1404,29 @@ export default function App() {
   useEffect(() => {
     if (activeTab === "rangliste" && canViewRanking) {
       void refreshRanking();
+      void refreshResults();
     }
   }, [activeTab, canViewRanking]);
+
+  // Neue Ergebnisse einsammeln, sobald der Teilnehmer zur App zurueckkehrt oder
+  // sie laengere Zeit offen laesst. So tauchen frisch eingetragene Ergebnisse und
+  // die daraus berechneten Punkte ohne manuellen Reload im Dashboard auf.
+  useEffect(() => {
+    if (isTestMode || !participant?.id) return undefined;
+    const refresh = () => {
+      if (document.visibilityState === "hidden") return;
+      void refreshResults();
+      void refreshRanking();
+    };
+    const timer = window.setInterval(refresh, 60_000);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [isTestMode, participant?.id, matches, players]);
 
   useEffect(() => {
     async function bootstrap() {
@@ -1684,6 +1705,19 @@ export default function App() {
 
     const payload = await apiGet("/api/ranking").catch(() => ({ ranking: [] }));
     setRanking(payload.ranking ?? []);
+  }
+
+  // Holt neue Spielergebnisse und Bonus-Auswertungen nach. Ohne diesen Nachzug
+  // bleiben die beim Start geladenen `results` haengen, sodass neu eingetragene
+  // Ergebnisse (und damit die eigenen Punkte im Dashboard) nie aktualisiert werden.
+  async function refreshResults() {
+    if (isTestMode) return;
+    const [dbResults, bonusPayload] = await Promise.all([
+      loadResults().catch(() => null),
+      apiGet("/api/bonus-results").catch(() => ({ bonusResults: null })),
+    ]);
+    if (Array.isArray(dbResults)) setResults(dbResults);
+    setBonusResults(createInitialBonusResults(matches, bonusPayload?.bonusResults, players));
   }
 
   async function refreshTipTrends() {
@@ -3667,6 +3701,8 @@ function AdminPanel({
   const [bundesligaData, setBundesligaData] = useState(null);
   const [bundesligaMessage, setBundesligaMessage] = useState("");
   const [bundesligaLoading, setBundesligaLoading] = useState(false);
+  const [adminRanking, setAdminRanking] = useState([]);
+  const [adminRankingStatus, setAdminRankingStatus] = useState("idle");
   const activePlayers = players.filter((player) => player.active !== false);
   const isBundesligaAdmin = adminCompetition === competitions.bundesliga.id;
   const isWmTestAdmin = !isBundesligaAdmin && wmAdminMode === "test";
@@ -3684,6 +3720,46 @@ function AdminPanel({
     if (!isWmTestAdmin || !session?.access_token) return;
     void onRefreshWmTestData();
   }, [isWmTestAdmin, session?.access_token]);
+
+  // Live-Rangliste der echten Teilnehmer fuer den Adminbereich nachladen. Wird
+  // nach jedem Daten-Refresh aktualisiert, damit die Druckansicht aktuell ist.
+  useEffect(() => {
+    if (isBundesligaAdmin || isWmTestAdmin || !session?.access_token) return undefined;
+    let cancelled = false;
+    setAdminRankingStatus("loading");
+    apiGet("/api/ranking")
+      .then((payload) => {
+        if (cancelled) return;
+        setAdminRanking(payload.ranking ?? []);
+        setAdminRankingStatus("ready");
+      })
+      .catch(() => {
+        if (!cancelled) setAdminRankingStatus("error");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isBundesligaAdmin, isWmTestAdmin, session?.access_token, adminData]);
+
+  const sortedAdminRanking = useMemo(
+    () =>
+      [...adminRanking].sort(
+        (first, second) =>
+          (second.points ?? 0) - (first.points ?? 0) ||
+          (second.matchdayWins ?? 0) - (first.matchdayWins ?? 0) ||
+          String(first.name).localeCompare(String(second.name), "de"),
+      ),
+    [adminRanking],
+  );
+
+  function printRanking() {
+    if (sortedAdminRanking.length === 0) {
+      setAdminMessage("Noch keine Rangliste zum Drucken vorhanden.");
+      return;
+    }
+    flushSync(() => setPrintMode("ranking"));
+    window.print();
+  }
 
   const unresolvedTopScorers = useMemo(() => {
     const rows = new Map();
@@ -4369,6 +4445,31 @@ function AdminPanel({
         <strong>{adminData.tipCount ?? adminData.tips.length}<span>Tipps</span></strong>
       </div>
 
+      <section className="admin-live-ranking">
+        <div className="admin-ranking-head">
+          <h3>Rangliste</h3>
+          <button
+            type="button"
+            className="primary-button compact"
+            onClick={printRanking}
+            disabled={sortedAdminRanking.length === 0}
+          >
+            Rangliste drucken
+          </button>
+        </div>
+        <p className="fine-print">
+          Aktuelle Platzierung aller echten Teilnehmer. Über „Rangliste drucken" entsteht eine saubere A4-Druckansicht.
+        </p>
+        {adminRankingStatus === "error" && (
+          <p className="fine-print">Rangliste konnte gerade nicht geladen werden. Bitte „Daten aktualisieren".</p>
+        )}
+        {sortedAdminRanking.length === 0 ? (
+          <p className="fine-print">Sobald die ersten Ergebnisse ausgewertet sind, erscheint hier die Rangliste.</p>
+        ) : (
+          <RankingPanel ranking={sortedAdminRanking} expanded />
+        )}
+      </section>
+
       <section className="admin-bonus-editor player-admin-panel">
         <h3>Torschützenkönig-Spieler</h3>
         <p className="fine-print">
@@ -4561,6 +4662,43 @@ function AdminPanel({
         ))}
       </div>}
       <section className={`print-sheet ${printMode}`} aria-hidden="true">
+        {printMode === "ranking" && (
+          <article className="print-ranking">
+            <header>
+              <img src="/oesterfeld-logo-round.jpg" alt="" />
+              <div>
+                <span>WM-Tippspiel · Österfeld-Edition</span>
+                <strong>Rangliste</strong>
+                <small>Stand: {new Date().toLocaleString("de-DE", { dateStyle: "long", timeStyle: "short" })}</small>
+              </div>
+            </header>
+            <table className="print-ranking-table">
+              <thead>
+                <tr>
+                  <th>Pl.</th>
+                  <th>Name</th>
+                  <th>Tipps</th>
+                  <th>Spielpunkte</th>
+                  <th>Bonus</th>
+                  <th>Gesamt</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedAdminRanking.map((row, index) => (
+                  <tr key={row.id ?? row.name}>
+                    <td>{index + 1}</td>
+                    <td>{row.name}</td>
+                    <td>{row.tipCount ?? 0}</td>
+                    <td>{row.matchPoints ?? row.points ?? 0}</td>
+                    <td>{row.bonusPoints ?? 0}</td>
+                    <td>{row.points ?? 0}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <footer>{sortedAdminRanking.length} Teilnehmer · WM-Tippspiel Österfeld-Edition</footer>
+          </article>
+        )}
         {printMode === "codes" && printableCodes.map((row) => (
           <article className="print-code-card" key={row.id}>
             <header>
