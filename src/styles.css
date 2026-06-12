@@ -2064,6 +2064,64 @@ tbody tr:nth-child(1) td:first-child {
   margin: 0;
 }
 
+.admin-tab-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #dce6f1;
+}
+
+.admin-tab-nav button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid #cad9e8;
+  border-radius: 999px;
+  background: #ffffff;
+  color: var(--navy);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.admin-tab-nav button:hover {
+  border-color: var(--green);
+}
+
+.admin-tab-nav button.active {
+  border-color: var(--green-dark);
+  background: var(--green-dark);
+  color: #ffffff;
+}
+
+.participant-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 6px 12px;
+  border: 1px solid #cad9e8;
+  border-radius: 10px;
+  background: #ffffff;
+  color: var(--muted);
+}
+
+.participant-search input {
+  flex: 1;
+  min-height: 38px;
+  border: none;
+  background: transparent;
+  color: var(--navy);
+  font-size: 1rem;
+}
+
+.participant-search input:focus {
+  outline: none;
+}
+
 .admin-test-banner {
   display: flex;
   justify-content: space-between;
