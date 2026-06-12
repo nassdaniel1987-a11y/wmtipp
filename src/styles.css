@@ -2122,6 +2122,52 @@ tbody tr:nth-child(1) td:first-child {
   outline: none;
 }
 
+.admin-without-tips {
+  margin-top: 20px;
+  padding: 16px;
+  border: 1px solid #f1d8b6;
+  border-radius: 12px;
+  background: #fff7ec;
+}
+
+.admin-without-tips h3 {
+  margin: 0 0 8px;
+}
+
+.without-tips-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.without-tips-chip {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 8px 12px;
+  border: 1px solid #e6b877;
+  border-radius: 10px;
+  background: #ffffff;
+  color: var(--navy);
+  cursor: pointer;
+  text-align: left;
+}
+
+.without-tips-chip:hover {
+  border-color: var(--green);
+}
+
+.without-tips-chip strong {
+  font-weight: 850;
+}
+
+.without-tips-chip span {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
 .admin-test-banner {
   display: flex;
   justify-content: space-between;

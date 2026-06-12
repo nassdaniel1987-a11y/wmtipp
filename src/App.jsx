@@ -3438,7 +3438,9 @@ function ScoreControl({ value, onIncrease, onDecrease, disabled }) {
 function RankingPanel({ ranking: rows, expanded = false, setActiveTab }) {
   const [rankingMode, setRankingMode] = useState("total");
   const sortedRows = useMemo(() => {
-    const nextRows = [...rows];
+    const nextRows = rows.filter(
+      (row) => row.isCurrent || (row.tipCount ?? 0) > 0 || (row.points ?? 0) > 0,
+    );
     if (expanded && rankingMode === "average") {
       return nextRows.sort(
         (first, second) =>
@@ -3799,6 +3801,11 @@ function AdminPanel({
       );
     });
   }, [adminData.participants, adminData.codes, participantSearch]);
+
+  const participantsWithoutTips = useMemo(() => {
+    const withTips = new Set((adminData.tips ?? []).map((tip) => tip.participant_id));
+    return adminData.participants.filter((participant) => !withTips.has(participant.id));
+  }, [adminData.participants, adminData.tips]);
 
   function printRanking() {
     if (sortedAdminRanking.length === 0) {
@@ -4866,6 +4873,39 @@ function AdminPanel({
           Nutzer + Code erzeugen
         </button>
       </div>
+
+      <section className="admin-without-tips">
+        <h3>Noch ohne Tipps ({participantsWithoutTips.length})</h3>
+        {participantsWithoutTips.length === 0 ? (
+          <p className="fine-print">
+            {adminData.participants.length === 0
+              ? "Noch keine Teilnehmer angelegt."
+              : "Alle Teilnehmer haben mindestens einen Tipp abgegeben."}
+          </p>
+        ) : (
+          <>
+            <p className="fine-print">
+              Diese Teilnehmer haben noch keinen Spieltipp gespeichert. Antippen, um stellvertretend Tipps einzutragen.
+            </p>
+            <div className="without-tips-list">
+              {participantsWithoutTips.map((participant) => {
+                const code = adminData.codes.find((item) => item.participant?.id === participant.id);
+                return (
+                  <button
+                    type="button"
+                    key={participant.id}
+                    className="without-tips-chip"
+                    onClick={() => openParticipant(participant)}
+                  >
+                    <strong>{participant.display_name}</strong>
+                    <span>{code?.code || "ohne Code"}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </section>
 
       <h3>Teilnehmer</h3>
       <p className="fine-print">
