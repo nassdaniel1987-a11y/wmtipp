@@ -1993,6 +1993,22 @@ tbody tr:nth-child(1) td:first-child {
   font-weight: 800;
 }
 
+.admin-live-ranking {
+  margin-top: 20px;
+}
+
+.admin-ranking-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.admin-ranking-head h3 {
+  margin: 0;
+}
+
 .admin-test-banner {
   display: flex;
   justify-content: space-between;
@@ -5820,6 +5836,102 @@ tbody tr:nth-child(1) td:first-child {
   .print-sheet.tip-sheets {
     grid-auto-rows: auto;
     gap: 10mm;
+  }
+
+  .print-sheet.ranking {
+    grid-auto-rows: auto;
+    gap: 8mm;
+  }
+
+  .print-ranking {
+    display: block;
+    width: 190mm;
+    color: #14210f;
+  }
+
+  .print-ranking header {
+    display: flex;
+    align-items: center;
+    gap: 6mm;
+    padding-bottom: 4mm;
+    margin-bottom: 4mm;
+    border-bottom: 1.4px solid #6aad4f;
+  }
+
+  .print-ranking header img {
+    width: 18mm;
+    height: 18mm;
+    border-radius: 50%;
+    object-fit: cover;
+  }
+
+  .print-ranking header div {
+    display: flex;
+    flex-direction: column;
+    gap: 1mm;
+  }
+
+  .print-ranking header span {
+    font-size: 3.4mm;
+    letter-spacing: 0.4mm;
+    text-transform: uppercase;
+    color: #4a6b3a;
+  }
+
+  .print-ranking header strong {
+    font-size: 7mm;
+    line-height: 1;
+  }
+
+  .print-ranking header small {
+    font-size: 3.2mm;
+    color: #5b5b5b;
+  }
+
+  .print-ranking-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 3.6mm;
+  }
+
+  .print-ranking-table th,
+  .print-ranking-table td {
+    padding: 2mm 2.5mm;
+    text-align: right;
+    border-bottom: 0.4px solid #c9d8be;
+  }
+
+  .print-ranking-table th:nth-child(2),
+  .print-ranking-table td:nth-child(2) {
+    text-align: left;
+  }
+
+  .print-ranking-table th {
+    font-size: 3mm;
+    text-transform: uppercase;
+    letter-spacing: 0.3mm;
+    color: #3c5a2d;
+    border-bottom: 1px solid #6aad4f;
+  }
+
+  .print-ranking-table td:first-child {
+    font-weight: 700;
+  }
+
+  .print-ranking-table td:last-child {
+    font-weight: 700;
+    color: #2f6b1f;
+  }
+
+  .print-ranking-table tr {
+    break-inside: avoid;
+  }
+
+  .print-ranking footer {
+    margin-top: 4mm;
+    font-size: 3mm;
+    color: #5b5b5b;
+    text-align: center;
   }
 
   .print-code-card {
