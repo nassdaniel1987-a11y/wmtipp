@@ -1355,21 +1355,26 @@ export default function App() {
   const currentAveragePoints = currentScoredTipCount > 0 ? currentMatchPoints / currentScoredTipCount : 0;
 
   const displayRanking = useMemo(() => {
-    const rows = participant
-      ? [
-          ...ranking.filter((row) => row.name !== participant.name),
-          {
-            name: participant.name,
-            points: currentPoints,
-            matchPoints: currentMatchPoints,
-            bonusPoints: currentBonusPoints,
-            tipCount: currentTipCount,
-            scoredTipCount: currentScoredTipCount,
-            averagePoints: currentAveragePoints,
-            isCurrent: true,
-          },
-        ]
-      : [...ranking];
+    if (!participant) {
+      return [...ranking].sort((a, b) => b.points - a.points || a.name.localeCompare(b.name));
+    }
+    // Server-Rangliste (buildWmRanking) ist die autoritative Quelle fuer Punkte,
+    // da sie alle Ergebnisse serverseitig auswertet. Lokale Werte greifen nur,
+    // solange der Server den eigenen Eintrag noch nicht kennt – so verschwinden
+    // Punkte fuer abgelaufene Spiele nicht, wenn die lokalen Ergebnisse fehlen.
+    const serverRow = ranking.find((row) => row.name === participant.name);
+    const currentRow = {
+      name: participant.name,
+      points: serverRow?.points ?? currentPoints,
+      matchPoints: serverRow?.matchPoints ?? currentMatchPoints,
+      bonusPoints: serverRow?.bonusPoints ?? currentBonusPoints,
+      tipCount: Math.max(serverRow?.tipCount ?? 0, currentTipCount),
+      scoredTipCount: serverRow?.scoredTipCount ?? currentScoredTipCount,
+      averagePoints: serverRow?.averagePoints ?? currentAveragePoints,
+      matchdayWins: serverRow?.matchdayWins ?? 0,
+      isCurrent: true,
+    };
+    const rows = [...ranking.filter((row) => row.name !== participant.name), currentRow];
     return rows.sort((a, b) => b.points - a.points || a.name.localeCompare(b.name));
   }, [ranking, participant, currentPoints, currentMatchPoints, currentBonusPoints, currentTipCount, currentScoredTipCount, currentAveragePoints]);
   const teamOptions = useMemo(() => getTeamOptions(matches), [matches]);
@@ -3306,6 +3311,8 @@ function MatchCard({
   const lockedByKickoff = isLockedForUsers(match);
   const isLocked = locked || lockedByKickoff;
   const hasTrend = (trend?.total ?? 0) > 0;
+  const isEvaluated = result?.status === "final" && isCompleteTip(tip) && tip.saved;
+  const earnedPoints = isEvaluated ? pointsFor(tip, result) : null;
   const statusLabel = saveStatus === "error"
     ? tipSaveStatusLabels.error
     : tipSaveStatusLabels[saveStatus];
@@ -3345,6 +3352,13 @@ function MatchCard({
         />
         <TeamBlock flagCode={match.flagCodeB} name={match.teamB} />
       </div>
+
+      {isEvaluated && (
+        <div className={`match-points ${earnedPoints > 0 ? "scored" : "missed"}`}>
+          <span>Dein Tipp {tip.scoreA}:{tip.scoreB} · Ergebnis {result.score_a}:{result.score_b}</span>
+          <strong>{earnedPoints > 0 ? `+${earnedPoints} Punkte` : "0 Punkte"}</strong>
+        </div>
+      )}
 
       <footer className="match-actions">
         <button
