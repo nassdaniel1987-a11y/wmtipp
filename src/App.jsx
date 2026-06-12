@@ -1514,37 +1514,52 @@ export default function App() {
         return;
       }
 
-      if (!activeCode) {
-        setCodeStatus("missing");
-        return;
-      }
+      // Wird ein anderer QR-/Anmeldecode gescannt als der aktuell eingeloggte,
+      // loggt der alte sich aus und der neue wird aktiv (Geraet-teilen-Fall).
+      const incomingScan = scannedCode.trim();
+      const isSwitching = Boolean(participant?.id && incomingScan && incomingScan !== participant.code);
 
-      if (participant?.id) {
+      if (participant?.id && !isSwitching) {
         setCodeStatus("claimed");
         return;
       }
 
+      const codeToResolve = isSwitching ? incomingScan : activeCode;
+      if (!codeToResolve) {
+        setCodeStatus("missing");
+        return;
+      }
+
+      setCodeStatus("checking");
       try {
-        const payload = await apiGet(`/api/participant?code=${encodeURIComponent(activeCode)}`);
+        const payload = await apiGet(`/api/participant?code=${encodeURIComponent(codeToResolve)}`);
         setCodeStatus(payload.codeStatus);
         if (payload.participant) {
           const saved = {
             id: payload.participant.id,
             name: payload.participant.display_name,
-            code: activeCode,
+            code: codeToResolve,
           };
           setParticipant(saved);
           setName(saved.name);
           window.localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
           setActiveTab("start", { replace: true });
+        } else if (isSwitching && payload.codeStatus === "free") {
+          // Neuer Code ist gueltig, aber noch frei: alten Login beenden und den
+          // neuen Code zum Eintragen des Namens anbieten.
+          window.localStorage.removeItem(STORAGE_KEY);
+          setParticipant(null);
+          setName("");
+          setActiveTab("start", { replace: true });
         }
+        // Unbekannter/ungueltiger neuer Code: bestehenden Login unangetastet lassen.
       } catch {
         setCodeStatus("unknown");
       }
     }
 
     resolveParticipant();
-  }, [activeCode, participant?.id, isTestMode]);
+  }, [activeCode, scannedCode, participant?.id, isTestMode]);
 
   useEffect(() => {
     async function loadParticipantTips() {
