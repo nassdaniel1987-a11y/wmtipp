@@ -3788,6 +3788,18 @@ function AdminPanel({
     [adminRanking],
   );
 
+  const filteredAdminParticipants = useMemo(() => {
+    const query = participantSearch.trim().toLowerCase();
+    if (!query) return adminData.participants;
+    return adminData.participants.filter((participant) => {
+      const code = adminData.codes.find((item) => item.participant?.id === participant.id);
+      return (
+        String(participant.display_name ?? "").toLowerCase().includes(query) ||
+        String(code?.code ?? "").toLowerCase().includes(query)
+      );
+    });
+  }, [adminData.participants, adminData.codes, participantSearch]);
+
   function printRanking() {
     if (sortedAdminRanking.length === 0) {
       setAdminMessage("Noch keine Rangliste zum Drucken vorhanden.");
@@ -4233,18 +4245,6 @@ function AdminPanel({
     { id: "codes", label: "Codes", Icon: QrCode },
     { id: "bonus", label: "Bonus & Spieler", Icon: ShieldCheck },
   ];
-
-  const filteredAdminParticipants = useMemo(() => {
-    const query = participantSearch.trim().toLowerCase();
-    if (!query) return adminData.participants;
-    return adminData.participants.filter((participant) => {
-      const code = adminData.codes.find((item) => item.participant?.id === participant.id);
-      return (
-        String(participant.display_name ?? "").toLowerCase().includes(query) ||
-        String(code?.code ?? "").toLowerCase().includes(query)
-      );
-    });
-  }, [adminData.participants, adminData.codes, participantSearch]);
 
   return (
     <section className="admin-panel panel">
