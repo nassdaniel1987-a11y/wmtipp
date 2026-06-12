@@ -4909,6 +4909,30 @@ tbody tr:nth-child(1) td:first-child {
   overflow: hidden;
 }
 
+/* Eigene Vollbild-Seite statt Overlay: fliesst normal im Adminbereich,
+   damit es auf Smartphone/Tablet ohne abgeschnittenes Modal nutzbar ist. */
+.participant-editor-page {
+  display: grid;
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.participant-editor-bar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  padding: 8px 0;
+  background: var(--panel, #ffffff);
+}
+
+.participant-modal.participant-editor {
+  display: block;
+  width: 100%;
+  max-height: none;
+  overflow: visible;
+  box-shadow: none;
+}
+
 .participant-modal header,
 .participant-modal footer {
   display: flex;
@@ -5182,6 +5206,33 @@ tbody tr:nth-child(1) td:first-child {
   padding: 0 10px;
   color: var(--navy);
   font-weight: 900;
+}
+
+@media (max-width: 760px) {
+  .participant-tip-list {
+    overflow: visible;
+    padding: 12px;
+  }
+
+  .participant-tip-row {
+    grid-template-columns: 1fr 1fr;
+    min-width: 0;
+    gap: 8px 10px;
+  }
+
+  /* Spiel-Nummer und Begegnung ueber die volle Breite, Score-Inputs darunter */
+  .participant-tip-row > span:first-child {
+    grid-column: 1 / -1;
+  }
+
+  .participant-tip-row > strong {
+    grid-column: 1 / -1;
+  }
+
+  .participant-tip-row .save-tip {
+    grid-column: 1 / -1;
+    min-height: 44px;
+  }
 }
 
 .code-card {
