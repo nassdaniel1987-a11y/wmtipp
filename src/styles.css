@@ -1461,6 +1461,41 @@ p {
     linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
 }
 
+.match-points {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 20px 14px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-weight: 800;
+}
+
+.match-points span {
+  color: var(--navy);
+  font-weight: 700;
+}
+
+.match-points.scored {
+  border: 1px solid #bfe3ad;
+  background: #f3fbef;
+}
+
+.match-points.scored strong {
+  color: #2f6b1f;
+}
+
+.match-points.missed {
+  border: 1px solid #f1d7d7;
+  background: #fdf6f6;
+}
+
+.match-points.missed strong {
+  color: #9a4a4a;
+}
+
 .team-block {
   display: grid;
   justify-items: center;
