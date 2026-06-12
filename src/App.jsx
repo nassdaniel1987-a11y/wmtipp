@@ -4070,6 +4070,7 @@ function AdminPanel({
     setSelectedParticipant(participant);
     setParticipantTipDrafts(drafts);
     setParticipantBonusDraft(createInitialBonusTips(matches, existingBonusTip, players));
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   async function saveSelectedParticipantTips(matchIds) {
@@ -4481,6 +4482,10 @@ function AdminPanel({
         <button type="button" className="ghost-button" onClick={onLogout}>Admin abmelden</button>
       </div>
 
+      {adminMessage && <p className="admin-message">{adminMessage}</p>}
+
+      {!selectedParticipant && (
+        <>
       <nav className="admin-tab-nav" aria-label="Adminbereiche">
         {wmAdminTabs.map(({ id, label, Icon }) => (
           <button
@@ -4494,8 +4499,6 @@ function AdminPanel({
           </button>
         ))}
       </nav>
-
-      {adminMessage && <p className="admin-message">{adminMessage}</p>}
 
       {wmAdminView === "overview" && (
         <>
@@ -5257,9 +5260,17 @@ function AdminPanel({
         </>
       )}
 
+        </>
+      )}
+
       {selectedParticipant && (
-        <div className="modal-backdrop" role="presentation">
-          <section className="participant-modal" role="dialog" aria-modal="true">
+        <section className="participant-editor-page">
+          <div className="participant-editor-bar">
+            <button type="button" className="ghost-button" onClick={() => setSelectedParticipant(null)}>
+              ← Zurück zur Teilnehmerliste
+            </button>
+          </div>
+          <section className="participant-modal participant-editor" role="region" aria-label={`Tipps von ${selectedParticipant.display_name}`}>
             <header>
               <div>
                 <h2>{selectedParticipant.display_name}</h2>
@@ -5393,7 +5404,7 @@ function AdminPanel({
               </button>
             </footer>
           </section>
-        </div>
+        </section>
       )}
         </>
       )}
