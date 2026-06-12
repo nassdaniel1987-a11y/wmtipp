@@ -2092,6 +2092,7 @@ export default function App() {
                     participant={participant}
                     matches={tippableMatches}
                     tips={tips}
+                    resultsByMatch={resultsByMatch}
                     bonusTips={bonusTips}
                     groupTables={groupTables}
                     ranking={displayRanking}
@@ -2509,6 +2510,7 @@ function ParticipantLanding({
   participant,
   matches,
   tips,
+  resultsByMatch,
   bonusTips,
   groupTables,
   ranking,
@@ -2527,6 +2529,12 @@ function ParticipantLanding({
   const nextOpenMatches = matches
     .filter((match) => !tips[match.id]?.saved)
     .slice(0, 4);
+
+  const evaluatedMatches = matches
+    .map((match) => ({ match, result: resultsByMatch?.get(match.id), tip: tips[match.id] }))
+    .filter((row) => row.result?.status === "final")
+    .sort((first, second) => (second.match.matchNumber ?? 0) - (first.match.matchNumber ?? 0))
+    .slice(0, 5);
 
   return (
     <section className="participant-landing panel">
@@ -2582,6 +2590,32 @@ function ParticipantLanding({
                 <small>{formatDate(match.date)} · {match.time} Uhr</small>
               </div>
             ))}
+          </div>
+        )}
+      </section>
+
+      <section className="evaluated-results-panel">
+        <h3>Zuletzt ausgewertet</h3>
+        {evaluatedMatches.length === 0 ? (
+          <p>Sobald Spiele ausgewertet sind, siehst du hier dein Tipp-Ergebnis.</p>
+        ) : (
+          <div className="evaluated-results-list">
+            {evaluatedMatches.map(({ match, result, tip }) => {
+              const hasTip = isCompleteTip(tip);
+              const earned = hasTip ? pointsFor(tip, result) : 0;
+              return (
+                <div key={match.id} className={earned > 0 ? "scored" : "missed"}>
+                  <span>Spiel {match.matchNumber}</span>
+                  <strong>{match.teamA} {result.score_a}:{result.score_b} {match.teamB}</strong>
+                  <small>
+                    {hasTip
+                      ? `Dein Tipp: ${tip.scoreA}:${tip.scoreB}`
+                      : "Kein Tipp abgegeben"}
+                  </small>
+                  <b>{earned > 0 ? `+${earned} Punkte` : "0 Punkte"}</b>
+                </div>
+              );
+            })}
           </div>
         )}
       </section>
