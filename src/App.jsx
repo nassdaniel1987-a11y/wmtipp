@@ -3737,6 +3737,8 @@ function AdminPanel({
   const [bundesligaLoading, setBundesligaLoading] = useState(false);
   const [adminRanking, setAdminRanking] = useState([]);
   const [adminRankingStatus, setAdminRankingStatus] = useState("idle");
+  const [wmAdminView, setWmAdminView] = useState("overview");
+  const [participantSearch, setParticipantSearch] = useState("");
   const activePlayers = players.filter((player) => player.active !== false);
   const isBundesligaAdmin = adminCompetition === competitions.bundesliga.id;
   const isWmTestAdmin = !isBundesligaAdmin && wmAdminMode === "test";
@@ -4224,6 +4226,26 @@ function AdminPanel({
     );
   }
 
+  const wmAdminTabs = [
+    { id: "overview", label: "Übersicht", Icon: House },
+    { id: "results", label: "Ergebnisse", Icon: ListFilter },
+    { id: "participants", label: "Teilnehmer", Icon: UsersRound },
+    { id: "codes", label: "Codes", Icon: QrCode },
+    { id: "bonus", label: "Bonus & Spieler", Icon: ShieldCheck },
+  ];
+
+  const filteredAdminParticipants = useMemo(() => {
+    const query = participantSearch.trim().toLowerCase();
+    if (!query) return adminData.participants;
+    return adminData.participants.filter((participant) => {
+      const code = adminData.codes.find((item) => item.participant?.id === participant.id);
+      return (
+        String(participant.display_name ?? "").toLowerCase().includes(query) ||
+        String(code?.code ?? "").toLowerCase().includes(query)
+      );
+    });
+  }, [adminData.participants, adminData.codes, participantSearch]);
+
   return (
     <section className="admin-panel panel">
       <header className="admin-hero">
@@ -4438,41 +4460,24 @@ function AdminPanel({
         <button type="button" className="ghost-button" onClick={onLogout}>Admin abmelden</button>
       </div>
 
-      <div className="admin-create">
-        <label>
-          Freie QR-/Anmeldecodes erzeugen
-          <input
-            type="number"
-            min="1"
-            max="100"
-            value={codeCount}
-            onChange={(event) => setCodeCount(Number(event.target.value))}
-          />
-        </label>
-        <button type="button" className="primary-button compact" onClick={createCodes}>Codes erzeugen</button>
-      </div>
-
-      <div className="admin-create participant-create">
-        <label>
-          Nutzer direkt mit eigenem Code anlegen
-          <input
-            value={newParticipantName}
-            onChange={(event) => setNewParticipantName(event.target.value)}
-            placeholder="Name des Kindes / Teilnehmers"
-          />
-        </label>
-        <button
-          type="button"
-          className="primary-button compact"
-          onClick={createParticipant}
-          disabled={newParticipantName.trim().length < 2}
-        >
-          Nutzer + Code erzeugen
-        </button>
-      </div>
+      <nav className="admin-tab-nav" aria-label="Adminbereiche">
+        {wmAdminTabs.map(({ id, label, Icon }) => (
+          <button
+            key={id}
+            type="button"
+            className={wmAdminView === id ? "active" : ""}
+            onClick={() => setWmAdminView(id)}
+          >
+            <Icon size={18} />
+            {label}
+          </button>
+        ))}
+      </nav>
 
       {adminMessage && <p className="admin-message">{adminMessage}</p>}
 
+      {wmAdminView === "overview" && (
+        <>
       <div className="admin-stats">
         <strong>{adminData.codes.length}<span>QR-Codes</span></strong>
         <strong>{adminData.participants.length}<span>Teilnehmer</span></strong>
@@ -4503,7 +4508,11 @@ function AdminPanel({
           <RankingPanel ranking={sortedAdminRanking} expanded />
         )}
       </section>
+        </>
+      )}
 
+      {wmAdminView === "bonus" && (
+        <>
       <section className="admin-bonus-editor player-admin-panel">
         <h3>Torschützenkönig-Spieler</h3>
         <p className="fine-print">
@@ -4648,6 +4657,24 @@ function AdminPanel({
           </button>
         </div>
       </section>
+        </>
+      )}
+
+      {wmAdminView === "codes" && (
+        <>
+      <div className="admin-create">
+        <label>
+          Freie QR-/Anmeldecodes erzeugen
+          <input
+            type="number"
+            min="1"
+            max="100"
+            value={codeCount}
+            onChange={(event) => setCodeCount(Number(event.target.value))}
+          />
+        </label>
+        <button type="button" className="primary-button compact" onClick={createCodes}>Codes erzeugen</button>
+      </div>
 
       <h3>QR-Codes</h3>
       <p className="fine-print">
@@ -4695,6 +4722,9 @@ function AdminPanel({
           </article>
         ))}
       </div>}
+        </>
+      )}
+
       <section className={`print-sheet ${printMode}`} aria-hidden="true">
         {printMode === "ranking" && (
           <article className="print-ranking">
@@ -4816,6 +4846,27 @@ function AdminPanel({
         })}
       </section>
 
+      {wmAdminView === "participants" && (
+        <>
+      <div className="admin-create participant-create">
+        <label>
+          Nutzer direkt mit eigenem Code anlegen
+          <input
+            value={newParticipantName}
+            onChange={(event) => setNewParticipantName(event.target.value)}
+            placeholder="Name des Kindes / Teilnehmers"
+          />
+        </label>
+        <button
+          type="button"
+          className="primary-button compact"
+          onClick={createParticipant}
+          disabled={newParticipantName.trim().length < 2}
+        >
+          Nutzer + Code erzeugen
+        </button>
+      </div>
+
       <h3>Teilnehmer</h3>
       <p className="fine-print">
         Für Kinder ohne Handy kannst du personalisierte Tippbögen drucken und die Ergebnisse später im Adminbereich übertragen.
@@ -4831,11 +4882,29 @@ function AdminPanel({
           Ausgewählte Tippbögen drucken
         </button>
       </div>
+      <div className="participant-search">
+        <Search size={18} aria-hidden="true" />
+        <input
+          type="search"
+          value={participantSearch}
+          onChange={(event) => setParticipantSearch(event.target.value)}
+          placeholder="Teilnehmer oder Code suchen..."
+          aria-label="Teilnehmer suchen"
+        />
+        {participantSearch && (
+          <button type="button" className="ghost-button compact" onClick={() => setParticipantSearch("")}>
+            Zurücksetzen
+          </button>
+        )}
+      </div>
       <div className="participant-list">
         {adminData.participants.length === 0 && (
           <p className="fine-print">Noch keine Teilnehmer angelegt.</p>
         )}
-        {adminData.participants.map((participant) => {
+        {filteredAdminParticipants.length === 0 && adminData.participants.length > 0 && (
+          <p className="fine-print">Keine Treffer für „{participantSearch}".</p>
+        )}
+        {filteredAdminParticipants.map((participant) => {
           const code = adminData.codes.find((item) => item.participant?.id === participant.id);
           const bonusTip = adminData.bonusTips?.find((item) => item.participant_id === participant.id);
           const tipCount = new Set(
@@ -4909,7 +4978,11 @@ function AdminPanel({
           );
         })}
       </div>
+        </>
+      )}
 
+      {wmAdminView === "results" && (
+        <>
       {koAdminMatches.length > 0 && (
         <section className="ko-admin-panel">
           <div className="ko-admin-head">
@@ -5127,6 +5200,8 @@ function AdminPanel({
           );
         })}
       </div>
+        </>
+      )}
 
       {selectedParticipant && (
         <div className="modal-backdrop" role="presentation">
