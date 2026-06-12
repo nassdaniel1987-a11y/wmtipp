@@ -1451,21 +1451,26 @@ export default function App() {
       }
 
       try {
+        // Jeder Aufruf einzeln absichern: schlaegt z. B. bei wackliger
+        // Mobilverbindung loadDbMatches/loadResults fehl, darf das nicht den
+        // gesamten Start kippen (sonst bleibt matches auf den 72 gebuendelten
+        // Gruppenspielen ohne K.o.-Phase haengen).
         const [dbMatches, dbResults, rankPayload, bonusPayload, playerPayload, trendPayload, settingsPayload, session] = await Promise.all([
-          loadDbMatches(),
-          loadResults(),
+          loadDbMatches().catch(() => null),
+          loadResults().catch(() => null),
           apiGet("/api/ranking").catch(() => ({ ranking: [] })),
           apiGet("/api/bonus-results").catch(() => ({ bonusResults: null })),
           apiGet("/api/players").catch(() => ({ players: [] })),
           apiGet("/api/tip-trends").catch(() => ({ trends: {} })),
           apiGet("/api/settings").catch(() => ({ settings: {} })),
-          getAdminSession(),
+          getAdminSession().catch(() => null),
         ]);
 
-        const nextMatches = dbMatches.length ? dbMatches.map(mapDbMatch) : bundledMatches;
+        const loadedMatches = Array.isArray(dbMatches) ? dbMatches : [];
+        const nextMatches = loadedMatches.length ? loadedMatches.map(mapDbMatch) : bundledMatches;
         const nextPlayers = playerPayload.players ?? [];
         setMatches(nextMatches);
-        setResults(dbResults);
+        if (Array.isArray(dbResults)) setResults(dbResults);
         setPlayers(nextPlayers);
         setRanking(rankPayload.ranking ?? []);
         setTipTrends(trendPayload.trends ?? {});
@@ -1475,7 +1480,7 @@ export default function App() {
         setTipSaveStatuses({});
         setBonusTips(createInitialBonusTips(nextMatches, null, nextPlayers));
         setBonusResults(createInitialBonusResults(nextMatches, bonusPayload.bonusResults, nextPlayers));
-        setAppStatus("Spielplan bereit");
+        setAppStatus(loadedMatches.length ? "Spielplan bereit" : "Spielplan wird vorbereitet");
       } catch (error) {
         setAppStatus("Spielplan wird vorbereitet");
       }
@@ -1483,6 +1488,24 @@ export default function App() {
 
     bootstrap();
   }, [isTestMode, setActiveTab]);
+
+  // Kam der Spielplan beim Start nicht aus der DB (kurzer Netzfehler auf dem
+  // Handy o. ae.), im Hintergrund erneut versuchen, damit nicht dauerhaft nur
+  // die gebuendelten Gruppenspiele ohne K.o.-Phase angezeigt werden.
+  useEffect(() => {
+    if (isTestMode || appStatus !== "Spielplan wird vorbereitet") return undefined;
+    let cancelled = false;
+    const timer = window.setTimeout(async () => {
+      const dbMatches = await loadDbMatches().catch(() => []);
+      if (cancelled || !dbMatches.length) return;
+      setMatches(dbMatches.map(mapDbMatch));
+      setAppStatus("Spielplan bereit");
+    }, 4000);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [isTestMode, appStatus]);
 
   useEffect(() => {
     async function resolveParticipant() {
@@ -1869,6 +1892,11 @@ export default function App() {
     const session = await signInAdmin(email, password);
     setAdminSession(session);
     await refreshAdminData(session);
+    // Spielplan sicherheitshalber frisch laden: war der Start auf den
+    // gebuendelten Fallback (nur Gruppenphase) gefallen, holt der Admin so die
+    // vollstaendigen DB-Spiele inkl. K.o.-Phase nach.
+    const dbMatches = await loadDbMatches().catch(() => []);
+    if (dbMatches.length) setMatches(dbMatches.map(mapDbMatch));
   }
 
   async function handleAdminLogout() {
