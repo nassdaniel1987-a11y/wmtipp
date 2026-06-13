@@ -1573,6 +1573,13 @@ export default function App() {
         setTips(createInitialTips(matches, tipPayload.tips ?? []));
         setTipSaveStatuses({});
         setBonusTips(createInitialBonusTips(matches, bonusPayload.bonusTip, players));
+        // Beim Login auf einem frischen Geraet (z. B. Smartphone) sind Ergebnisse
+        // und Rangliste evtl. noch nicht (oder beim Start ueber eine wacklige
+        // Mobilverbindung gar nicht) geladen. Ohne diesen Nachzug zeigt das
+        // Dashboard "0 Punkte" und keine abgelaufenen/ausgewerteten Spiele, bis
+        // der 60-Sekunden-Refresh greift. Darum direkt nach dem Login holen.
+        void refreshResults();
+        void refreshRanking();
       } catch (error) {
         setAppStatus("Tipps konnten gerade nicht geladen werden");
       }
@@ -1915,10 +1922,17 @@ export default function App() {
   }
 
   async function handleAdminLogout() {
-    await signOutAdmin();
+    // UI zuerst zuruecksetzen, damit das Abmelden auch bei wackliger
+    // Mobilverbindung sofort greift und nicht auf den Netzwerk-Roundtrip von
+    // supabase.auth.signOut() wartet (sonst blieb man bis zum Reload "drin").
     setAdminSession(null);
     setAdminData({ codes: [], participants: [], tips: [], tipCount: 0, bonusTips: [], bonusTipCount: 0, bonusResults: null, results: [], players: [] });
     setWmTestData(null);
+    try {
+      await signOutAdmin();
+    } catch {
+      // Lokal sind wir bereits abgemeldet; Netzfehler darf den Logout nicht blockieren.
+    }
   }
 
   async function handleCreateCodes(count) {
