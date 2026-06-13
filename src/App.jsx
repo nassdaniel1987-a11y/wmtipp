@@ -37,6 +37,28 @@ import {
 } from "./data.js";
 import KnockoutSimulator from "./KnockoutSimulator.jsx";
 import { displayTeamName } from "./teamNames.js";
+import {
+  chunkArray,
+  clampScore,
+  formatDate,
+  formatDateTime,
+  formatDateTimeInput,
+  formatNumericDate,
+  getBundesligaTipCountdown,
+  getGroupDeadline,
+  getTournamentDeadline,
+  isDeadlinePassed,
+  isLockedForUsers,
+} from "./lib/format.js";
+import {
+  areBonusTipsEqual,
+  bonusPointsFor,
+  explainBundesligaPoints,
+  getGroupLeaderSuggestions,
+  isCompleteTip,
+  normalizeText,
+  pointsFor,
+} from "./lib/scoring.js";
 
 const STORAGE_KEY = "wm-tippspiel-participant";
 const BUNDESLIGA_STORAGE_KEY = "bundesliga-tippspiel-participant";
@@ -67,11 +89,6 @@ const codeStatusLabels = {
   free: "frei",
   claimed: "vergeben",
   disabled: "ungültig",
-};
-const bonusPointValues = {
-  champion: 8,
-  topScorer: 6,
-  groupWinner: 2,
 };
 const TEST_PARTICIPANT = {
   id: "test-participant",
@@ -151,11 +168,6 @@ const tipSaveStatusLabels = {
   error: "Speichern fehlgeschlagen",
 };
 
-function chunkArray(items, size) {
-  return Array.from({ length: Math.ceil(items.length / size) }, (_, index) =>
-    items.slice(index * size, index * size + size),
-  );
-}
 
 function getIsTestMode() {
   const params = new URLSearchParams(window.location.search);
@@ -1049,177 +1061,6 @@ function buildGroupTables(matches, resultsByMatch) {
   });
 }
 
-function clampScore(value) {
-  return Math.max(0, Math.min(12, value));
-}
-
-function isCompleteTip(tip) {
-  return Number.isInteger(tip?.scoreA) && Number.isInteger(tip?.scoreB);
-}
-
-function formatDate(date) {
-  return new Intl.DateTimeFormat("de-DE", {
-    weekday: "short",
-    day: "2-digit",
-    month: "2-digit",
-  }).format(new Date(`${date}T12:00:00`));
-}
-
-function formatNumericDate(date) {
-  return new Intl.DateTimeFormat("de-DE", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(new Date(`${date}T12:00:00`));
-}
-
-function formatDateTime(value) {
-  if (!value) return "noch offen";
-  return new Intl.DateTimeFormat("de-DE", {
-    weekday: "short",
-    day: "2-digit",
-    month: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(value));
-}
-
-function getBundesligaTipCountdown(match, nowMs = Date.now()) {
-  const kickoffMs = new Date(match?.kickoffAt).getTime();
-  if (!Number.isFinite(kickoffMs)) return null;
-  const remainingMs = kickoffMs - nowMs;
-  if (remainingMs <= 0 || remainingMs > 5 * 60 * 1000) return null;
-  const seconds = Math.ceil(remainingMs / 1000);
-  return {
-    urgent: seconds <= 60,
-    label: `Schließt in ${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`,
-  };
-}
-
-function formatDateTimeInput(value) {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
-  return localDate.toISOString().slice(0, 16);
-}
-
-function isLockedForUsers(match) {
-  if (!match?.kickoffAt) return false;
-  return new Date(match.kickoffAt).getTime() <= Date.now();
-}
-
-function getTournamentDeadline(matches) {
-  const timestamps = matches
-    .map((match) => match.kickoffAt)
-    .filter(Boolean)
-    .map((value) => new Date(value).getTime())
-    .filter(Number.isFinite);
-  if (!timestamps.length) return null;
-  return new Date(Math.min(...timestamps)).toISOString();
-}
-
-function getGroupDeadline(matches, groupKey) {
-  const timestamps = matches
-    .filter((match) => match.groupKey === groupKey)
-    .map((match) => match.kickoffAt)
-    .filter(Boolean)
-    .map((value) => new Date(value).getTime())
-    .filter(Number.isFinite);
-  if (!timestamps.length) return null;
-  return new Date(Math.min(...timestamps)).toISOString();
-}
-
-function isDeadlinePassed(deadline) {
-  return deadline ? new Date(deadline).getTime() <= Date.now() : false;
-}
-
-function pointsFor(tip, result) {
-  if (!isCompleteTip(tip)) return 0;
-  if (!result || result.status !== "final") return 0;
-  if (tip.scoreA === result.score_a && tip.scoreB === result.score_b) return 4;
-  const tipGoalDiff = tip.scoreA - tip.scoreB;
-  const resultGoalDiff = result.score_a - result.score_b;
-  const tipTrend = Math.sign(tipGoalDiff);
-  const resultTrend = Math.sign(resultGoalDiff);
-
-  // K.o.-Phase: 90-Min-Remis per Elfmeterschießen entschieden. Wer den
-  // Weiterkommenden richtig getippt hat, bekommt die Tendenz-Punkte (2).
-  if (resultTrend === 0 && (result.winner === "A" || result.winner === "B")) {
-    if (tipTrend === 0) return 2;
-    const advancingTrend = result.winner === "A" ? 1 : -1;
-    return tipTrend === advancingTrend ? 2 : 0;
-  }
-
-  if (tipTrend !== resultTrend) return 0;
-  if (tipTrend === 0) return 2;
-  return tipGoalDiff === resultGoalDiff ? 3 : 2;
-}
-
-function explainBundesligaPoints(tip, result) {
-  if (!isCompleteTip(tip)) return { points: 0, reason: "kein Tipp abgegeben" };
-  if (!result || result.status !== "final") return { points: 0, reason: "noch nicht ausgewertet" };
-  const points = pointsFor(tip, result);
-  if (tip.scoreA === result.score_a && tip.scoreB === result.score_b) return { points, reason: `exakt getroffen: ${points} Punkte` };
-  const tipGoalDiff = tip.scoreA - tip.scoreB;
-  const resultGoalDiff = result.score_a - result.score_b;
-  const tipTrend = Math.sign(tipGoalDiff);
-  const resultTrend = Math.sign(resultGoalDiff);
-  if (tipTrend !== resultTrend) return { points: 0, reason: "falsch: 0 Punkte" };
-  if (tipTrend === 0) return { points, reason: `Tendenz richtig: ${points} Punkte` };
-  return tipGoalDiff === resultGoalDiff
-    ? { points, reason: `Tordifferenz richtig: ${points} Punkte` }
-    : { points, reason: `Tendenz richtig: ${points} Punkte` };
-}
-
-function normalizeText(value) {
-  return String(value || "").trim().toLocaleLowerCase("de-DE");
-}
-
-function bonusPointsFor(bonusTip, bonusResult) {
-  if (!bonusTip || !bonusResult) return 0;
-  let points = 0;
-  if (normalizeText(bonusTip.champion) && normalizeText(bonusTip.champion) === normalizeText(bonusResult.champion)) {
-    points += bonusPointValues.champion;
-  }
-  if (
-    bonusTip.topScorerPlayerId &&
-    (bonusResult.topScorerPlayerIds ?? []).includes(bonusTip.topScorerPlayerId)
-  ) {
-    points += bonusPointValues.topScorer;
-  } else if (
-    (bonusResult.topScorerPlayerIds ?? []).length === 0 &&
-    normalizeText(bonusTip.topScorer) &&
-    normalizeText(bonusTip.topScorer) === normalizeText(bonusResult.topScorer)
-  ) {
-    points += bonusPointValues.topScorer;
-  }
-
-  Object.entries(bonusResult.groupWinners ?? {}).forEach(([groupKey, winner]) => {
-    if (normalizeText(bonusTip.groupWinners?.[groupKey]) && normalizeText(bonusTip.groupWinners?.[groupKey]) === normalizeText(winner)) {
-      points += bonusPointValues.groupWinner;
-    }
-  });
-  return points;
-}
-
-function areBonusTipsEqual(first, second) {
-  if (!first || !second) return false;
-  if ((first.champion ?? "") !== (second.champion ?? "")) return false;
-  if ((first.topScorer ?? "") !== (second.topScorer ?? "")) return false;
-  if ((first.topScorerPlayerId ?? "") !== (second.topScorerPlayerId ?? "")) return false;
-
-  const firstWinners = first.groupWinners ?? {};
-  const secondWinners = second.groupWinners ?? {};
-  const groupKeys = new Set([...Object.keys(firstWinners), ...Object.keys(secondWinners)]);
-  return [...groupKeys].every((groupKey) => (firstWinners[groupKey] ?? "") === (secondWinners[groupKey] ?? ""));
-}
-
-function getGroupLeaderSuggestions(groupTables) {
-  return Object.fromEntries(
-    groupTables.map((group) => [group.groupKey, group.rows[0]?.team ?? ""]),
-  );
-}
 
 export default function App() {
   const isTestMode = useMemo(() => getIsTestMode(), []);
