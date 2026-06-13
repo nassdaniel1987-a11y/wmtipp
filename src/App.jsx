@@ -22,11 +22,11 @@ import {
 } from "lucide-react";
 import {
   apiGet,
+  apiGetWithAuth,
   apiPost,
   getAdminSession,
   loadDbMatches,
   loadResults,
-  readApiPayload,
   signInAdmin,
   signOutAdmin,
 } from "./api.js";
@@ -53,13 +53,29 @@ import {
   bonusPointsFor,
   getGroupLeaderSuggestions,
   isCompleteTip,
-  normalizeText,
   pointsFor,
 } from "./lib/scoring.js";
-import { AUTO_SAVE_DELAY_MS } from "./lib/constants.js";
+import {
+  AUTO_SAVE_DELAY_MS,
+  KO_PHASE_LABELS,
+  KO_PHASES,
+  codeStatusLabels,
+  competitions,
+  groupFilters,
+} from "./lib/constants.js";
 import { QrCodeImage, ScoreControl, createQrCodeDataUrl } from "./components/shared.jsx";
 import { createInitialTips } from "./lib/tips.js";
 import { findPlayerByText, normalizePlayerName, playerLabel } from "./lib/players.js";
+import {
+  countGroupWinnerTips,
+  createInitialBonusResults,
+  createInitialBonusTips,
+  getGroups,
+  getInviteUrl,
+  getTeamMeta,
+  isBonusTipStarted,
+  isKnockoutPhase,
+} from "./lib/wm.js";
 import { PlayerSelect, RankingPanel } from "./components/wm.jsx";
 import {
   BundesligaAdminArea,
@@ -70,12 +86,6 @@ import {
 const STORAGE_KEY = "wm-tippspiel-participant";
 const ANDROID_APK_URL = "/downloads/wmtippspiel-latest.apk";
 
-function getInviteUrl(code) {
-  const url = new URL(window.location.origin);
-  url.searchParams.set("code", code);
-  url.hash = "start";
-  return url.toString();
-}
 const tabs = [
   { id: "start", label: "Start", icon: House },
   { id: "tippen", label: "Tippen", icon: Goal },
@@ -85,12 +95,6 @@ const tabs = [
   { id: "admin", label: "Admin", icon: ShieldCheck },
 ];
 const tabIds = new Set(tabs.map((tab) => tab.id));
-const groupFilters = ["alle", "deutschland", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"];
-const codeStatusLabels = {
-  free: "frei",
-  claimed: "vergeben",
-  disabled: "ungültig",
-};
 const TEST_PARTICIPANT = {
   id: "test-participant",
   name: "Testkind",
@@ -138,20 +142,6 @@ const TEST_TREND_ROWS = [
   { score_a: 1, score_b: 1 },
   { score_a: 0, score_b: 2 },
 ];
-const competitions = {
-  wm2026: {
-    id: "wm-2026",
-    name: "WM 2026",
-    adminLabel: "WM-Verwaltung",
-    publicEnabled: true,
-  },
-  bundesliga: {
-    id: "bundesliga",
-    name: "Bundesliga",
-    adminLabel: "Bundesliga-Version",
-    publicEnabled: false,
-  },
-};
 const tipSaveStatusLabels = {
   pending: "Wird gleich gespeichert...",
   saving: "Wird gespeichert...",
@@ -219,39 +209,6 @@ function mapDbMatch(row) {
 }
 
 
-function getGroups(matches) {
-  const teamMeta = getTeamMeta(matches);
-
-  return groupFilters
-    .filter((group) => !["alle", "deutschland"].includes(group))
-    .map((groupKey) => {
-      const teams = Array.from(
-        new Set(
-          matches
-            .filter((match) => match.groupKey === groupKey)
-            .flatMap((match) => [match.teamA, match.teamB]),
-        ),
-      )
-        .sort((first, second) => first.localeCompare(second, "de"))
-        .map((team) => teamMeta.get(team) ?? { name: team, flagCode: "" });
-
-      return { groupKey, teams };
-    })
-    .filter((group) => group.teams.length > 0);
-}
-
-function getTeamMeta(matches) {
-  const meta = new Map();
-  matches.forEach((match) => {
-    if (!meta.has(match.teamA)) {
-      meta.set(match.teamA, { name: match.teamA, flagCode: match.flagCodeA ?? "" });
-    }
-    if (!meta.has(match.teamB)) {
-      meta.set(match.teamB, { name: match.teamB, flagCode: match.flagCodeB ?? "" });
-    }
-  });
-  return meta;
-}
 
 function getTeamOptions(matches) {
   return Array.from(getTeamMeta(matches).values())
@@ -266,44 +223,13 @@ function getGroupFilterLabel(filter) {
 
 // Gruppenphase vs. K.o.-Phase. Spiele ohne phase gelten als Gruppenspiele,
 // damit der gebundelte Fallback-Spielplan (ohne KO) unveraendert bleibt.
-const KO_PHASES = ["r32", "r16", "quarter", "semi", "third", "final"];
 
 function isGroupPhase(match) {
   return !match?.phase || match.phase === "group";
 }
 
-function isKnockoutPhase(match) {
-  return KO_PHASES.includes(match?.phase);
-}
-
-const KO_PHASE_LABELS = {
-  r32: "Sechzehntelfinale",
-  r16: "Achtelfinale",
-  quarter: "Viertelfinale",
-  semi: "Halbfinale",
-  third: "Spiel um Platz 3",
-  final: "Finale",
-};
 
 
-function createInitialBonusTips(matches, savedBonusTip = null, players = []) {
-  const groups = getGroups(matches);
-  const savedGroupWinners = savedBonusTip?.group_winners ?? savedBonusTip?.groupWinners ?? {};
-  const topScorer = savedBonusTip?.top_scorer ?? savedBonusTip?.topScorer ?? "";
-  const matchedPlayer = savedBonusTip?.top_scorer_player_id
-    ? null
-    : findPlayerByText(players, topScorer);
-
-  return {
-    champion: savedBonusTip?.champion ?? "",
-    topScorer,
-    topScorerPlayerId: savedBonusTip?.top_scorer_player_id ?? savedBonusTip?.topScorerPlayerId ?? matchedPlayer?.id ?? "",
-    groupWinners: Object.fromEntries(
-      groups.map((group) => [group.groupKey, savedGroupWinners[group.groupKey] ?? ""]),
-    ),
-    saved: Boolean(savedBonusTip),
-  };
-}
 
 function createTestTips(matches) {
   const tips = createInitialTips(matches);
@@ -410,23 +336,6 @@ function createTestBonusResults(matches) {
   };
 }
 
-function createInitialBonusResults(matches, savedBonusResults = null, players = []) {
-  const groups = getGroups(matches);
-  const savedGroupWinners = savedBonusResults?.group_winners ?? savedBonusResults?.groupWinners ?? {};
-  const topScorer = savedBonusResults?.top_scorer ?? savedBonusResults?.topScorer ?? "";
-  const matchedPlayer = savedBonusResults?.top_scorer_player_ids?.length
-    ? null
-    : findPlayerByText(players, topScorer);
-
-  return {
-    champion: savedBonusResults?.champion ?? "",
-    topScorer,
-    topScorerPlayerIds: savedBonusResults?.top_scorer_player_ids ?? savedBonusResults?.topScorerPlayerIds ?? (matchedPlayer ? [matchedPlayer.id] : []),
-    groupWinners: Object.fromEntries(
-      groups.map((group) => [group.groupKey, savedGroupWinners[group.groupKey] ?? ""]),
-    ),
-  };
-}
 
 function buildGroupTables(matches, resultsByMatch) {
   return getGroups(matches).map((group) => {
@@ -1705,14 +1614,6 @@ export default function App() {
   );
 }
 
-async function apiGetWithAuth(path, token) {
-  const response = await fetch(path, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  const payload = await readApiPayload(response);
-  if (!response.ok) throw new Error(payload.error || "Serverfehler");
-  return payload;
-}
 
 function StartPanel({
   activeCode,
@@ -2518,17 +2419,11 @@ function GroupsOverview({ groupTables }) {
   );
 }
 
-function countGroupWinnerTips(bonusTip) {
-  return Object.values(bonusTip?.group_winners ?? {}).filter(Boolean).length;
-}
 
 function countGroupWinnerDrafts(bonusTips) {
   return Object.values(bonusTips?.groupWinners ?? {}).filter(Boolean).length;
 }
 
-function isBonusTipStarted(bonusTip) {
-  return Boolean(bonusTip?.champion || bonusTip?.top_scorer || countGroupWinnerTips(bonusTip) > 0);
-}
 
 function AdminBonusSummary({ bonusTip }) {
   if (!bonusTip || !isBonusTipStarted(bonusTip)) {
