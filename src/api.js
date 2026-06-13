@@ -78,3 +78,12 @@ export async function getAdminSession() {
   const { data } = await supabase.auth.getSession();
   return data.session;
 }
+
+export async function apiGetWithAuth(path, token) {
+  const response = await fetch(path, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const payload = await readApiPayload(response);
+  if (!response.ok) throw new Error(payload.error || "Serverfehler");
+  return payload;
+}
