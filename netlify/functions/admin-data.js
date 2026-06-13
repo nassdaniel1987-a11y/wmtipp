@@ -60,7 +60,7 @@ export default async (req) => {
       players: players.data ?? [],
     });
   } catch (error) {
-    return json({ error: error.message || "Admin-Daten konnten nicht geladen werden." }, 401);
+    return json({ error: error.message || "Admin-Daten konnten nicht geladen werden." }, error.status || 500);
   }
 };
 

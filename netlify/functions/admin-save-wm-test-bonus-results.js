@@ -46,7 +46,7 @@ export default async (req) => {
     if (error) throw error;
     return json({ bonusResults: data });
   } catch (error) {
-    return json({ error: error.message || "Test-Bonus-Ergebnisse konnten nicht gespeichert werden." }, 401);
+    return json({ error: error.message || "Test-Bonus-Ergebnisse konnten nicht gespeichert werden." }, error.status || 500);
   }
 };
 

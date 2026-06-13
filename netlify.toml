@@ -2,6 +2,18 @@
   command = "npm run build"
   publish = "dist"
 
+# Basis-Haertung fuer alle Antworten. CSP erlaubt eigene Assets, die Supabase-
+# Endpunkte (REST/Realtime) sowie die Wappen-/Flaggen-CDNs, die der Client laedt.
+# 'unsafe-inline' bei style-src deckt die React-Inline-Styles ab.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "geolocation=(), microphone=(), camera=()"
+    Content-Security-Policy = "default-src 'self'; img-src 'self' data: blob: https://flagcdn.com https://upload.wikimedia.org; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+
 # index.html nie hart cachen: so holt der Browser nach einem Deploy sofort den
 # neuen Bundle-Verweis, ohne dass Nutzer ihren Cache leeren muessen.
 [[headers]]

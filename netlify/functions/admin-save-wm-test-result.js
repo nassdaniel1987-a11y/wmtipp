@@ -1,5 +1,6 @@
 import { requireAdmin } from "./_shared/admin.js";
 import { json } from "./_shared/supabase.js";
+import { RESULT_SCORE_MAX, isValidScorePair } from "./_shared/scores.js";
 
 export function toWmTestResultRow(payload = {}) {
   const winner = payload.winner === "A" || payload.winner === "B" ? payload.winner : null;
@@ -14,15 +15,12 @@ export function toWmTestResultRow(payload = {}) {
 
   if (
     !row.match_id ||
-    !Number.isInteger(row.score_a) ||
-    !Number.isInteger(row.score_b) ||
-    row.score_a < 0 ||
-    row.score_b < 0 ||
-    row.score_a > 30 ||
-    row.score_b > 30 ||
+    !isValidScorePair(row.score_a, row.score_b, RESULT_SCORE_MAX) ||
     !["scheduled", "live", "final"].includes(row.status)
   ) {
-    throw new Error("Test-Ergebnis ist ungültig.");
+    const error = new Error("Test-Ergebnis ist ungültig.");
+    error.status = 400;
+    throw error;
   }
 
   return row;
@@ -46,7 +44,7 @@ export default async (req) => {
     if (error) throw error;
     return json({ result: data });
   } catch (error) {
-    return json({ error: error.message || "Test-Ergebnis konnte nicht gespeichert werden." }, 401);
+    return json({ error: error.message || "Test-Ergebnis konnte nicht gespeichert werden." }, error.status || 500);
   }
 };
 

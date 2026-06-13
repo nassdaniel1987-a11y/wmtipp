@@ -35,7 +35,7 @@ export default async (req) => {
     if (error) throw error;
     return json({ player: data });
   } catch (error) {
-    return json({ error: error.message || "Spieler konnte nicht gespeichert werden." }, 401);
+    return json({ error: error.message || "Spieler konnte nicht gespeichert werden." }, error.status || 500);
   }
 };
 

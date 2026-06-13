@@ -30,7 +30,7 @@ export default async (req) => {
 
     return json({ deletedCodeId: codeId });
   } catch (error) {
-    return json({ error: error.message || "QR-Code konnte nicht gelöscht werden." }, 401);
+    return json({ error: error.message || "QR-Code konnte nicht gelöscht werden." }, error.status || 500);
   }
 };
 
