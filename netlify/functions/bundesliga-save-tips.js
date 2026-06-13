@@ -1,6 +1,7 @@
 import { getServiceClient, json } from "./_shared/supabase.js";
 import { isBundesligaTipLocked } from "./_shared/bundesliga.js";
 import { BundesligaHttpError, bundesligaErrorResponse, requireBundesligaWriteCompetition, resolveBundesligaParticipant } from "./_shared/bundesliga-access.js";
+import { TIP_SCORE_MAX, isValidScorePair } from "./_shared/scores.js";
 
 export default async (req) => {
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -19,7 +20,7 @@ export default async (req) => {
       score_b: Number(tip.scoreB),
       saved_at: new Date().toISOString(),
     }));
-    if (rows.some((row) => !row.match_id || !Number.isInteger(row.score_a) || !Number.isInteger(row.score_b) || row.score_a < 0 || row.score_a > 12 || row.score_b < 0 || row.score_b > 12)) {
+    if (rows.some((row) => !row.match_id || !isValidScorePair(row.score_a, row.score_b, TIP_SCORE_MAX))) {
       return json({ error: "Mindestens ein Bundesliga-Tipp ist ungültig." }, 400);
     }
 

@@ -1,5 +1,6 @@
 import { requireAdmin } from "./_shared/admin.js";
 import { json } from "./_shared/supabase.js";
+import { RESULT_SCORE_MAX, isValidScorePair } from "./_shared/scores.js";
 
 export default async (req) => {
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -18,15 +19,7 @@ export default async (req) => {
       updated_at: new Date().toISOString(),
     };
 
-    if (
-      !row.match_id ||
-      !Number.isInteger(row.score_a) ||
-      !Number.isInteger(row.score_b) ||
-      row.score_a < 0 ||
-      row.score_b < 0 ||
-      row.score_a > 30 ||
-      row.score_b > 30
-    ) {
+    if (!row.match_id || !isValidScorePair(row.score_a, row.score_b, RESULT_SCORE_MAX)) {
       return json({ error: "Ergebnis ist ungültig." }, 400);
     }
 
@@ -39,7 +32,7 @@ export default async (req) => {
     if (error) throw error;
     return json({ result: data });
   } catch (error) {
-    return json({ error: error.message || "Ergebnis konnte nicht gespeichert werden." }, 401);
+    return json({ error: error.message || "Ergebnis konnte nicht gespeichert werden." }, error.status || 500);
   }
 };
 

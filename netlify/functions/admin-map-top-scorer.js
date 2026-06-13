@@ -26,7 +26,7 @@ export default async (req) => {
     if (error) throw error;
     return json({ bonusTips: data ?? [] });
   } catch (error) {
-    return json({ error: error.message || "Torschützen-Tipps konnten nicht zugeordnet werden." }, 401);
+    return json({ error: error.message || "Torschützen-Tipps konnten nicht zugeordnet werden." }, error.status || 500);
   }
 };
 

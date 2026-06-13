@@ -23,7 +23,7 @@ export default async (req) => {
     if (error) throw error;
     return json({ codes: data });
   } catch (error) {
-    return json({ error: error.message || "Codes konnten nicht erstellt werden." }, 401);
+    return json({ error: error.message || "Codes konnten nicht erstellt werden." }, error.status || 500);
   }
 };
 

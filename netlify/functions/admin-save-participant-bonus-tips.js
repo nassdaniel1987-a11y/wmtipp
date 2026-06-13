@@ -44,7 +44,7 @@ export default async (req) => {
     if (error) throw error;
     return json({ bonusTip: data });
   } catch (error) {
-    return json({ error: error.message || "Bonus-Tipps konnten nicht gespeichert werden." }, 401);
+    return json({ error: error.message || "Bonus-Tipps konnten nicht gespeichert werden." }, error.status || 500);
   }
 };
 

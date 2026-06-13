@@ -22,7 +22,7 @@ export default async (req) => {
 
     return json({ generated: rows.length });
   } catch (error) {
-    return json({ error: error.message || "Demo-Ergebnisse konnten nicht erzeugt werden." }, 401);
+    return json({ error: error.message || "Demo-Ergebnisse konnten nicht erzeugt werden." }, error.status || 500);
   }
 };
 

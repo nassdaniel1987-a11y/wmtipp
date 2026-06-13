@@ -27,7 +27,7 @@ export default async (req) => {
     if (error) throw error;
     return json({ setting: data });
   } catch (error) {
-    return json({ error: error.message || "Einstellung konnte nicht gespeichert werden." }, 401);
+    return json({ error: error.message || "Einstellung konnte nicht gespeichert werden." }, error.status || 500);
   }
 };
 

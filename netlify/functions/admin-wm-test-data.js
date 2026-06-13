@@ -76,7 +76,7 @@ export default async (req) => {
       testBonusResults,
     }));
   } catch (error) {
-    return json({ error: error.message || "WM-Testdaten konnten nicht geladen werden." }, 401);
+    return json({ error: error.message || "WM-Testdaten konnten nicht geladen werden." }, error.status || 500);
   }
 };
 

@@ -17,7 +17,7 @@ export default async (req) => {
 
     return json({ ok: true });
   } catch (error) {
-    return json({ error: error.message || "WM-Testmodus konnte nicht zurückgesetzt werden." }, 401);
+    return json({ error: error.message || "WM-Testmodus konnte nicht zurückgesetzt werden." }, error.status || 500);
   }
 };
 

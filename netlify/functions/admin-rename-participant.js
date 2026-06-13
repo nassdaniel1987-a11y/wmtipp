@@ -25,7 +25,7 @@ export default async (req) => {
 
     return json({ participant });
   } catch (error) {
-    return json({ error: error.message || "Name konnte nicht geändert werden." }, 401);
+    return json({ error: error.message || "Name konnte nicht geändert werden." }, error.status || 500);
   }
 };
 

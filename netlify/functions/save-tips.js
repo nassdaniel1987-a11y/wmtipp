@@ -1,4 +1,5 @@
 import { getServiceClient, json } from "./_shared/supabase.js";
+import { TIP_SCORE_MAX, isValidScorePair } from "./_shared/scores.js";
 
 export default async (req) => {
   if (req.method !== "POST") {
@@ -21,14 +22,7 @@ export default async (req) => {
 
     if (
       rows.some(
-        (row) =>
-          !row.match_id ||
-          !Number.isInteger(row.score_a) ||
-          !Number.isInteger(row.score_b) ||
-          row.score_a < 0 ||
-          row.score_a > 12 ||
-          row.score_b < 0 ||
-          row.score_b > 12,
+        (row) => !row.match_id || !isValidScorePair(row.score_a, row.score_b, TIP_SCORE_MAX),
       )
     ) {
       return json({ error: "Mindestens ein Tipp ist ungültig." }, 400);

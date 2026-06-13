@@ -104,7 +104,7 @@ export default async (req) => {
         })),
     });
   } catch (error) {
-    return json({ error: error.message || "K.o.-Paarungen konnten nicht aufgelöst werden." }, 401);
+    return json({ error: error.message || "K.o.-Paarungen konnten nicht aufgelöst werden." }, error.status || 500);
   }
 };
 

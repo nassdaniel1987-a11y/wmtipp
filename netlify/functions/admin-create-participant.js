@@ -65,7 +65,7 @@ export default async (req) => {
       },
     });
   } catch (error) {
-    return json({ error: error.message || "Nutzer konnte nicht erstellt werden." }, 401);
+    return json({ error: error.message || "Nutzer konnte nicht erstellt werden." }, error.status || 500);
   }
 };
 
