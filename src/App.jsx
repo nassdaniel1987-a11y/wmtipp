@@ -59,6 +59,8 @@ import {
   normalizeText,
   pointsFor,
 } from "./lib/scoring.js";
+import { AUTO_SAVE_DELAY_MS } from "./lib/constants.js";
+import { QrCodeImage, ScoreControl, createQrCodeDataUrl } from "./components/shared.jsx";
 
 const STORAGE_KEY = "wm-tippspiel-participant";
 const BUNDESLIGA_STORAGE_KEY = "bundesliga-tippspiel-participant";
@@ -146,7 +148,6 @@ const TEST_TREND_ROWS = [
   { score_a: 1, score_b: 1 },
   { score_a: 0, score_b: 2 },
 ];
-const AUTO_SAVE_DELAY_MS = 650;
 const competitions = {
   wm2026: {
     id: "wm-2026",
@@ -682,55 +683,7 @@ function buildBundesligaMatchDetailFromData(data, participant, matchId) {
   };
 }
 
-function QrCodeImage({ value }) {
-  const [src, setSrc] = useState("");
 
-  useEffect(() => {
-    let cancelled = false;
-
-    import("qrcode")
-      .then(({ default: QRCode }) =>
-        QRCode.toDataURL(value, {
-          errorCorrectionLevel: "M",
-          margin: 1,
-          scale: 7,
-          color: {
-            dark: "#071b45",
-            light: "#ffffff",
-          },
-        }),
-      )
-      .then((dataUrl) => {
-        if (!cancelled) setSrc(dataUrl);
-      })
-      .catch(() => {
-        if (!cancelled) setSrc("");
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [value]);
-
-  return (
-    <span className="qr-image">
-      {src ? <img src={src} alt={`QR-Code für ${value}`} /> : <QrCode size={42} />}
-    </span>
-  );
-}
-
-async function createQrCodeDataUrl(value) {
-  const { default: QRCode } = await import("qrcode");
-  return QRCode.toDataURL(value, {
-    errorCorrectionLevel: "M",
-    margin: 1,
-    scale: 7,
-    color: {
-      dark: "#071b45",
-      light: "#ffffff",
-    },
-  });
-}
 
 function mapDbMatch(row) {
   const teamA = displayTeamName(row.team_a);
@@ -3333,19 +3286,6 @@ function TeamBlock({ flagCode, name }) {
   );
 }
 
-function ScoreControl({ value, onIncrease, onDecrease, disabled }) {
-  return (
-    <div className="score-control">
-      <button type="button" onClick={onIncrease} disabled={disabled} aria-label="Tor hinzufügen">
-        <ChevronUp size={22} />
-      </button>
-      <strong>{Number.isInteger(value) ? value : "-"}</strong>
-      <button type="button" onClick={onDecrease} disabled={disabled} aria-label="Tor entfernen">
-        <ChevronDown size={22} />
-      </button>
-    </div>
-  );
-}
 
 function RankingPanel({ ranking: rows, expanded = false, setActiveTab }) {
   const [rankingMode, setRankingMode] = useState("total");
