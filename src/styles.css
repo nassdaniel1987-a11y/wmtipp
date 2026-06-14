@@ -11942,221 +11942,185 @@ tbody tr:nth-child(1) td:first-child {
 }
 
 /* =====================================================================
-   Bundesliga Variante E: "Aurora Pitch" – leuchtendes Indigo-Theme mit
-   animierten Aurora-Gradienten, Frosted-Glass-Flaechen, Neon-Akzenten und
-   sanften Bewegungen. Aktiv fuer #bundesliga-e-* Routen.
+   Bundesliga Variante E: "Matchday Editorial" – redaktionelles Broadcast-
+   Theme. Ein einziger Signalfarben-Akzent (Lime) auf ruhigem Graphit,
+   Haarlinien statt Glow, starke Typo-Hierarchie, zurueckhaltende Bewegung.
+   Aktiv fuer #bundesliga-e-* Routen.
    ===================================================================== */
 .bundesliga-e-shell {
-  --ble-bg-1: #0a0b1f;
-  --ble-bg-2: #0d0a24;
-  --ble-bg-3: #07060f;
-  --ble-panel: rgba(24, 26, 56, 0.62);
-  --ble-panel-solid: #14152f;
-  --ble-line: rgba(150, 170, 255, 0.16);
-  --ble-line-soft: rgba(150, 170, 255, 0.09);
-  --ble-text: #f2f3ff;
-  --ble-muted: #aab0e0;
-  --ble-cyan: #34e7d3;
-  --ble-violet: #8b7bff;
-  --ble-magenta: #ff5cc8;
-  --ble-gold: #ffd86b;
-  --ble-green: #2fe39a;
-  --ble-red: #ff5c7a;
-  --ble-glow-cyan: rgba(52, 231, 211, 0.5);
-  --ble-glow-magenta: rgba(255, 92, 200, 0.45);
-  position: relative;
-  isolation: isolate;
-  min-height: 100vh;
+  --ble-bg-1: #0e0f12;
+  --ble-bg-2: #0a0b0d;
+  --ble-panel: #15171b;
+  --ble-panel-2: #1a1d22;
+  --ble-line: rgba(255, 255, 255, 0.10);
+  --ble-line-soft: rgba(255, 255, 255, 0.06);
+  --ble-text: #f3f3ef;
+  --ble-muted: #9a9ea3;
+  --ble-accent: #c8f24e;
+  --ble-accent-soft: rgba(200, 242, 78, 0.14);
+  --ble-accent-ink: #12150a;
+  --ble-red: #e5484d;
+  --ble-green: #4cca7a;
+  --ble-gold: #e8c869;
   color: var(--ble-text);
-  background:
-    radial-gradient(circle at 50% -8%, rgba(139, 123, 255, 0.18), transparent 42%),
-    linear-gradient(180deg, var(--ble-bg-1) 0%, var(--ble-bg-2) 52%, var(--ble-bg-3) 100%);
+  background: linear-gradient(180deg, var(--ble-bg-1) 0%, var(--ble-bg-2) 100%);
 }
 
-/* Animierte Aurora-Schwaden im Hintergrund */
+/* Dezente Hintergrundtextur statt leuchtender Blobs */
 .bundesliga-e-shell::before {
   content: "";
   position: fixed;
-  inset: -20vh -10vw;
-  z-index: -2;
-  pointer-events: none;
-  background:
-    radial-gradient(38vw 38vw at 18% 22%, rgba(52, 231, 211, 0.22), transparent 60%),
-    radial-gradient(42vw 42vw at 82% 28%, rgba(255, 92, 200, 0.18), transparent 62%),
-    radial-gradient(46vw 40vw at 50% 92%, rgba(139, 123, 255, 0.22), transparent 64%);
-  filter: blur(8px);
-  animation: bl-e-aurora 26s ease-in-out infinite alternate;
-}
-
-/* Feines Liniengitter + grosses "E"-Wasserzeichen */
-.bundesliga-e-shell::after {
-  content: "E";
-  position: fixed;
-  right: -0.06em;
-  bottom: -0.14em;
+  inset: 0;
   z-index: -1;
   pointer-events: none;
-  color: rgba(139, 123, 255, 0.05);
-  font-size: clamp(14rem, 44vw, 40rem);
-  font-weight: 950;
-  line-height: 0.7;
-  letter-spacing: -0.04em;
+  opacity: 0.5;
+  background:
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.018) 0 1px, transparent 1px 96px),
+    radial-gradient(120% 60% at 50% -10%, rgba(200, 242, 78, 0.05), transparent 60%);
+  mask-image: linear-gradient(180deg, #000 0%, transparent 70%);
 }
 
-@keyframes bl-e-aurora {
-  0%   { transform: translate3d(-3%, -2%, 0) scale(1); }
-  50%  { transform: translate3d(3%, 2%, 0) scale(1.08); }
-  100% { transform: translate3d(-2%, 3%, 0) scale(1.04); }
-}
-
-@keyframes bl-e-rise {
-  from { opacity: 0; transform: translateY(14px); }
+@keyframes bl-e-fade {
+  from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes bl-e-shimmer {
-  0%   { background-position: -180% 0; }
-  100% { background-position: 180% 0; }
+@keyframes bl-e-livedot {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.25; }
 }
 
-@keyframes bl-e-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 var(--ble-glow-magenta); }
-  50%      { box-shadow: 0 0 22px 4px var(--ble-glow-magenta); }
-}
-
-@keyframes bl-e-border-flow {
-  0%   { background-position: 0% 50%; }
-  100% { background-position: 200% 50%; }
-}
-
-/* ---- Header ---- */
+/* ---- Header: flach, Haarlinie, kein Glow ---- */
 .bundesliga-e-shell .bundesliga-public-header {
   position: sticky;
   top: 0;
   grid-template-columns: minmax(220px, 320px) minmax(0, 1fr) auto;
   gap: 14px;
-  padding: 13px clamp(14px, 3vw, 40px);
+  padding: 14px clamp(14px, 3vw, 40px);
   border-bottom: 1px solid var(--ble-line);
-  background: linear-gradient(90deg, rgba(10, 11, 31, 0.86), rgba(20, 21, 47, 0.78));
-  backdrop-filter: blur(18px) saturate(140%);
-  -webkit-backdrop-filter: blur(18px) saturate(140%);
-  box-shadow: 0 18px 50px rgba(4, 4, 16, 0.5);
+  background: rgba(14, 15, 18, 0.92);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .bundesliga-e-shell .bundesliga-public-header > button.bundesliga-header-brand {
   gap: 12px;
-  border: 1px solid var(--ble-line);
-  border-radius: 14px;
-  padding: 6px 10px;
-  background: rgba(255, 255, 255, 0.04);
-  transition: transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1), border-color 200ms ease, box-shadow 200ms ease;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 6px 8px;
+  transition: border-color 160ms ease, background-color 160ms ease;
 }
 
 .bundesliga-e-shell .bundesliga-public-header > button.bundesliga-header-brand:hover {
-  transform: translateY(-1px);
-  border-color: rgba(52, 231, 211, 0.4);
-  box-shadow: 0 0 24px rgba(52, 231, 211, 0.18);
-}
-
-.bundesliga-e-shell .bundesliga-public-header > button.bundesliga-header-brand:active {
-  transform: scale(0.985);
+  border-color: var(--ble-line);
+  background: var(--ble-panel);
 }
 
 .bundesliga-e-shell .bundesliga-brand-logo {
-  border-color: rgba(139, 123, 255, 0.32);
-  border-radius: 12px;
-  background: #0a0b1f;
-  box-shadow: 0 0 0 1px rgba(52, 231, 211, 0.18), 0 16px 34px rgba(4, 4, 16, 0.5);
+  border-color: var(--ble-line);
+  border-radius: 8px;
+  background: #0a0b0d;
 }
 
 .bundesliga-e-shell .bundesliga-header-brand > span strong {
-  background: linear-gradient(90deg, var(--ble-cyan), var(--ble-violet), var(--ble-magenta));
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--ble-text);
   letter-spacing: 0.01em;
 }
 
 .bundesliga-e-shell .bundesliga-header-brand > span small {
   color: var(--ble-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.72rem;
 }
 
 .bundesliga-e-shell .bundesliga-public-header nav {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 5px;
-  padding: 5px;
-  border: 1px solid var(--ble-line-soft);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.04);
+  gap: 2px;
 }
 
+/* Nav-Buttons: Text + Akzent-Unterstrich beim Aktivieren (kein Pill-Glow) */
 .bundesliga-e-shell .bundesliga-public-header nav button,
-.bundesliga-e-shell .bundesliga-public-header > button:last-child,
 .bundesliga-e-shell .bundesliga-mobile-more-menu button {
-  border: 1px solid transparent;
-  border-radius: 10px;
-  color: var(--ble-text);
+  position: relative;
+  border: 0;
+  border-radius: 0;
+  padding: 8px 12px;
+  color: var(--ble-muted);
   background: transparent;
-  transition: transform 160ms ease, color 160ms ease, background-color 160ms ease, border-color 160ms ease;
+  font-weight: 600;
+  transition: color 150ms ease;
 }
 
-.bundesliga-e-shell .bundesliga-public-header nav button:hover,
-.bundesliga-e-shell .bundesliga-public-header > button:last-child:hover,
-.bundesliga-e-shell .bundesliga-mobile-more-menu button:hover {
-  transform: translateY(-1px);
-  border-color: rgba(52, 231, 211, 0.4);
-  background: rgba(52, 231, 211, 0.1);
+.bundesliga-e-shell .bundesliga-public-header nav button::after {
+  content: "";
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 2px;
+  height: 2px;
+  background: var(--ble-accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-.bundesliga-e-shell .bundesliga-public-header nav button:active,
-.bundesliga-e-shell .bundesliga-public-header > button:last-child:active,
-.bundesliga-e-shell .bundesliga-mobile-more-menu button:active,
-.bundesliga-e-shell .bundesliga-public-card button:active {
-  transform: scale(0.95);
+.bundesliga-e-shell .bundesliga-public-header nav button:hover {
+  color: var(--ble-text);
+}
+
+.bundesliga-e-shell .bundesliga-public-header nav button:hover::after {
+  transform: scaleX(0.5);
 }
 
 .bundesliga-e-shell .bundesliga-public-header nav button.active,
 .bundesliga-e-shell .bundesliga-mobile-more-menu button.active {
-  position: relative;
-  border-color: transparent;
-  color: #07060f;
-  font-weight: 700;
-  background:
-    linear-gradient(90deg, rgba(255, 255, 255, 0.35), transparent 40%) 0 0 / 200% 100% no-repeat,
-    linear-gradient(120deg, var(--ble-cyan), var(--ble-violet) 55%, var(--ble-magenta));
-  background-blend-mode: overlay, normal;
-  box-shadow: 0 8px 22px rgba(139, 123, 255, 0.35);
-  animation: bl-e-shimmer 3.4s linear infinite;
+  color: var(--ble-text);
+}
+
+.bundesliga-e-shell .bundesliga-public-header nav button.active::after {
+  transform: scaleX(1);
+}
+
+/* "Zur WM"-Button: dezente Outline */
+.bundesliga-e-shell .bundesliga-public-header > button:last-child {
+  border: 1px solid var(--ble-line);
+  border-radius: 8px;
+  color: var(--ble-text);
+  background: var(--ble-panel);
+  transition: border-color 150ms ease, background-color 150ms ease;
+}
+
+.bundesliga-e-shell .bundesliga-public-header > button:last-child:hover {
+  border-color: var(--ble-accent);
+  background: var(--ble-panel-2);
 }
 
 .bundesliga-e-shell .bundesliga-mobile-more-menu {
   border: 1px solid var(--ble-line);
-  border-radius: 14px;
+  border-radius: 10px;
   background: var(--ble-panel);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
 }
 
 /* ---- Layout-Flaeche ---- */
 .bundesliga-e-shell .bundesliga-public-main {
-  width: min(1320px, calc(100% - 32px));
-  gap: 18px;
-  padding: 24px 0 72px;
+  width: min(1280px, calc(100% - 32px));
+  gap: 16px;
+  padding: 26px 0 72px;
 }
 
 .bundesliga-e-shell .bundesliga-public-status,
 .bundesliga-e-shell .bundesliga-archive-banner {
   border: 1px solid var(--ble-line);
-  border-radius: 14px;
+  border-left: 3px solid var(--ble-accent);
+  border-radius: 8px;
   color: var(--ble-text);
   background: var(--ble-panel);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
 }
 
-/* ---- Karten (Frosted Glass + Entrance-Animation) ---- */
+/* ---- Karten: flach, Haarlinie, sanftes Einblenden ---- */
 .bundesliga-e-shell .bundesliga-public-card,
 .bundesliga-e-shell .bundesliga-login-panel,
 .bundesliga-e-shell .bundesliga-next-step,
@@ -12168,13 +12132,11 @@ tbody tr:nth-child(1) td:first-child {
 .bundesliga-e-shell .bundesliga-community-privacy,
 .bundesliga-e-shell .bundesliga-user-match-card {
   border: 1px solid var(--ble-line);
-  border-radius: 18px;
+  border-radius: 12px;
   color: var(--ble-text);
   background: var(--ble-panel);
-  backdrop-filter: blur(16px) saturate(135%);
-  -webkit-backdrop-filter: blur(16px) saturate(135%);
-  box-shadow: 0 20px 48px rgba(4, 4, 16, 0.38);
-  animation: bl-e-rise 520ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  box-shadow: none;
+  animation: bl-e-fade 420ms ease both;
 }
 
 .bundesliga-e-shell .bundesliga-public-card h2,
@@ -12182,73 +12144,62 @@ tbody tr:nth-child(1) td:first-child {
   color: var(--ble-text);
 }
 
-.bundesliga-e-shell .bundesliga-public-card h2 {
-  letter-spacing: 0.01em;
+/* Section-Heads / Mikro-Labels: Versalien mit Tracking statt Verlaufstext */
+.bundesliga-e-shell .bundesliga-dashboard-hero > div > span {
+  color: var(--ble-accent);
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 0.74rem;
+  font-weight: 700;
 }
 
-/* Dashboard-Hero mit leuchtender Akzentkante */
 .bundesliga-e-shell .bundesliga-login-welcome,
 .bundesliga-e-shell .bundesliga-welcome-card,
 .bundesliga-e-shell .bundesliga-dashboard-hero {
   position: relative;
-  overflow: hidden;
   border: 1px solid var(--ble-line);
-  border-radius: 20px;
-  background:
-    linear-gradient(135deg, rgba(52, 231, 211, 0.12), transparent 38%),
-    linear-gradient(305deg, rgba(255, 92, 200, 0.12), transparent 40%),
-    var(--ble-panel);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  border-radius: 14px;
+  background: var(--ble-panel);
 }
 
+/* Akzent als schmale Kante oben statt leuchtendem Kreis */
 .bundesliga-e-shell .bundesliga-welcome-card::after,
 .bundesliga-e-shell .bundesliga-login-welcome::after {
   content: "";
   position: absolute;
-  inset: -40% -10% auto auto;
-  width: 280px;
-  height: 280px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(139, 123, 255, 0.35), transparent 68%);
-  pointer-events: none;
-}
-
-.bundesliga-e-shell .bundesliga-dashboard-hero > div > span {
-  color: var(--ble-cyan);
-  text-transform: uppercase;
-  letter-spacing: 0.16em;
+  inset: 0 0 auto 0;
+  height: 3px;
+  border-radius: 14px 14px 0 0;
+  background: var(--ble-accent);
 }
 
 .bundesliga-e-shell .bundesliga-welcome-card h1,
 .bundesliga-e-shell .bundesliga-login-welcome h1 {
-  background: linear-gradient(92deg, #ffffff, var(--ble-cyan));
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--ble-text);
+  letter-spacing: -0.01em;
 }
 
 .bundesliga-e-shell .bundesliga-dashboard-metrics strong,
 .bundesliga-e-shell .bundesliga-current-rank strong,
 .bundesliga-e-shell .bundesliga-ranking-podium strong {
-  color: #ffffff;
-  text-shadow: 0 0 24px rgba(52, 231, 211, 0.35);
+  color: var(--ble-text);
+  font-variant-numeric: tabular-nums;
 }
 
-/* ---- Primaere Buttons (animierter Verlauf) ---- */
+/* ---- Primaere Buttons: einfarbig, prazise ---- */
 .bundesliga-e-shell .bundesliga-login-panel button,
 .bundesliga-e-shell .bundesliga-next-step button,
 .bundesliga-e-shell .bundesliga-dashboard-actions button,
 .bundesliga-e-shell .bundesliga-public-section-head > button,
 .bundesliga-e-shell .bundesliga-user-match-card footer button,
 .bundesliga-e-shell .bundesliga-primary-action {
-  border: 1px solid rgba(52, 231, 211, 0.3);
-  border-radius: 12px;
-  color: #07060f;
+  border: 1px solid var(--ble-accent);
+  border-radius: 9px;
+  color: var(--ble-accent-ink);
   font-weight: 700;
-  background: linear-gradient(120deg, var(--ble-cyan), var(--ble-violet) 60%, var(--ble-magenta)) 0 0 / 200% 100%;
-  box-shadow: 0 10px 28px rgba(139, 123, 255, 0.3);
-  transition: transform 160ms ease, box-shadow 200ms ease, background-position 400ms ease;
+  background: var(--ble-accent);
+  box-shadow: none;
+  transition: transform 140ms ease, filter 140ms ease;
 }
 
 .bundesliga-e-shell .bundesliga-login-panel button:hover,
@@ -12257,16 +12208,22 @@ tbody tr:nth-child(1) td:first-child {
 .bundesliga-e-shell .bundesliga-public-section-head > button:hover,
 .bundesliga-e-shell .bundesliga-user-match-card footer button:hover,
 .bundesliga-e-shell .bundesliga-primary-action:hover {
-  transform: translateY(-2px);
-  background-position: 100% 0;
-  box-shadow: 0 16px 38px rgba(255, 92, 200, 0.4);
+  transform: translateY(-1px);
+  filter: brightness(1.06);
+}
+
+/* Sekundaere Aktion (zweiter Dashboard-Button): nur Outline */
+.bundesliga-e-shell .bundesliga-dashboard-actions button:nth-child(2) {
+  color: var(--ble-text);
+  background: transparent;
 }
 
 .bundesliga-e-shell .bundesliga-login-panel button:disabled,
 .bundesliga-e-shell .bundesliga-public-section-head > button:disabled,
 .bundesliga-e-shell .bundesliga-user-match-card footer button:disabled {
-  filter: grayscale(0.5) opacity(0.6);
-  box-shadow: none;
+  border-color: var(--ble-line);
+  color: var(--ble-muted);
+  background: var(--ble-panel-2);
 }
 
 /* ---- Spiel-Karten ---- */
@@ -12275,56 +12232,65 @@ tbody tr:nth-child(1) td:first-child {
 }
 
 .bundesliga-e-shell .bundesliga-user-match-card.is-saved {
-  border-color: rgba(47, 227, 154, 0.5);
-  box-shadow: 0 0 0 1px rgba(47, 227, 154, 0.25), 0 20px 48px rgba(4, 4, 16, 0.38);
+  border-color: rgba(76, 202, 122, 0.45);
 }
 
 .bundesliga-e-shell .bundesliga-user-match-card.status-finished {
-  border-color: rgba(255, 216, 107, 0.42);
+  border-color: rgba(232, 200, 105, 0.4);
 }
 
 .bundesliga-e-shell .bundesliga-user-match-card header {
-  background: linear-gradient(90deg, rgba(139, 123, 255, 0.2), transparent 50%);
+  border-bottom: 1px solid var(--ble-line-soft);
+  background: var(--ble-panel-2);
 }
 
 .bundesliga-e-shell .bundesliga-match-status.status-live {
-  border-color: rgba(255, 92, 122, 0.65);
-  color: #ffffff;
-  background: rgba(255, 92, 122, 0.22);
-  animation: bl-e-pulse 1.8s ease-in-out infinite;
+  border-color: rgba(229, 72, 77, 0.5);
+  color: #fff;
+  background: rgba(229, 72, 77, 0.16);
+}
+
+.bundesliga-e-shell .bundesliga-match-status.status-live::before {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--ble-red);
+  animation: bl-e-livedot 1.4s ease-in-out infinite;
 }
 
 .bundesliga-e-shell .bundesliga-team-logo {
-  border-color: rgba(139, 123, 255, 0.3);
-  background: #ffffff;
-  box-shadow: 0 8px 20px rgba(4, 4, 16, 0.4);
+  border-color: var(--ble-line);
+  background: #fff;
 }
 
 /* ---- Score-Steuerung ---- */
 .bundesliga-e-shell .score-control {
   border-color: var(--ble-line);
-  background: rgba(7, 6, 15, 0.4);
+  background: var(--ble-panel-2);
 }
 
 .bundesliga-e-shell .score-control button {
-  border-color: rgba(52, 231, 211, 0.25);
-  color: var(--ble-cyan);
-  background: rgba(52, 231, 211, 0.08);
-  transition: transform 130ms ease, background-color 130ms ease;
+  border-color: var(--ble-line);
+  color: var(--ble-text);
+  background: transparent;
+  transition: background-color 130ms ease, transform 130ms ease;
 }
 
 .bundesliga-e-shell .score-control button:hover {
-  background: rgba(52, 231, 211, 0.18);
+  background: var(--ble-accent-soft);
 }
 
 .bundesliga-e-shell .score-control button:active {
-  transform: scale(0.9);
+  transform: scale(0.92);
 }
 
 .bundesliga-e-shell .score-control strong,
 .bundesliga-e-shell .bundesliga-closed-tip strong {
-  color: #ffffff;
-  text-shadow: 0 0 20px rgba(52, 231, 211, 0.35);
+  color: var(--ble-text);
+  font-variant-numeric: tabular-nums;
 }
 
 /* ---- Auswahl-Buttons / Chips ---- */
@@ -12333,29 +12299,27 @@ tbody tr:nth-child(1) td:first-child {
 .bundesliga-e-shell .bundesliga-matchday-chips button,
 .bundesliga-e-shell .bundesliga-ranking-mode button,
 .bundesliga-e-shell .bundesliga-matchday-switcher button {
-  border: 1px solid var(--ble-line-soft);
-  border-radius: 10px;
+  border: 1px solid var(--ble-line);
+  border-radius: 8px;
   color: var(--ble-text);
-  background: rgba(255, 255, 255, 0.04);
-  transition: transform 140ms ease, border-color 140ms ease, background-color 140ms ease;
+  background: var(--ble-panel-2);
+  transition: border-color 140ms ease, background-color 140ms ease;
 }
 
 .bundesliga-e-shell .bundesliga-choice-grid button:hover,
 .bundesliga-e-shell .bundesliga-matchday-chips button:hover,
 .bundesliga-e-shell .bundesliga-ranking-mode button:hover {
-  transform: translateY(-1px);
-  border-color: rgba(139, 123, 255, 0.4);
+  border-color: var(--ble-accent);
 }
 
 .bundesliga-e-shell .bundesliga-choice-grid button.selected,
 .bundesliga-e-shell .bundesliga-scorer-choice-list button.selected,
 .bundesliga-e-shell .bundesliga-matchday-chips button.active,
 .bundesliga-e-shell .bundesliga-ranking-mode button.active {
-  border-color: transparent;
-  color: #07060f;
+  border-color: var(--ble-accent);
+  color: var(--ble-accent-ink);
   font-weight: 700;
-  background: linear-gradient(120deg, var(--ble-cyan), var(--ble-violet) 60%, var(--ble-magenta));
-  box-shadow: 0 8px 20px rgba(139, 123, 255, 0.3);
+  background: var(--ble-accent);
 }
 
 /* ---- Listen / Tabellen ---- */
@@ -12368,34 +12332,34 @@ tbody tr:nth-child(1) td:first-child {
 }
 
 .bundesliga-e-shell .bundesliga-public-ranking .head {
-  color: var(--ble-cyan);
+  color: var(--ble-muted);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  background: rgba(52, 231, 211, 0.08);
+  letter-spacing: 0.1em;
+  background: var(--ble-panel-2);
 }
 
 .bundesliga-e-shell .bundesliga-public-ranking div.current,
 .bundesliga-e-shell .bundesliga-current-rank {
-  border-color: rgba(139, 123, 255, 0.5);
-  background: rgba(139, 123, 255, 0.14);
+  border-color: rgba(200, 242, 78, 0.4);
+  background: var(--ble-accent-soft);
 }
 
 .bundesliga-e-shell .bundesliga-live-refresh-feedback.is-success,
 .bundesliga-e-shell .bundesliga-tip-countdown {
-  border-color: rgba(47, 227, 154, 0.42);
-  background: rgba(47, 227, 154, 0.12);
+  border-color: rgba(76, 202, 122, 0.4);
+  background: rgba(76, 202, 122, 0.1);
 }
 
 .bundesliga-e-shell .bundesliga-tip-countdown.is-urgent {
-  border-color: rgba(255, 92, 122, 0.55);
-  background: rgba(255, 92, 122, 0.16);
+  border-color: rgba(229, 72, 77, 0.5);
+  background: rgba(229, 72, 77, 0.12);
 }
 
 /* ---- Varianten-Umschalter ---- */
 .bundesliga-e-shell .bundesliga-variant-switcher button.active {
-  border-color: transparent;
-  color: #07060f;
-  background: linear-gradient(120deg, var(--ble-cyan), var(--ble-magenta));
+  border-color: var(--ble-accent);
+  color: var(--ble-accent-ink);
+  background: var(--ble-accent);
 }
 
 /* ---- Responsive ---- */
@@ -12416,28 +12380,18 @@ tbody tr:nth-child(1) td:first-child {
 
 @media (max-width: 560px) {
   .bundesliga-e-shell .bundesliga-public-main {
-    width: min(100% - 22px, 1320px);
+    width: min(100% - 22px, 1280px);
     padding-top: 16px;
   }
 
   .bundesliga-e-shell .bundesliga-public-header {
     padding: 10px 12px;
   }
-
-  .bundesliga-e-shell .bundesliga-welcome-card::after,
-  .bundesliga-e-shell .bundesliga-login-welcome::after {
-    display: none;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .bundesliga-e-shell::before {
+  .bundesliga-e-shell .bundesliga-match-status.status-live::before {
     animation: none !important;
-  }
-
-  .bundesliga-e-shell .bundesliga-match-status.status-live {
-    animation: none !important;
-    box-shadow: none;
   }
 
   .bundesliga-e-shell *,
