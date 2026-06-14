@@ -67,11 +67,14 @@ export const BUNDESLIGA_C_ROUTE_PREFIX = "bundesliga-c-";
 export const BUNDESLIGA_C_MATCH_DETAIL_PREFIX = "bundesliga-c-spiel/";
 export const BUNDESLIGA_D_ROUTE_PREFIX = "bundesliga-d-";
 export const BUNDESLIGA_D_MATCH_DETAIL_PREFIX = "bundesliga-d-spiel/";
+export const BUNDESLIGA_E_ROUTE_PREFIX = "bundesliga-e-";
+export const BUNDESLIGA_E_MATCH_DETAIL_PREFIX = "bundesliga-e-spiel/";
 export const bundesligaVariantOptions = [
   { id: "default", label: "A" },
   { id: "design", label: "Design" },
   { id: "c", label: "C" },
   { id: "d", label: "D" },
+  { id: "e", label: "E" },
 ];
 
 export function getCurrentHashId() {
@@ -90,7 +93,12 @@ export function isBundesligaDRoute(tabId = getCurrentHashId()) {
   return tabId.startsWith(BUNDESLIGA_D_ROUTE_PREFIX) || tabId.startsWith(BUNDESLIGA_D_MATCH_DETAIL_PREFIX);
 }
 
+export function isBundesligaERoute(tabId = getCurrentHashId()) {
+  return tabId.startsWith(BUNDESLIGA_E_ROUTE_PREFIX) || tabId.startsWith(BUNDESLIGA_E_MATCH_DETAIL_PREFIX);
+}
+
 export function getBundesligaRouteVariant(tabId = getCurrentHashId()) {
+  if (isBundesligaERoute(tabId)) return "e";
   if (isBundesligaDRoute(tabId)) return "d";
   if (isBundesligaCRoute(tabId)) return "c";
   if (isBundesligaDesignRoute(tabId)) return "design";
@@ -98,6 +106,12 @@ export function getBundesligaRouteVariant(tabId = getCurrentHashId()) {
 }
 
 export function normalizeBundesligaTabId(tabId = getCurrentHashId()) {
+  if (tabId.startsWith(BUNDESLIGA_E_MATCH_DETAIL_PREFIX) && tabId.length > BUNDESLIGA_E_MATCH_DETAIL_PREFIX.length) {
+    return `${BUNDESLIGA_MATCH_DETAIL_PREFIX}${tabId.slice(BUNDESLIGA_E_MATCH_DETAIL_PREFIX.length)}`;
+  }
+  if (tabId.startsWith(BUNDESLIGA_E_ROUTE_PREFIX)) {
+    return `bundesliga-${tabId.slice(BUNDESLIGA_E_ROUTE_PREFIX.length)}`;
+  }
   if (tabId.startsWith(BUNDESLIGA_D_MATCH_DETAIL_PREFIX) && tabId.length > BUNDESLIGA_D_MATCH_DETAIL_PREFIX.length) {
     return `${BUNDESLIGA_MATCH_DETAIL_PREFIX}${tabId.slice(BUNDESLIGA_D_MATCH_DETAIL_PREFIX.length)}`;
   }
@@ -120,6 +134,12 @@ export function normalizeBundesligaTabId(tabId = getCurrentHashId()) {
 }
 
 export function getBundesligaHashForTab(tabId, routeVariant) {
+  if (routeVariant === "e" && tabId.startsWith(BUNDESLIGA_MATCH_DETAIL_PREFIX)) {
+    return `${BUNDESLIGA_E_MATCH_DETAIL_PREFIX}${tabId.slice(BUNDESLIGA_MATCH_DETAIL_PREFIX.length)}`;
+  }
+  if (routeVariant === "e") {
+    return tabId.replace(/^bundesliga-/, BUNDESLIGA_E_ROUTE_PREFIX);
+  }
   if (routeVariant === "d" && tabId.startsWith(BUNDESLIGA_MATCH_DETAIL_PREFIX)) {
     return `${BUNDESLIGA_D_MATCH_DETAIL_PREFIX}${tabId.slice(BUNDESLIGA_MATCH_DETAIL_PREFIX.length)}`;
   }
@@ -1979,6 +1999,7 @@ export function BundesligaParticipantApp({ isTestMode }) {
     routeVariant === "design" ? "bundesliga-design-shell" : "",
     routeVariant === "c" ? "bundesliga-c-shell" : "",
     routeVariant === "d" ? "bundesliga-d-shell" : "",
+    routeVariant === "e" ? "bundesliga-e-shell" : "",
   ].filter(Boolean).join(" ");
   const isVariantD = routeVariant === "d";
   const showVariantDCommand = isVariantD && participant;
