@@ -1,4 +1,4 @@
-import { getServiceClient, json } from "./_shared/supabase.js";
+import { cachedJson, getServiceClient, json } from "./_shared/supabase.js";
 
 export default async (req) => {
   if (req.method !== "GET") return json({ error: "Method not allowed" }, 405);
@@ -12,7 +12,7 @@ export default async (req) => {
       .order("display_name");
 
     if (error) throw error;
-    return json({ players: data ?? [] });
+    return cachedJson({ players: data ?? [] }, 3600);
   } catch (error) {
     return json({ error: error.message || "Spielerliste konnte nicht geladen werden." }, 500);
   }

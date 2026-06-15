@@ -1,4 +1,4 @@
-import { getServiceClient, json } from "./_shared/supabase.js";
+import { cachedJson, getServiceClient, json } from "./_shared/supabase.js";
 import { fetchAllPages } from "./_shared/pagination.js";
 import { buildWmRanking } from "./_shared/wm-scoring.js";
 
@@ -34,7 +34,7 @@ export default async (req) => {
       bonusTips ?? [],
       bonusResults.data ?? null,
     );
-    return json({ ranking });
+    return cachedJson({ ranking }, 120);
   } catch (error) {
     return json({ error: error.message || "Rangliste konnte nicht geladen werden." }, 500);
   }

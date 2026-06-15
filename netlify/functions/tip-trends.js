@@ -1,4 +1,4 @@
-import { getServiceClient, json } from "./_shared/supabase.js";
+import { cachedJson, getServiceClient, json } from "./_shared/supabase.js";
 import { fetchAllPages } from "./_shared/pagination.js";
 
 function buildTrend(rows) {
@@ -52,7 +52,7 @@ export default async (req) => {
       Array.from(grouped.entries()).map(([matchId, rows]) => [matchId, buildTrend(rows)]),
     );
 
-    return json({ trends });
+    return cachedJson({ trends }, 300);
   } catch (error) {
     return json({ error: error.message || "Community-Trend konnte nicht geladen werden." }, 500);
   }

@@ -27,6 +27,15 @@ export function json(data, status = 200) {
   });
 }
 
+export function cachedJson(data, maxAgeSeconds, status = 200) {
+  return Response.json(data, {
+    status,
+    headers: {
+      "Cache-Control": `public, max-age=${maxAgeSeconds}, stale-while-revalidate=${Math.max(maxAgeSeconds * 2, 60)}`,
+    },
+  });
+}
+
 export function normalizeCode(code) {
   return String(code || "").trim();
 }

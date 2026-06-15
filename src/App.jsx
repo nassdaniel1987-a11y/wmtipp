@@ -590,7 +590,7 @@ export default function App() {
       void refreshResults();
       void refreshRanking();
     };
-    const timer = window.setInterval(refresh, 60_000);
+    const timer = window.setInterval(refresh, 300_000);
     window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", refresh);
     return () => {

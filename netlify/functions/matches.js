@@ -1,5 +1,5 @@
 // Public schedule endpoint shared by web and Android clients.
-import { getServiceClient, json } from "./_shared/supabase.js";
+import { cachedJson, getServiceClient, json } from "./_shared/supabase.js";
 
 export default async (req) => {
   if (req.method !== "GET") return json({ error: "Method not allowed" }, 405);
@@ -12,7 +12,7 @@ export default async (req) => {
       .order("match_number", { ascending: true });
 
     if (error) throw error;
-    return json({ matches: data ?? [] });
+    return cachedJson({ matches: data ?? [] }, 600);
   } catch (error) {
     return json({ error: error.message || "Spiele konnten nicht geladen werden." }, 500);
   }

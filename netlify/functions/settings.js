@@ -1,5 +1,5 @@
 // Oeffentliche App-Settings (globale Schalter) fuer Web und Android.
-import { getServiceClient, json } from "./_shared/supabase.js";
+import { cachedJson, getServiceClient, json } from "./_shared/supabase.js";
 
 const DEFAULTS = {
   ko_visible: false,
@@ -17,10 +17,10 @@ export default async (req) => {
     for (const row of data ?? []) {
       settings[row.key] = row.value;
     }
-    return json({ settings });
+    return cachedJson({ settings }, 300);
   } catch (error) {
     // Settings sind unkritisch: im Fehlerfall die sicheren Defaults liefern.
-    return json({ settings: { ...DEFAULTS } });
+    return cachedJson({ settings: { ...DEFAULTS } }, 60);
   }
 };
 
