@@ -25,7 +25,7 @@ import {
 } from "./lib/wm.js";
 import { QrCodeImage, createQrCodeDataUrl } from "./components/shared.jsx";
 import { PlayerSelect, RankingPanel } from "./components/wm.jsx";
-import { BundesligaAdminArea } from "./bundesliga.jsx";
+import { BUNDESLIGA_FEATURE_ENABLED, BundesligaAdminArea } from "./bundesliga.jsx";
 export function AdminPanel({
   session,
   adminData,
@@ -94,7 +94,7 @@ export function AdminPanel({
   const [wmAdminView, setWmAdminView] = useState("overview");
   const [participantSearch, setParticipantSearch] = useState("");
   const activePlayers = players.filter((player) => player.active !== false);
-  const isBundesligaAdmin = adminCompetition === competitions.bundesliga.id;
+  const isBundesligaAdmin = BUNDESLIGA_FEATURE_ENABLED && adminCompetition === competitions.bundesliga.id;
   const isWmTestAdmin = !isBundesligaAdmin && wmAdminMode === "test";
 
   useEffect(() => {
@@ -633,13 +633,15 @@ export function AdminPanel({
           >
             WM 2026
           </button>
-          <button
-            type="button"
-            className={isBundesligaAdmin ? "active" : ""}
-            onClick={() => setAdminCompetition(competitions.bundesliga.id)}
-          >
-            Bundesliga
-          </button>
+          {BUNDESLIGA_FEATURE_ENABLED && (
+            <button
+              type="button"
+              className={isBundesligaAdmin ? "active" : ""}
+              onClick={() => setAdminCompetition(competitions.bundesliga.id)}
+            >
+              Bundesliga
+            </button>
+          )}
         </div>
       </section>
 

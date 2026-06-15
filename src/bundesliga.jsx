@@ -26,6 +26,7 @@ import { explainBundesligaPoints, isCompleteTip, pointsFor } from "./lib/scoring
 import { AUTO_SAVE_DELAY_MS } from "./lib/constants.js";
 import { createInitialTips } from "./lib/tips.js";
 import { QrCodeImage, ScoreControl } from "./components/shared.jsx";
+export const BUNDESLIGA_FEATURE_ENABLED = false;
 export const BUNDESLIGA_STORAGE_KEY = "bundesliga-tippspiel-participant";
 export const BUNDESLIGA_DEFAULT_COMPETITION_ID = "bundesliga-2026";
 export const BUNDESLIGA_ARCHIVE_COMPETITION_ID = "bundesliga-2025";
@@ -196,7 +197,7 @@ export function getBundesligaCompetitionFromUrl() {
 }
 
 export function isBundesligaRoute() {
-  return getCurrentHashId().startsWith("bundesliga-");
+  return BUNDESLIGA_FEATURE_ENABLED && getCurrentHashId().startsWith("bundesliga-");
 }
 
 export function getBundesligaInviteUrl(code, competitionId = BUNDESLIGA_DEFAULT_COMPETITION_ID) {

@@ -64,4 +64,4 @@ export default async () => {
   }
 };
 
-export const config = { schedule: "*/2 * * * *" };
+// Temporarily unscheduled while Bundesliga is paused.
