@@ -1,5 +1,6 @@
 import { requireAdmin } from "./_shared/admin.js";
 import { json } from "./_shared/supabase.js";
+import { refreshWmRankingSnapshot } from "./_shared/refresh-ranking.js";
 
 export default async (req) => {
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -40,6 +41,7 @@ export default async (req) => {
       .single();
 
     if (error) throw error;
+    await refreshWmRankingSnapshot(supabase).catch(() => {});
     return json({ bonusResults: data });
   } catch (error) {
     return json({ error: error.message || "Bonus-Ergebnisse konnten nicht gespeichert werden." }, error.status || 500);

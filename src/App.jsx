@@ -20,14 +20,26 @@ import {
   UsersRound,
 } from "lucide-react";
 import {
-  apiGet,
   apiGetWithAuth,
   apiPost,
+  claimCode,
   getAdminSession,
+  loadBonusResults,
   loadDbMatches,
+  loadMyBonusTip,
+  loadMyTips,
+  loadPlayers,
+  loadRanking,
   loadResults,
+  loadSettings,
+  loadTipTrends,
+  resolveParticipant as resolveParticipantByCode,
+  saveMyBonusTips,
+  saveMyTips,
   signInAdmin,
   signOutAdmin,
+  subscribeRanking,
+  subscribeResults,
 } from "./api.js";
 import {
   knockoutPreview,
@@ -580,23 +592,31 @@ export default function App() {
     }
   }, [activeTab, canViewRanking]);
 
-  // Neue Ergebnisse einsammeln, sobald der Teilnehmer zur App zurueckkehrt oder
-  // sie laengere Zeit offen laesst. So tauchen frisch eingetragene Ergebnisse und
-  // die daraus berechneten Punkte ohne manuellen Reload im Dashboard auf.
+  // Live-Updates per Supabase Realtime statt Polling: neue Ergebnisse und die
+  // daraus neu berechnete Rangliste werden gepusht, sobald das Backend sie
+  // schreibt - ganz ohne Netlify-Function-Invocations. Zusaetzlich beim
+  // Zurueckkehren in die App einmal nachziehen (direkte Supabase-Reads, kein
+  // Function-Aufruf), falls die Verbindung zwischenzeitlich schlief.
   useEffect(() => {
     if (isTestMode || !participant?.id) return undefined;
-    const refresh = () => {
+    const resultsChannel = subscribeResults(() => {
+      void refreshResults();
+    });
+    const rankingChannel = subscribeRanking((nextRanking) => {
+      setRanking(nextRanking ?? []);
+    });
+    const refreshOnReturn = () => {
       if (document.visibilityState === "hidden") return;
       void refreshResults();
       void refreshRanking();
     };
-    const timer = window.setInterval(refresh, 300_000);
-    window.addEventListener("focus", refresh);
-    document.addEventListener("visibilitychange", refresh);
+    window.addEventListener("focus", refreshOnReturn);
+    document.addEventListener("visibilitychange", refreshOnReturn);
     return () => {
-      window.clearInterval(timer);
-      window.removeEventListener("focus", refresh);
-      document.removeEventListener("visibilitychange", refresh);
+      resultsChannel?.unsubscribe?.();
+      rankingChannel?.unsubscribe?.();
+      window.removeEventListener("focus", refreshOnReturn);
+      document.removeEventListener("visibilitychange", refreshOnReturn);
     };
   }, [isTestMode, participant?.id, matches, players]);
 
@@ -625,11 +645,11 @@ export default function App() {
         const [dbMatches, dbResults, rankPayload, bonusPayload, playerPayload, trendPayload, settingsPayload, session] = await Promise.all([
           loadDbMatches().catch(() => null),
           loadResults().catch(() => null),
-          apiGet("/api/ranking").catch(() => ({ ranking: [] })),
-          apiGet("/api/bonus-results").catch(() => ({ bonusResults: null })),
-          apiGet("/api/players").catch(() => ({ players: [] })),
-          apiGet("/api/tip-trends").catch(() => ({ trends: {} })),
-          apiGet("/api/settings").catch(() => ({ settings: {} })),
+          loadRanking().catch(() => ({ ranking: [] })),
+          loadBonusResults().catch(() => ({ bonusResults: null })),
+          loadPlayers().catch(() => ({ players: [] })),
+          loadTipTrends().catch(() => ({ trends: {} })),
+          loadSettings().catch(() => ({ settings: {} })),
           getAdminSession().catch(() => null),
         ]);
 
@@ -699,7 +719,7 @@ export default function App() {
 
       setCodeStatus("checking");
       try {
-        const payload = await apiGet(`/api/participant?code=${encodeURIComponent(codeToResolve)}`);
+        const payload = await resolveParticipantByCode(codeToResolve);
         setCodeStatus(payload.codeStatus);
         if (payload.participant) {
           const saved = {
@@ -734,8 +754,8 @@ export default function App() {
       if (!participant?.id) return;
       try {
         const [tipPayload, bonusPayload] = await Promise.all([
-          apiGet(`/api/tips?participantId=${encodeURIComponent(participant.id)}`),
-          apiGet(`/api/bonus-tips?participantId=${encodeURIComponent(participant.id)}`).catch(() => ({ bonusTip: null })),
+          loadMyTips(participant.code),
+          loadMyBonusTip(participant.code).catch(() => ({ bonusTip: null })),
         ]);
         setTips(createInitialTips(matches, tipPayload.tips ?? []));
         setTipSaveStatuses({});
@@ -772,10 +792,7 @@ export default function App() {
     }
 
     try {
-      const payload = await apiPost("/api/claim-code", {
-        code: activeCode,
-        name: cleanName,
-      });
+      const payload = await claimCode(activeCode, cleanName);
       const saved = {
         id: payload.participant.id,
         name: payload.participant.display_name,
@@ -891,8 +908,7 @@ export default function App() {
     }
 
     try {
-      const payload = await apiPost("/api/save-bonus-tips", {
-        participantId: participant.id,
+      const payload = await saveMyBonusTips(participant.code, {
         champion: sourceBonusTips.champion,
         topScorer: sourceBonusTips.topScorer,
         topScorerPlayerId: sourceBonusTips.topScorerPlayerId,
@@ -920,7 +936,7 @@ export default function App() {
       return;
     }
 
-    const payload = await apiGet("/api/ranking").catch(() => ({ ranking: [] }));
+    const payload = await loadRanking().catch(() => ({ ranking: [] }));
     setRanking(payload.ranking ?? []);
   }
 
@@ -931,7 +947,7 @@ export default function App() {
     if (isTestMode) return;
     const [dbResults, bonusPayload] = await Promise.all([
       loadResults().catch(() => null),
-      apiGet("/api/bonus-results").catch(() => ({ bonusResults: null })),
+      loadBonusResults().catch(() => ({ bonusResults: null })),
     ]);
     if (Array.isArray(dbResults)) setResults(dbResults);
     setBonusResults(createInitialBonusResults(matches, bonusPayload?.bonusResults, players));
@@ -943,7 +959,7 @@ export default function App() {
       return;
     }
 
-    const payload = await apiGet("/api/tip-trends").catch(() => ({ trends: {} }));
+    const payload = await loadTipTrends().catch(() => ({ trends: {} }));
     setTipTrends(payload.trends ?? {});
   }
 
@@ -1024,14 +1040,14 @@ export default function App() {
     }
 
     try {
-      const payload = await apiPost("/api/save-tips", {
-        participantId: participant.id,
-        tips: unlockedMatchIds.map((matchId) => ({
+      const payload = await saveMyTips(
+        participant.code,
+        unlockedMatchIds.map((matchId) => ({
           matchId,
           scoreA: submittedTips[matchId].scoreA,
           scoreB: submittedTips[matchId].scoreB,
         })),
-      });
+      );
 
       const savedIds = new Set((payload.tips ?? []).map((tip) => tip.match_id));
       setTips((current) => {
