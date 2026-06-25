@@ -5,10 +5,10 @@ import { buildKnockout, knockoutMatches } from "../../src/koBracket.js";
 
 const KO_IDS = new Set(knockoutMatches.map((match) => match.id));
 
-// Loest die K.o.-Paarungen aus den finalen Gruppenergebnissen auf (buildKnockout)
-// und schreibt die ermittelten Teams in die K.o.-matches-Zeilen. Optionaler
-// manualPairings-Override pro Spiel erlaubt Admin-Korrekturen. Noch nicht
-// ermittelte Slots behalten ihr lesbares Platzhalter-Label.
+// Loest die K.o.-Paarungen aus den Gruppenergebnissen auf (buildKnockout) und
+// schreibt die ermittelten Teams in die K.o.-matches-Zeilen. Optionaler
+// manualPairings-Override pro Spiel erlaubt Admin-Korrekturen. Preview-Modus
+// liefert Admin-Vorschlaege ohne DB-Schreibzugriff.
 export default async (req) => {
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
@@ -16,8 +16,12 @@ export default async (req) => {
     const { supabase } = await requireAdmin(req);
     const body = await req.json().catch(() => ({}));
 
+    const mode = body?.mode === "preview" ? "preview" : "apply";
+    const scope = body?.scope === "partial" ? "partial" : "full";
+    const selectedUpdateIds = new Set(Array.isArray(body?.updateIds) ? body.updateIds : []);
+    const manualPairingSource = body?.manualPairings ?? body ?? {};
     const manualPairings = new Map();
-    for (const [matchId, pairing] of Object.entries(body?.manualPairings ?? {})) {
+    for (const [matchId, pairing] of Object.entries(manualPairingSource)) {
       if (!KO_IDS.has(matchId) || !pairing) continue;
       const teamA = typeof pairing.teamA === "string" ? pairing.teamA.trim() : "";
       const teamB = typeof pairing.teamB === "string" ? pairing.teamB.trim() : "";
@@ -52,7 +56,11 @@ export default async (req) => {
       if (row.team_b && row.flag_code_b && !flagByTeam.has(row.team_b)) flagByTeam.set(row.team_b, row.flag_code_b);
     }
 
-    const { bracket } = buildKnockout(groupMatches, resultsByMatchId, { manualPairings });
+    const { bracket } = buildKnockout(groupMatches, resultsByMatchId, {
+      manualPairings,
+      partialGroupSlots: scope === "partial",
+      resolveThirds: scope !== "partial",
+    });
 
     const koRowsById = new Map(
       matches.filter((row) => KO_IDS.has(row.id)).map((row) => [row.id, row]),
@@ -61,18 +69,39 @@ export default async (req) => {
     const updates = [];
     for (const entry of bracket) {
       if (!koRowsById.has(entry.id)) continue; // nur existierende K.o.-Zeilen anfassen
+      const current = koRowsById.get(entry.id);
       const teamA = entry.teamA ?? entry.labelA;
       const teamB = entry.teamB ?? entry.labelB;
-      updates.push({
+      const next = {
         id: entry.id,
+        matchNumber: entry.matchNumber,
+        round: entry.round,
+        roundLabel: entry.roundLabel,
         team_a: teamA,
         team_b: teamB,
         flag_code_a: entry.teamA ? (flagByTeam.get(entry.teamA) ?? "") : "",
         flag_code_b: entry.teamB ? (flagByTeam.get(entry.teamB) ?? "") : "",
-      });
+        current_team_a: current.team_a,
+        current_team_b: current.team_b,
+        resolved: entry.resolved,
+        hasRealTeam: Boolean(entry.teamA || entry.teamB),
+      };
+      next.changed =
+        current.team_a !== next.team_a ||
+        current.team_b !== next.team_b ||
+        (current.flag_code_a ?? "") !== next.flag_code_a ||
+        (current.flag_code_b ?? "") !== next.flag_code_b;
+      if (scope === "full" || next.hasRealTeam || next.changed) updates.push(next);
     }
 
-    for (const update of updates) {
+    const updatesToWrite = mode === "preview"
+      ? []
+      : updates.filter((update) => (
+          scope === "full" ||
+          selectedUpdateIds.has(update.id)
+        ));
+
+    for (const update of updatesToWrite) {
       const { error } = await supabase
         .from("matches")
         .update({
@@ -88,8 +117,13 @@ export default async (req) => {
     const resolvedCount = bracket.filter((entry) => entry.resolved && KO_IDS.has(entry.id)).length;
 
     return json({
-      updated: updates.length,
+      mode,
+      scope,
+      updated: updatesToWrite.length,
+      candidates: updates.length,
       resolved: resolvedCount,
+      manualReviewRequired: scope === "partial",
+      updates,
       bracket: bracket
         .filter((entry) => KO_IDS.has(entry.id))
         .map((entry) => ({

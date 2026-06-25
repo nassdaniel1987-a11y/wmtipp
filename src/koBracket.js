@@ -12,6 +12,8 @@
 // (Runde der letzten 32 = Spiele 73–88, Achtelfinale 89–96, Viertelfinale 97–100,
 // Halbfinale 101–102, Spiel um Platz 3 = 103, Finale = 104).
 
+import { FIFA_THIRD_PLACE_ASSIGNMENT_ROWS } from "./fifaAnnexC.js";
+
 export const GROUP_KEYS = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"];
 
 export const KNOCKOUT_ROUND_LABELS = {
@@ -59,6 +61,27 @@ const R32 = [
   ["ko-r32-15", 87, g(1, "K"), third(["D", "E", "I", "J", "L"])],
   ["ko-r32-16", 88, g(2, "D"), g(2, "G")],
 ];
+
+const THIRD_PLACE_COLUMNS = [
+  ["1A", "ko-r32-07"],
+  ["1B", "ko-r32-13"],
+  ["1D", "ko-r32-09"],
+  ["1E", "ko-r32-02"],
+  ["1G", "ko-r32-10"],
+  ["1I", "ko-r32-05"],
+  ["1K", "ko-r32-15"],
+  ["1L", "ko-r32-08"],
+];
+
+export const FIFA_THIRD_PLACE_ASSIGNMENTS = new Map(
+  FIFA_THIRD_PLACE_ASSIGNMENT_ROWS.map((row) => {
+    const [key, value] = row.split(":");
+    return [
+      key,
+      new Map(THIRD_PLACE_COLUMNS.map(([, matchId], index) => [matchId, value[index]])),
+    ];
+  }),
+);
 
 // Spätere Runden: [id, matchNumber, feederA, feederB] (Sieger der genannten Spiele).
 const R16 = [
@@ -224,71 +247,101 @@ export function rankThirdPlaced(standings = new Map()) {
     .map((row, index) => ({ ...row, seed: index + 1, qualified: index < 8 }));
 }
 
-// Ordnet die qualifizierten Gruppendritten den offiziellen "Dritter aus ..."-Slots
-// zu. Jeder Slot erlaubt nur bestimmte Gruppen (FIFA Annex C). Gesucht wird eine
-// vollständige, regelkonforme Zuordnung (perfektes Matching); ist die Gruppenphase
-// noch nicht fertig, wird greedy so viel wie möglich zugeordnet.
-function assignThirdSlots(matches = [], thirds = []) {
-  const slots = [];
-  for (const match of matches) {
-    for (const slot of [match.slotA, match.slotB]) {
-      if (slot?.kind === "third" && Array.isArray(slot.allowed)) {
-        slots.push({ match: match.id, allowed: slot.allowed });
-      }
-    }
-  }
+// Ordnet die qualifizierten Gruppendritten den offiziellen Slots aus FIFA Annex C
+// zu. Die Zuordnung ist keine freie Matching-Aufgabe: fuer jede Kombination der
+// acht besten Drittgruppen gibt FIFA eine exakte Tabellenzeile vor.
+function assignThirdSlots(thirds = [], { resolveThirds = true } = {}) {
   const result = new Map();
-  if (!slots.length) return result;
+  if (!resolveThirds) return result;
 
   const teamByGroup = new Map();
   for (const row of thirds) {
     if (row.qualified === false) continue;
     if (row.group && row.team && !teamByGroup.has(row.group)) teamByGroup.set(row.group, row.team);
   }
-  if (!teamByGroup.size) return result;
+  if (teamByGroup.size !== 8) return result;
 
-  const slotCands = slots.map((slot) => ({
-    match: slot.match,
-    cand: slot.allowed.filter((group) => teamByGroup.has(group)),
-  }));
-  // Most-constrained-first für eine deterministische, schnelle Lösung.
-  const order = slotCands
-    .map((_, index) => index)
-    .sort((a, b) => slotCands[a].cand.length - slotCands[b].cand.length || a - b);
+  const key = [...teamByGroup.keys()].sort().join("");
+  const assignment = FIFA_THIRD_PLACE_ASSIGNMENTS.get(key);
+  if (!assignment) return result;
 
-  const used = new Set();
-  const assign = new Map();
-  const backtrack = (k) => {
-    if (k === order.length) return true;
-    const slot = slotCands[order[k]];
-    for (const group of slot.cand) {
-      if (used.has(group)) continue;
-      used.add(group);
-      assign.set(slot.match, group);
-      if (backtrack(k + 1)) return true;
-      used.delete(group);
-      assign.delete(slot.match);
+  for (const [matchId, group] of assignment) {
+    const team = teamByGroup.get(group);
+    if (team) result.set(matchId, team);
+  }
+  return result;
+}
+
+function resultIsFinalScore(result) {
+  return result?.status === "final" &&
+    Number.isInteger(result.score_a) &&
+    Number.isInteger(result.score_b);
+}
+
+function groupedMatchesByKey(groupMatches = []) {
+  const groups = new Map();
+  for (const match of groupMatches) {
+    if (!match.groupKey) continue;
+    if (!groups.has(match.groupKey)) groups.set(match.groupKey, []);
+    groups.get(match.groupKey).push(match);
+  }
+  return groups;
+}
+
+// Gibt je Gruppe die sicher bekannten Plaetze fuer KO-Slots zurueck.
+// Vor Gruppenende wird bewusst nur nach Punkten entschieden: Sobald ein Team
+// theoretisch punktgleich werden kann, bleibt der Slot offen und der Admin kann
+// spaeter manuell/final aufloesen.
+export function resolveKnownGroupSlots(groupMatches = [], resultsByMatchId = new Map()) {
+  const standings = computeGroupStandings(groupMatches, resultsByMatchId);
+  const groupedMatches = groupedMatchesByKey(groupMatches);
+  const known = new Map();
+
+  for (const [groupKey, rows] of standings) {
+    const matches = groupedMatches.get(groupKey) ?? [];
+    const finalCount = matches.filter((match) => resultIsFinalScore(resultsByMatchId.get(match.id))).length;
+    const complete = matches.length > 0 && finalCount === matches.length;
+
+    if (complete) {
+      known.set(groupKey, {
+        winner: rows[0]?.team ?? null,
+        runnerUp: rows[1]?.team ?? null,
+        complete: true,
+      });
+      continue;
     }
-    return false;
-  };
 
-  if (!backtrack(0)) {
-    // Keine vollständige Zuordnung möglich (Gruppenphase noch nicht fertig) ->
-    // greedy so viele Slots wie möglich belegen.
-    used.clear();
-    assign.clear();
-    for (const index of order) {
-      const slot = slotCands[index];
-      const group = slot.cand.find((candidate) => !used.has(candidate));
-      if (group) {
-        used.add(group);
-        assign.set(slot.match, group);
-      }
+    const remainingByTeam = new Map(rows.map((row) => [row.team, 0]));
+    for (const match of matches) {
+      if (resultIsFinalScore(resultsByMatchId.get(match.id))) continue;
+      if (remainingByTeam.has(match.teamA)) remainingByTeam.set(match.teamA, remainingByTeam.get(match.teamA) + 1);
+      if (remainingByTeam.has(match.teamB)) remainingByTeam.set(match.teamB, remainingByTeam.get(match.teamB) + 1);
     }
+    const maxPoints = new Map(rows.map((row) => [row.team, row.points + (remainingByTeam.get(row.team) ?? 0) * 3]));
+
+    const winnerRow = rows.find((row) =>
+      rows.every((other) => other.team === row.team || row.points > (maxPoints.get(other.team) ?? other.points)),
+    );
+    let runnerUpRow = null;
+    if (winnerRow) {
+      runnerUpRow = rows.find((row) =>
+        row.team !== winnerRow.team &&
+        rows.every((other) =>
+          other.team === row.team ||
+          other.team === winnerRow.team ||
+          row.points > (maxPoints.get(other.team) ?? other.points),
+        ),
+      );
+    }
+
+    known.set(groupKey, {
+      winner: winnerRow?.team ?? null,
+      runnerUp: runnerUpRow?.team ?? null,
+      complete: false,
+    });
   }
 
-  for (const [matchId, group] of assign) result.set(matchId, teamByGroup.get(group));
-  return result;
+  return known;
 }
 
 function determineOutcome(teamA, teamB, result) {
@@ -310,13 +363,23 @@ export function resolveKnockout({
   matches = knockoutMatches,
   resultsByMatchId = new Map(),
   manualPairings = new Map(),
+  groupMatches = [],
+  partialGroupSlots = false,
+  resolveThirds = true,
 } = {}) {
   const resolved = new Map();
-  const thirdAssignment = assignThirdSlots(matches, thirds);
+  const thirdAssignment = assignThirdSlots(thirds, { resolveThirds });
+  const knownGroupSlots = partialGroupSlots
+    ? resolveKnownGroupSlots(groupMatches, resultsByMatchId)
+    : null;
 
   const resolveSlot = (slot, ownerId) => {
     if (!slot) return null;
     if (slot.kind === "group") {
+      if (knownGroupSlots) {
+        const known = knownGroupSlots.get(slot.group);
+        return slot.rank === 1 ? (known?.winner ?? null) : (known?.runnerUp ?? null);
+      }
       const rows = standings.get?.(slot.group);
       return rows?.[slot.rank - 1]?.team ?? null;
     }
@@ -366,6 +429,9 @@ export function buildKnockout(groupMatches = [], resultsByMatchId = new Map(), o
     matches: options.matches ?? knockoutMatches,
     resultsByMatchId,
     manualPairings: options.manualPairings ?? new Map(),
+    groupMatches,
+    partialGroupSlots: Boolean(options.partialGroupSlots),
+    resolveThirds: options.resolveThirds !== false,
   });
   return { standings, thirds, bracket };
 }

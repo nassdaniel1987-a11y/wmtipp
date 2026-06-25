@@ -1156,15 +1156,20 @@ export default function App() {
     return payload;
   }
 
-  async function handleResolveKnockout(manualPairings = {}) {
+  async function handleResolveKnockout(request = {}) {
+    const body = request.manualPairings || request.mode || request.scope || request.updateIds
+      ? request
+      : { manualPairings: request };
     const payload = await apiPost(
       "/api/admin-resolve-knockout",
-      { manualPairings },
+      body,
       adminSession?.access_token,
     );
-    // Aufgeloeste Teams stehen jetzt in den matches-Zeilen -> neu laden.
-    const dbMatches = await loadDbMatches();
-    if (dbMatches.length) setMatches(dbMatches.map(mapDbMatch));
+    if (body.mode !== "preview") {
+      // Aufgeloeste Teams stehen jetzt in den matches-Zeilen -> neu laden.
+      const dbMatches = await loadDbMatches();
+      if (dbMatches.length) setMatches(dbMatches.map(mapDbMatch));
+    }
     return payload;
   }
 
