@@ -2,10 +2,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   GROUP_KEYS,
+  FIFA_THIRD_PLACE_ASSIGNMENTS,
   knockoutMatches,
   computeGroupStandings,
   rankThirdPlaced,
   resolveKnockout,
+  resolveKnownGroupSlots,
   buildKnockout,
 } from "../src/koBracket.js";
 
@@ -68,6 +70,10 @@ test("rankThirdPlaced ordnet die Gruppendritten und markiert die besten 8", () =
   assert.equal(thirds[0].seed, 1);
   assert.equal(thirds[0].team, "A3"); // mehr Punkte als B3 -> seed 1
   assert.ok(thirds.every((row) => row.qualified === true)); // nur 2 -> beide < 8
+});
+
+test("FIFA Annex C ist vollständig hinterlegt", () => {
+  assert.equal(FIFA_THIRD_PLACE_ASSIGNMENTS.size, 495);
 });
 
 test("resolveKnockout füllt Teams, propagiert Sieger/Verlierer und respektiert Elfmeter-Sieger", () => {
@@ -192,6 +198,65 @@ test("assignThirdSlots ordnet acht Dritte regelkonform den offiziellen Slots zu"
     const group = team.replace(/3$/, "");
     assert.ok(slot.allowed.includes(group), `Gruppe ${group} ist in Slot ${match.id} nicht erlaubt`);
   }
+});
+
+test("assignThirdSlots folgt FIFA Annex C statt freiem Matching", () => {
+  const qualifiedGroups = new Set(["D", "F", "G", "H", "I", "J", "K", "L"]);
+  const standings = new Map(
+    GROUP_KEYS.map((group) => [
+      group,
+      [
+        { team: `${group}1`, group, rank: 1, points: 9, goalDiff: 3, goalsFor: 5 },
+        { team: `${group}2`, group, rank: 2, points: 6, goalDiff: 1, goalsFor: 4 },
+        {
+          team: `${group}3`,
+          group,
+          rank: 3,
+          points: qualifiedGroups.has(group) ? 4 : 0,
+          goalDiff: qualifiedGroups.has(group) ? 0 : -5,
+          goalsFor: qualifiedGroups.has(group) ? 3 : 0,
+        },
+        { team: `${group}4`, group, rank: 4, points: 0, goalDiff: -6, goalsFor: 0 },
+      ],
+    ]),
+  );
+  const thirds = rankThirdPlaced(standings);
+  const bracket = resolveKnockout({ standings, thirds });
+  const byNumber = new Map(bracket.map((match) => [match.matchNumber, match]));
+
+  assert.equal(byNumber.get(79).teamB, "H3"); // FIFA column 1A
+  assert.equal(byNumber.get(85).teamB, "G3"); // FIFA column 1B
+  assert.equal(byNumber.get(81).teamB, "I3"); // FIFA column 1D
+  assert.equal(byNumber.get(74).teamB, "D3"); // FIFA column 1E
+  assert.equal(byNumber.get(82).teamB, "J3"); // FIFA column 1G
+  assert.equal(byNumber.get(77).teamB, "F3"); // FIFA column 1I
+  assert.equal(byNumber.get(87).teamB, "L3"); // FIFA column 1K
+  assert.equal(byNumber.get(80).teamB, "K3"); // FIFA column 1L
+});
+
+test("resolveKnownGroupSlots schreibt nur mathematisch sichere Gruppenplatzierungen", () => {
+  const groupMatches = [
+    { id: "A1", groupKey: "A", teamA: "A1", teamB: "A2" },
+    { id: "A2", groupKey: "A", teamA: "A1", teamB: "A3" },
+    { id: "A3", groupKey: "A", teamA: "A1", teamB: "A4" },
+    { id: "A4", groupKey: "A", teamA: "A2", teamB: "A3" },
+    { id: "A5", groupKey: "A", teamA: "A2", teamB: "A4" },
+    { id: "A6", groupKey: "A", teamA: "A3", teamB: "A4" },
+  ];
+  const results = new Map([
+    ["A1", finalResult(2, 0)],
+    ["A2", finalResult(2, 0)],
+    ["A3", finalResult(2, 0)],
+    ["A4", finalResult(1, 0)],
+    ["A5", finalResult(1, 0)],
+  ]);
+
+  const partial = resolveKnownGroupSlots(groupMatches, results);
+  assert.deepEqual(partial.get("A"), { winner: "A1", runnerUp: "A2", complete: false });
+
+  results.set("A6", finalResult(1, 0));
+  const complete = resolveKnownGroupSlots(groupMatches, results);
+  assert.deepEqual(complete.get("A"), { winner: "A1", runnerUp: "A2", complete: true });
 });
 
 test("buildKnockout liefert Tabellen, Dritte und aufgelösten Baum zusammen", () => {

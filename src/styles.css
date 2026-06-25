@@ -4854,6 +4854,44 @@ tbody tr:nth-child(1) td:first-child {
   gap: 10px;
 }
 
+.ko-preview-list {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #ece4c8;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.ko-preview-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.ko-preview-row {
+  display: grid;
+  grid-template-columns: auto minmax(120px, 0.7fr) minmax(180px, 1fr);
+  gap: 6px 10px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid #edf2f7;
+  border-radius: 8px;
+  background: #fbfdff;
+}
+
+.ko-preview-row input {
+  width: 18px;
+  height: 18px;
+}
+
+.ko-preview-row small {
+  grid-column: 2 / -1;
+  color: var(--muted);
+}
+
 .ko-admin-row {
   display: grid;
   gap: 6px;

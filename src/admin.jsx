@@ -70,6 +70,8 @@ export function AdminPanel({
   const [resultDrafts, setResultDrafts] = useState({});
   const [resultFilter, setResultFilter] = useState("open");
   const [knockoutOverrides, setKnockoutOverrides] = useState({});
+  const [knockoutPreview, setKnockoutPreview] = useState(null);
+  const [selectedKnockoutUpdates, setSelectedKnockoutUpdates] = useState([]);
   const [selectedParticipant, setSelectedParticipant] = useState(null);
   const [participantTipDrafts, setParticipantTipDrafts] = useState({});
   const [participantBonusDraft, setParticipantBonusDraft] = useState(createInitialBonusTips(matches));
@@ -268,13 +270,71 @@ export function AdminPanel({
   async function resolveKnockout() {
     if (!onResolveKnockout) return;
     try {
-      const payload = await onResolveKnockout(knockoutOverrides);
+      const payload = await onResolveKnockout({
+        mode: "apply",
+        scope: "full",
+        manualPairings: knockoutOverrides,
+      });
+      setKnockoutPreview(null);
+      setSelectedKnockoutUpdates([]);
       setAdminMessage(
-        `K.o.-Paarungen aufgelöst: ${payload?.resolved ?? 0} von ${payload?.updated ?? 0} Spielen mit echten Teams.`,
+        `K.o.-Paarungen aufgelöst: ${payload?.resolved ?? 0} Spiele vollständig, ${payload?.updated ?? 0} Zeilen aktualisiert.`,
       );
     } catch (error) {
       setAdminMessage(error.message);
     }
+  }
+
+  async function previewKnownKnockoutSlots() {
+    if (!onResolveKnockout) return;
+    try {
+      const payload = await onResolveKnockout({
+        mode: "preview",
+        scope: "partial",
+        manualPairings: knockoutOverrides,
+      });
+      const updates = payload?.updates ?? [];
+      setKnockoutPreview(payload);
+      setSelectedKnockoutUpdates(updates.filter((update) => update.hasRealTeam).map((update) => update.id));
+      setAdminMessage(
+        updates.length
+          ? `${updates.length} sichere K.o.-Vorschläge gefunden. Bitte prüfen und übernehmen.`
+          : "Noch keine sicheren K.o.-Teams zum Übernehmen gefunden.",
+      );
+    } catch (error) {
+      setKnockoutPreview(null);
+      setSelectedKnockoutUpdates([]);
+      setAdminMessage(error.message);
+    }
+  }
+
+  async function applyKnownKnockoutSlots() {
+    if (!onResolveKnockout) return;
+    if (selectedKnockoutUpdates.length === 0) {
+      setAdminMessage("Bitte erst mindestens einen K.o.-Vorschlag auswählen.");
+      return;
+    }
+    try {
+      const payload = await onResolveKnockout({
+        mode: "apply",
+        scope: "partial",
+        manualPairings: knockoutOverrides,
+        updateIds: selectedKnockoutUpdates,
+      });
+      setKnockoutPreview(null);
+      setSelectedKnockoutUpdates([]);
+      setAdminMessage(`${payload?.updated ?? 0} sichere K.o.-Zeilen übernommen.`);
+    } catch (error) {
+      setAdminMessage(error.message);
+    }
+  }
+
+  function toggleKnockoutUpdate(matchId) {
+    setSelectedKnockoutUpdates((current) =>
+      current.includes(matchId)
+        ? current.filter((id) => id !== matchId)
+        : [...current, matchId],
+    );
   }
 
   async function toggleKoVisible() {
@@ -1384,9 +1444,14 @@ export function AdminPanel({
         <section className="ko-admin-panel">
           <div className="ko-admin-head">
             <h3>K.o.-Phase</h3>
-            <button type="button" className="primary-button compact" onClick={resolveKnockout}>
-              Paarungen aus Gruppentabellen auflösen
-            </button>
+            <div className="inline-actions">
+              <button type="button" className="ghost-button compact" onClick={previewKnownKnockoutSlots}>
+                Sichere Teams vorschlagen
+              </button>
+              <button type="button" className="primary-button compact" onClick={resolveKnockout}>
+                Paarungen komplett auflösen
+              </button>
+            </div>
           </div>
           <div className={`ko-visible-toggle ${koVisible ? "on" : ""}`}>
             <div>
@@ -1407,6 +1472,31 @@ export function AdminPanel({
             unten überschreiben die automatische Zuordnung. Ergebnisse und Sieger bei Remis
             werden im Bereich „Ergebnisse" eingetragen.
           </p>
+          {knockoutPreview?.updates?.length > 0 && (
+            <div className="ko-preview-list">
+              <div className="ko-preview-head">
+                <strong>Sichere Vorschläge</strong>
+                <button type="button" className="primary-button compact" onClick={applyKnownKnockoutSlots}>
+                  Ausgewählte übernehmen
+                </button>
+              </div>
+              {knockoutPreview.updates.map((update) => (
+                <label className="ko-preview-row" key={update.id}>
+                  <input
+                    type="checkbox"
+                    checked={selectedKnockoutUpdates.includes(update.id)}
+                    onChange={() => toggleKnockoutUpdate(update.id)}
+                  />
+                  <span>Spiel {update.matchNumber} · {update.roundLabel}</span>
+                  <strong>{update.team_a} – {update.team_b}</strong>
+                  <small>
+                    bisher: {update.current_team_a} – {update.current_team_b}
+                    {update.changed ? " · Änderung" : " · unverändert"}
+                  </small>
+                </label>
+              ))}
+            </div>
+          )}
           <div className="ko-admin-list">
             {koAdminMatches.map((match) => {
               const override = knockoutOverrides[match.id] ?? {};
