@@ -5001,6 +5001,90 @@ tbody tr:nth-child(1) td:first-child {
   font-weight: 900;
 }
 
+.ko-tip-prompt-backdrop {
+  align-items: center;
+  z-index: 70;
+}
+
+.ko-tip-prompt {
+  position: relative;
+  display: grid;
+  gap: 16px;
+  width: min(520px, 100%);
+  padding: 24px;
+  border: 1px solid #cbdbea;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 28px 80px rgba(7, 27, 69, 0.3);
+}
+
+.ko-tip-prompt-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+}
+
+.ko-tip-prompt-icon {
+  display: grid;
+  width: 54px;
+  height: 54px;
+  place-items: center;
+  border-radius: 8px;
+  color: #0b5f4f;
+  background: #d9f5ec;
+}
+
+.ko-tip-prompt h2,
+.ko-tip-prompt p {
+  margin: 0;
+}
+
+.ko-tip-prompt h2 {
+  max-width: calc(100% - 34px);
+  font-size: 1.35rem;
+}
+
+.ko-tip-prompt p {
+  margin-top: 6px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.ko-tip-prompt-list {
+  display: grid;
+  gap: 8px;
+}
+
+.ko-tip-prompt-list div {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid #dbe7f2;
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
+.ko-tip-prompt-list span,
+.ko-tip-prompt-list small {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.ko-tip-prompt-list strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ko-tip-prompt-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .admin-bonus-summary {
   display: grid;
   gap: 10px;

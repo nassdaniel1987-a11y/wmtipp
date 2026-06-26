@@ -18,6 +18,7 @@ import {
   ShieldCheck,
   Trophy,
   UsersRound,
+  X,
 } from "lucide-react";
 import {
   apiGetWithAuth,
@@ -69,6 +70,10 @@ import {
   KO_PHASES,
   groupFilters,
 } from "./lib/constants.js";
+import {
+  getKoTipPromptMatches,
+  shouldShowKoTipPrompt,
+} from "./lib/koTipPrompt.js";
 import { ScoreControl } from "./components/shared.jsx";
 import { createInitialTips } from "./lib/tips.js";
 import {
@@ -431,6 +436,7 @@ export default function App() {
   const [adminData, setAdminData] = useState({ codes: [], participants: [], tips: [], tipCount: 0, bonusTips: [], bonusTipCount: 0, bonusResults: null, results: [], players: [] });
   const [wmTestData, setWmTestData] = useState(null);
   const [wmTestLoading, setWmTestLoading] = useState(false);
+  const [koTipPromptDismissed, setKoTipPromptDismissed] = useState(false);
   const tipsRef = useRef(tips);
   const bonusTipsRef = useRef(bonusTips);
   const canViewRanking = Boolean(participant);
@@ -501,6 +507,16 @@ export default function App() {
     [matches, koTippable],
   );
   const savedTipCount = tippableMatches.filter((match) => tips[match.id]?.saved).length;
+  const koTipPromptMatches = useMemo(
+    () => getKoTipPromptMatches(koMatches, { limit: 3 }),
+    [koMatches],
+  );
+  const showKoTipPrompt = shouldShowKoTipPrompt({
+    participant,
+    koVisible,
+    koMatches,
+    dismissed: koTipPromptDismissed,
+  });
 
   const filteredMatches = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
@@ -1173,6 +1189,14 @@ export default function App() {
     return payload;
   }
 
+  function openKoTipsFromPrompt() {
+    setKoTipPromptDismissed(true);
+    setActiveTab("tippen");
+    window.setTimeout(() => {
+      document.getElementById("ko-tipps")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 120);
+  }
+
   async function refreshWmTestData(session = adminSession) {
     if (!session?.access_token) return null;
     setWmTestLoading(true);
@@ -1247,6 +1271,13 @@ export default function App() {
 
   return (
     <div className="app-shell">
+      {showKoTipPrompt && (
+        <KoTipPrompt
+          matches={koTipPromptMatches}
+          onClose={() => setKoTipPromptDismissed(true)}
+          onOpenKoTips={openKoTipsFromPrompt}
+        />
+      )}
       <header className="topbar">
         <button type="button" className="brand" onClick={() => setActiveTab("start")}>
           <span className="brand-logo">
@@ -1623,6 +1654,50 @@ export default function App() {
           </aside>
         </div>
       </main>
+    </div>
+  );
+}
+
+function KoTipPrompt({ matches = [], onClose, onOpenKoTips }) {
+  return (
+    <div className="modal-backdrop ko-tip-prompt-backdrop" role="presentation">
+      <section
+        className="ko-tip-prompt"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="ko-tip-prompt-title"
+      >
+        <button type="button" className="icon-button ko-tip-prompt-close" onClick={onClose} aria-label="Hinweis schließen">
+          <X size={20} />
+        </button>
+        <div className="ko-tip-prompt-icon">
+          <Trophy size={30} />
+        </div>
+        <div>
+          <h2 id="ko-tip-prompt-title">Die ersten K.o.-Spiele sind tippbar</h2>
+          <p>Du kannst jetzt direkt zu den K.o.-Spielen springen und deine Tipps speichern.</p>
+        </div>
+        {matches.length > 0 && (
+          <div className="ko-tip-prompt-list" aria-label="Erste K.o.-Spiele">
+            {matches.map((match) => (
+              <div key={match.id}>
+                <span>Spiel {match.matchNumber}</span>
+                <strong>{match.teamA} - {match.teamB}</strong>
+                <small>{formatDate(match.date)} · {match.time} Uhr</small>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="ko-tip-prompt-actions">
+          <button type="button" className="ghost-button compact" onClick={onClose}>
+            Später
+          </button>
+          <button type="button" className="primary-button compact" onClick={onOpenKoTips}>
+            Zu den KO-Tipps
+            <ChevronRight size={18} />
+          </button>
+        </div>
+      </section>
     </div>
   );
 }
@@ -2018,7 +2093,7 @@ function KnockoutTipBlock({
   }, [koMatches]);
 
   return (
-    <section className="ko-tip-block panel">
+    <section id="ko-tipps" className="ko-tip-block panel">
       <div className="ko-tip-block-head">
         <Trophy size={22} />
         <div>
