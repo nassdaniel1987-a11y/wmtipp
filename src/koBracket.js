@@ -25,14 +25,44 @@ export const KNOCKOUT_ROUND_LABELS = {
   final: "Finale",
 };
 
-const ROUND_DATES = {
-  r32: "2026-06-28",
-  r16: "2026-07-04",
-  quarter: "2026-07-09",
-  semi: "2026-07-14",
-  third: "2026-07-18",
-  final: "2026-07-19",
+export const KNOCKOUT_MATCH_SCHEDULE = {
+  73: { date: "2026-06-28", time: "21:00", kickoffAt: "2026-06-28T19:00:00.000Z", venue: "Los-Angeles-Stadion", city: "Los Angeles" },
+  74: { date: "2026-06-29", time: "22:30", kickoffAt: "2026-06-29T20:30:00.000Z", venue: "Boston-Stadion", city: "Boston" },
+  75: { date: "2026-06-30", time: "03:00", kickoffAt: "2026-06-30T01:00:00.000Z", venue: "Monterrey-Stadion", city: "Monterrey" },
+  76: { date: "2026-06-29", time: "19:00", kickoffAt: "2026-06-29T17:00:00.000Z", venue: "Houston-Stadion", city: "Houston" },
+  77: { date: "2026-06-30", time: "23:00", kickoffAt: "2026-06-30T21:00:00.000Z", venue: "New-York-New-Jersey-Stadion", city: "New York / New Jersey" },
+  78: { date: "2026-06-30", time: "19:00", kickoffAt: "2026-06-30T17:00:00.000Z", venue: "Dallas-Stadion", city: "Dallas" },
+  79: { date: "2026-07-01", time: "03:00", kickoffAt: "2026-07-01T01:00:00.000Z", venue: "Mexiko-Stadt-Stadion", city: "Mexiko-Stadt" },
+  80: { date: "2026-07-01", time: "18:00", kickoffAt: "2026-07-01T16:00:00.000Z", venue: "Atlanta-Stadion", city: "Atlanta" },
+  81: { date: "2026-07-02", time: "02:00", kickoffAt: "2026-07-02T00:00:00.000Z", venue: "San-Francisco-Bay-Area-Stadion", city: "San Francisco" },
+  82: { date: "2026-07-01", time: "22:00", kickoffAt: "2026-07-01T20:00:00.000Z", venue: "Seattle-Stadion", city: "Seattle" },
+  83: { date: "2026-07-03", time: "01:00", kickoffAt: "2026-07-02T23:00:00.000Z", venue: "Toronto-Stadion", city: "Toronto" },
+  84: { date: "2026-07-02", time: "21:00", kickoffAt: "2026-07-02T19:00:00.000Z", venue: "Los-Angeles-Stadion", city: "Los Angeles" },
+  85: { date: "2026-07-03", time: "05:00", kickoffAt: "2026-07-03T03:00:00.000Z", venue: "BC Place Vancouver", city: "Vancouver" },
+  86: { date: "2026-07-04", time: "00:00", kickoffAt: "2026-07-03T22:00:00.000Z", venue: "Miami-Stadion", city: "Miami" },
+  87: { date: "2026-07-04", time: "03:30", kickoffAt: "2026-07-04T01:30:00.000Z", venue: "Kansas-City-Stadion", city: "Kansas City" },
+  88: { date: "2026-07-03", time: "20:00", kickoffAt: "2026-07-03T18:00:00.000Z", venue: "Dallas-Stadion", city: "Dallas" },
+  89: { date: "2026-07-04", time: "23:00", kickoffAt: "2026-07-04T21:00:00.000Z", venue: "Philadelphia-Stadion", city: "Philadelphia" },
+  90: { date: "2026-07-04", time: "19:00", kickoffAt: "2026-07-04T17:00:00.000Z", venue: "Houston-Stadion", city: "Houston" },
+  91: { date: "2026-07-05", time: "22:00", kickoffAt: "2026-07-05T20:00:00.000Z", venue: "New-York-New-Jersey-Stadion", city: "New York / New Jersey" },
+  92: { date: "2026-07-06", time: "02:00", kickoffAt: "2026-07-06T00:00:00.000Z", venue: "Mexiko-Stadt-Stadion", city: "Mexiko-Stadt" },
+  93: { date: "2026-07-06", time: "21:00", kickoffAt: "2026-07-06T19:00:00.000Z", venue: "Dallas-Stadion", city: "Dallas" },
+  94: { date: "2026-07-07", time: "02:00", kickoffAt: "2026-07-07T00:00:00.000Z", venue: "Seattle-Stadion", city: "Seattle" },
+  95: { date: "2026-07-07", time: "18:00", kickoffAt: "2026-07-07T16:00:00.000Z", venue: "Atlanta-Stadion", city: "Atlanta" },
+  96: { date: "2026-07-07", time: "22:00", kickoffAt: "2026-07-07T20:00:00.000Z", venue: "BC Place Vancouver", city: "Vancouver" },
+  97: { date: "2026-07-09", time: "22:00", kickoffAt: "2026-07-09T20:00:00.000Z", venue: "Boston-Stadion", city: "Boston" },
+  98: { date: "2026-07-10", time: "21:00", kickoffAt: "2026-07-10T19:00:00.000Z", venue: "Los-Angeles-Stadion", city: "Los Angeles" },
+  99: { date: "2026-07-11", time: "23:00", kickoffAt: "2026-07-11T21:00:00.000Z", venue: "Miami-Stadion", city: "Miami" },
+  100: { date: "2026-07-12", time: "03:00", kickoffAt: "2026-07-12T01:00:00.000Z", venue: "Kansas-City-Stadion", city: "Kansas City" },
+  101: { date: "2026-07-14", time: "21:00", kickoffAt: "2026-07-14T19:00:00.000Z", venue: "Dallas-Stadion", city: "Dallas" },
+  102: { date: "2026-07-15", time: "21:00", kickoffAt: "2026-07-15T19:00:00.000Z", venue: "Atlanta-Stadion", city: "Atlanta" },
+  103: { date: "2026-07-18", time: "23:00", kickoffAt: "2026-07-18T21:00:00.000Z", venue: "Miami-Stadion", city: "Miami" },
+  104: { date: "2026-07-19", time: "21:00", kickoffAt: "2026-07-19T19:00:00.000Z", venue: "New-York-New-Jersey-Stadion", city: "New York / New Jersey" },
 };
+
+function scheduleFor(matchNumber) {
+  return KNOCKOUT_MATCH_SCHEDULE[matchNumber] ?? {};
+}
 
 // Slot-Helfer
 const g = (rank, group) => ({ kind: "group", group, rank });
@@ -124,7 +154,7 @@ function buildKnockoutMatches() {
   const matches = [];
 
   for (const [id, matchNumber, slotA, slotB] of R32) {
-    matches.push({ id, round: "r32", matchNumber, date: ROUND_DATES.r32, slotA, slotB });
+    matches.push({ id, round: "r32", matchNumber, ...scheduleFor(matchNumber), slotA, slotB });
   }
   for (const [round, rows] of [["r16", R16], ["quarter", QUARTER], ["semi", SEMI]]) {
     for (const [id, matchNumber, feederA, feederB] of rows) {
@@ -132,7 +162,7 @@ function buildKnockoutMatches() {
         id,
         round,
         matchNumber,
-        date: ROUND_DATES[round],
+        ...scheduleFor(matchNumber),
         slotA: winnerSlot(feederA),
         slotB: winnerSlot(feederB),
       });
@@ -143,7 +173,7 @@ function buildKnockoutMatches() {
     id: "ko-third-01",
     round: "third",
     matchNumber: 103,
-    date: ROUND_DATES.third,
+    ...scheduleFor(103),
     slotA: loserSlot("ko-semi-01"),
     slotB: loserSlot("ko-semi-02"),
   });
@@ -151,7 +181,7 @@ function buildKnockoutMatches() {
     id: "ko-final-01",
     round: "final",
     matchNumber: 104,
-    date: ROUND_DATES.final,
+    ...scheduleFor(104),
     slotA: winnerSlot("ko-semi-01"),
     slotB: winnerSlot("ko-semi-02"),
   });
