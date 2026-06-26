@@ -14,6 +14,7 @@ import { displayTeamName } from "./teamNames.js";
 import { chunkArray, formatDate, formatNumericDate } from "./lib/format.js";
 import { getGroupLeaderSuggestions, isCompleteTip } from "./lib/scoring.js";
 import { KO_PHASE_LABELS, codeStatusLabels, competitions } from "./lib/constants.js";
+import { buildManualKnockoutSaveRequest, normalizeKnockoutOverride } from "./lib/koManualPairing.js";
 import { findPlayerByText, normalizePlayerName, playerLabel } from "./lib/players.js";
 import {
   createInitialBonusResults,
@@ -324,6 +325,29 @@ export function AdminPanel({
       setKnockoutPreview(null);
       setSelectedKnockoutUpdates([]);
       setAdminMessage(`${payload?.updated ?? 0} sichere K.o.-Zeilen übernommen.`);
+    } catch (error) {
+      setAdminMessage(error.message);
+    }
+  }
+
+  async function saveManualKnockoutMatch(match) {
+    if (!onResolveKnockout) return;
+    const request = buildManualKnockoutSaveRequest(match.id, knockoutOverrides[match.id] ?? {});
+    if (!request) {
+      setAdminMessage("Bitte erst mindestens eine Mannschaft für dieses K.o.-Spiel auswählen.");
+      return;
+    }
+
+    try {
+      const payload = await onResolveKnockout(request);
+      setKnockoutPreview(null);
+      setSelectedKnockoutUpdates([]);
+      setKnockoutOverrides((current) => {
+        const next = { ...current };
+        delete next[match.id];
+        return next;
+      });
+      setAdminMessage(`Spiel ${match.matchNumber} gespeichert (${payload?.updated ?? 0} Zeile aktualisiert).`);
     } catch (error) {
       setAdminMessage(error.message);
     }
@@ -1535,8 +1559,14 @@ export function AdminPanel({
             </div>
           )}
           <div className="ko-admin-list">
+            <datalist id="ko-team-options">
+              {teamOptions.map((team) => (
+                <option key={team.name} value={team.name} />
+              ))}
+            </datalist>
             {koAdminMatches.map((match) => {
               const override = knockoutOverrides[match.id] ?? {};
+              const hasManualOverride = Object.keys(normalizeKnockoutOverride(override)).length > 0;
               return (
                 <div className="ko-admin-row" key={match.id}>
                   <span className="ko-admin-tag">
@@ -1546,6 +1576,7 @@ export function AdminPanel({
                   <div className="ko-admin-override">
                     <input
                       type="text"
+                      list="ko-team-options"
                       placeholder="Team A überschreiben"
                       value={override.teamA ?? ""}
                       onChange={(event) =>
@@ -1557,6 +1588,7 @@ export function AdminPanel({
                     />
                     <input
                       type="text"
+                      list="ko-team-options"
                       placeholder="Team B überschreiben"
                       value={override.teamB ?? ""}
                       onChange={(event) =>
@@ -1566,6 +1598,14 @@ export function AdminPanel({
                         }))
                       }
                     />
+                    <button
+                      type="button"
+                      className="primary-button compact"
+                      disabled={!hasManualOverride}
+                      onClick={() => saveManualKnockoutMatch(match)}
+                    >
+                      Speichern
+                    </button>
                     <button type="button" className="danger-button compact" onClick={() => resetKnockoutMatch(match)}>
                       Zurücksetzen
                     </button>
