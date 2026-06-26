@@ -241,11 +241,11 @@ export const matches = fifaScheduleRows.map(
 );
 
 export const knockoutPreview = [
-  { date: "2026-06-28", round: "Runde der letzten 32", label: "2A vs 2B" },
-  { date: "2026-07-04", round: "Achtelfinale", label: "Sieger-Platzhalter" },
-  { date: "2026-07-09", round: "Viertelfinale", label: "Sieger-Platzhalter" },
-  { date: "2026-07-14", round: "Halbfinale", label: "Sieger-Platzhalter" },
-  { date: "2026-07-19", round: "Finale", label: "W101 vs W102" },
+  { date: "2026-06-28", round: "Runde der letzten 32", label: "Spiele 73-88 · 28.06.-04.07." },
+  { date: "2026-07-04", round: "Achtelfinale", label: "Spiele 89-96 · 04.07.-07.07." },
+  { date: "2026-07-09", round: "Viertelfinale", label: "Spiele 97-100 · 09.07.-12.07." },
+  { date: "2026-07-14", round: "Halbfinale", label: "Spiele 101-102 · 14.07.-15.07." },
+  { date: "2026-07-18", round: "Finalspiele", label: "Platz 3 am 18.07. · Finale am 19.07." },
 ];
 
 export const ranking = [

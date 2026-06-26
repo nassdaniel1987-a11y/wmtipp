@@ -166,6 +166,35 @@ test("knockoutMatches ist strukturell vollständig (32 Spiele, jede Gruppenplatz
   assert.equal(byNumber.get(103).round, "third");
 });
 
+test("knockoutMatches enthält die offiziellen KO-Termine als Deutschland-Anzeigezeit", () => {
+  const byNumber = new Map(knockoutMatches.map((m) => [m.matchNumber, m]));
+
+  assert.deepEqual(
+    {
+      date: byNumber.get(73).date,
+      time: byNumber.get(73).time,
+      kickoffAt: byNumber.get(73).kickoffAt,
+      venue: byNumber.get(73).venue,
+      city: byNumber.get(73).city,
+    },
+    {
+      date: "2026-06-28",
+      time: "21:00",
+      kickoffAt: "2026-06-28T19:00:00.000Z",
+      venue: "Los-Angeles-Stadion",
+      city: "Los Angeles",
+    },
+  );
+  assert.equal(byNumber.get(75).date, "2026-06-30");
+  assert.equal(byNumber.get(75).time, "03:00");
+  assert.equal(byNumber.get(89).date, "2026-07-04");
+  assert.equal(byNumber.get(89).time, "23:00");
+  assert.equal(byNumber.get(100).date, "2026-07-12");
+  assert.equal(byNumber.get(100).time, "03:00");
+  assert.equal(byNumber.get(104).date, "2026-07-19");
+  assert.equal(byNumber.get(104).time, "21:00");
+});
+
 test("knockoutPlaceholderPairing setzt ein KO-Spiel auf Platzhalter ohne Flaggen zurück", () => {
   assert.deepEqual(knockoutPlaceholderPairing("ko-r32-02"), {
     id: "ko-r32-02",
