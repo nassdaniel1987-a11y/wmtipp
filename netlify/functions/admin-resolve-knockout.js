@@ -1,7 +1,7 @@
 import { requireAdmin } from "./_shared/admin.js";
 import { json } from "./_shared/supabase.js";
 import { fetchAllPages } from "./_shared/pagination.js";
-import { buildKnockout, knockoutMatches } from "../../src/koBracket.js";
+import { buildKnockout, knockoutMatches, knockoutPlaceholderPairing } from "../../src/koBracket.js";
 
 const KO_IDS = new Set(knockoutMatches.map((match) => match.id));
 
@@ -16,6 +16,7 @@ export default async (req) => {
     const { supabase } = await requireAdmin(req);
     const body = await req.json().catch(() => ({}));
 
+    const action = body?.action === "reset" ? "reset" : "resolve";
     const mode = body?.mode === "preview" ? "preview" : "apply";
     const scope = body?.scope === "partial" ? "partial" : "full";
     const selectedUpdateIds = new Set(Array.isArray(body?.updateIds) ? body.updateIds : []);
@@ -65,6 +66,56 @@ export default async (req) => {
     const koRowsById = new Map(
       matches.filter((row) => KO_IDS.has(row.id)).map((row) => [row.id, row]),
     );
+
+    if (action === "reset") {
+      const resetUpdates = [...selectedUpdateIds]
+        .filter((matchId) => koRowsById.has(matchId))
+        .map((matchId) => {
+          const current = koRowsById.get(matchId);
+          const placeholder = knockoutPlaceholderPairing(matchId);
+          return placeholder
+            ? {
+                ...placeholder,
+                current_team_a: current.team_a,
+                current_team_b: current.team_b,
+                resolved: false,
+                hasRealTeam: false,
+                changed:
+                  current.team_a !== placeholder.team_a ||
+                  current.team_b !== placeholder.team_b ||
+                  (current.flag_code_a ?? "") !== "" ||
+                  (current.flag_code_b ?? "") !== "",
+              }
+            : null;
+        })
+        .filter(Boolean);
+
+      const updatesToWrite = mode === "preview" ? [] : resetUpdates;
+      for (const update of updatesToWrite) {
+        const { error } = await supabase
+          .from("matches")
+          .update({
+            team_a: update.team_a,
+            team_b: update.team_b,
+            flag_code_a: "",
+            flag_code_b: "",
+          })
+          .eq("id", update.id);
+        if (error) throw error;
+      }
+
+      return json({
+        action,
+        mode,
+        scope,
+        updated: updatesToWrite.length,
+        candidates: resetUpdates.length,
+        resolved: 0,
+        manualReviewRequired: false,
+        updates: resetUpdates,
+        bracket: [],
+      });
+    }
 
     const updates = [];
     for (const entry of bracket) {

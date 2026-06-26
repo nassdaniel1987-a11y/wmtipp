@@ -174,6 +174,21 @@ export function knockoutSlotLabel(slot) {
   return "—";
 }
 
+export function knockoutPlaceholderPairing(matchId) {
+  const match = knockoutMatches.find((item) => item.id === matchId);
+  if (!match) return null;
+  return {
+    id: match.id,
+    matchNumber: match.matchNumber,
+    round: match.round,
+    roundLabel: KNOCKOUT_ROUND_LABELS[match.round] ?? match.round,
+    team_a: knockoutSlotLabel(match.slotA),
+    team_b: knockoutSlotLabel(match.slotB),
+    flag_code_a: "",
+    flag_code_b: "",
+  };
+}
+
 function emptyStats(team, group) {
   return { team, group, played: 0, won: 0, draw: 0, lost: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0 };
 }

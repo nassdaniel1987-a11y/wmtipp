@@ -4,6 +4,7 @@ import {
   GROUP_KEYS,
   FIFA_THIRD_PLACE_ASSIGNMENTS,
   knockoutMatches,
+  knockoutPlaceholderPairing,
   computeGroupStandings,
   rankThirdPlaced,
   resolveKnockout,
@@ -163,6 +164,19 @@ test("knockoutMatches ist strukturell vollständig (32 Spiele, jede Gruppenplatz
   assert.equal(byNumber.get(74).slotA.group, "E");
   assert.equal(byNumber.get(104).round, "final");
   assert.equal(byNumber.get(103).round, "third");
+});
+
+test("knockoutPlaceholderPairing setzt ein KO-Spiel auf Platzhalter ohne Flaggen zurück", () => {
+  assert.deepEqual(knockoutPlaceholderPairing("ko-r32-02"), {
+    id: "ko-r32-02",
+    matchNumber: 74,
+    round: "r32",
+    roundLabel: "Runde der letzten 32",
+    team_a: "Sieger Gruppe E",
+    team_b: "Dritter aus A/B/C/D/F",
+    flag_code_a: "",
+    flag_code_b: "",
+  });
 });
 
 test("assignThirdSlots ordnet acht Dritte regelkonform den offiziellen Slots zu", () => {
