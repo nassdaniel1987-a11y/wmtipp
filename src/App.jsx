@@ -1157,7 +1157,7 @@ export default function App() {
   }
 
   async function handleResolveKnockout(request = {}) {
-    const body = request.manualPairings || request.mode || request.scope || request.updateIds
+    const body = request.manualPairings || request.mode || request.scope || request.updateIds || request.action
       ? request
       : { manualPairings: request };
     const payload = await apiPost(

@@ -329,6 +329,28 @@ export function AdminPanel({
     }
   }
 
+  async function resetKnockoutMatch(match) {
+    if (!onResolveKnockout) return;
+    if (!window.confirm(`Spiel ${match.matchNumber} wirklich auf Platzhalter zurücksetzen?`)) return;
+    try {
+      const payload = await onResolveKnockout({
+        action: "reset",
+        mode: "apply",
+        updateIds: [match.id],
+      });
+      setKnockoutPreview(null);
+      setSelectedKnockoutUpdates([]);
+      setKnockoutOverrides((current) => {
+        const next = { ...current };
+        delete next[match.id];
+        return next;
+      });
+      setAdminMessage(`${payload?.updated ?? 0} K.o.-Spiel zurückgesetzt.`);
+    } catch (error) {
+      setAdminMessage(error.message);
+    }
+  }
+
   function toggleKnockoutUpdate(matchId) {
     setSelectedKnockoutUpdates((current) =>
       current.includes(matchId)
@@ -1529,6 +1551,9 @@ export function AdminPanel({
                         }))
                       }
                     />
+                    <button type="button" className="danger-button compact" onClick={() => resetKnockoutMatch(match)}>
+                      Zurücksetzen
+                    </button>
                   </div>
                 </div>
               );
