@@ -219,6 +219,36 @@ export function knockoutPlaceholderPairing(matchId) {
   };
 }
 
+export function buildKnockoutScheduleUpdates(currentRows = []) {
+  const currentById = new Map(currentRows.map((row) => [row.id, row]));
+
+  return knockoutMatches.map((match) => {
+    const current = currentById.get(match.id) ?? {};
+    return {
+      id: match.id,
+      matchNumber: match.matchNumber,
+      round: match.round,
+      roundLabel: KNOCKOUT_ROUND_LABELS[match.round] ?? match.round,
+      kickoff_at: match.kickoffAt,
+      match_date: match.date,
+      match_time: match.time,
+      venue: match.venue,
+      city: match.city,
+      current_kickoff_at: current.kickoff_at ?? null,
+      current_match_date: current.match_date ?? null,
+      current_match_time: current.match_time ?? null,
+      current_venue: current.venue ?? "",
+      current_city: current.city ?? "",
+      changed:
+        (current.kickoff_at ?? null) !== match.kickoffAt ||
+        (current.match_date ?? null) !== match.date ||
+        (current.match_time ?? null) !== match.time ||
+        (current.venue ?? "") !== match.venue ||
+        (current.city ?? "") !== match.city,
+    };
+  });
+}
+
 function emptyStats(team, group) {
   return { team, group, played: 0, won: 0, draw: 0, lost: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0 };
 }

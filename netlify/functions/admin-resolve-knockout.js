@@ -1,7 +1,12 @@
 import { requireAdmin } from "./_shared/admin.js";
 import { json } from "./_shared/supabase.js";
 import { fetchAllPages } from "./_shared/pagination.js";
-import { buildKnockout, knockoutMatches, knockoutPlaceholderPairing } from "../../src/koBracket.js";
+import {
+  buildKnockout,
+  buildKnockoutScheduleUpdates,
+  knockoutMatches,
+  knockoutPlaceholderPairing,
+} from "../../src/koBracket.js";
 
 const KO_IDS = new Set(knockoutMatches.map((match) => match.id));
 
@@ -16,7 +21,11 @@ export default async (req) => {
     const { supabase } = await requireAdmin(req);
     const body = await req.json().catch(() => ({}));
 
-    const action = body?.action === "reset" ? "reset" : "resolve";
+    const action = body?.action === "reset"
+      ? "reset"
+      : body?.action === "schedule"
+        ? "schedule"
+        : "resolve";
     const mode = body?.mode === "preview" ? "preview" : "apply";
     const scope = body?.scope === "partial" ? "partial" : "full";
     const selectedUpdateIds = new Set(Array.isArray(body?.updateIds) ? body.updateIds : []);
@@ -35,7 +44,7 @@ export default async (req) => {
     const matches = await fetchAllPages(() =>
       supabase
         .from("matches")
-        .select("id, match_number, phase, group_key, team_a, team_b, flag_code_a, flag_code_b")
+        .select("id, match_number, phase, group_key, kickoff_at, match_date, match_time, team_a, team_b, flag_code_a, flag_code_b, venue, city")
         .order("match_number", { ascending: true }));
 
     const results = await fetchAllPages(() =>
@@ -66,6 +75,36 @@ export default async (req) => {
     const koRowsById = new Map(
       matches.filter((row) => KO_IDS.has(row.id)).map((row) => [row.id, row]),
     );
+
+    if (action === "schedule") {
+      const scheduleUpdates = buildKnockoutScheduleUpdates(matches.filter((row) => KO_IDS.has(row.id)));
+      const updatesToWrite = mode === "preview" ? [] : scheduleUpdates.filter((update) => update.changed);
+      for (const update of updatesToWrite) {
+        const { error } = await supabase
+          .from("matches")
+          .update({
+            kickoff_at: update.kickoff_at,
+            match_date: update.match_date,
+            match_time: update.match_time,
+            venue: update.venue,
+            city: update.city,
+          })
+          .eq("id", update.id);
+        if (error) throw error;
+      }
+
+      return json({
+        action,
+        mode,
+        scope,
+        updated: updatesToWrite.length,
+        candidates: scheduleUpdates.filter((update) => update.changed).length,
+        resolved: 0,
+        manualReviewRequired: false,
+        updates: scheduleUpdates,
+        bracket: [],
+      });
+    }
 
     if (action === "reset") {
       const resetUpdates = [...selectedUpdateIds]

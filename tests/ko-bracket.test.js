@@ -4,6 +4,7 @@ import {
   GROUP_KEYS,
   FIFA_THIRD_PLACE_ASSIGNMENTS,
   knockoutMatches,
+  buildKnockoutScheduleUpdates,
   knockoutPlaceholderPairing,
   computeGroupStandings,
   rankThirdPlaced,
@@ -193,6 +194,33 @@ test("knockoutMatches enthält die offiziellen KO-Termine als Deutschland-Anzeig
   assert.equal(byNumber.get(100).time, "03:00");
   assert.equal(byNumber.get(104).date, "2026-07-19");
   assert.equal(byNumber.get(104).time, "21:00");
+});
+
+test("buildKnockoutScheduleUpdates erkennt alte pauschale KO-Termine", () => {
+  const updates = buildKnockoutScheduleUpdates([
+    {
+      id: "ko-r32-02",
+      kickoff_at: "2026-06-28T19:00:00.000Z",
+      match_date: "2026-06-28",
+      match_time: "21:00",
+      venue: "",
+      city: "",
+    },
+    {
+      id: "ko-final-01",
+      kickoff_at: "2026-07-19T19:00:00.000Z",
+      match_date: "2026-07-19",
+      match_time: "21:00",
+      venue: "New-York-New-Jersey-Stadion",
+      city: "New York / New Jersey",
+    },
+  ]);
+  const byId = new Map(updates.map((update) => [update.id, update]));
+
+  assert.equal(byId.get("ko-r32-02").changed, true);
+  assert.equal(byId.get("ko-r32-02").match_date, "2026-06-29");
+  assert.equal(byId.get("ko-r32-02").match_time, "22:30");
+  assert.equal(byId.get("ko-final-01").changed, false);
 });
 
 test("knockoutPlaceholderPairing setzt ein KO-Spiel auf Platzhalter ohne Flaggen zurück", () => {

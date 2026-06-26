@@ -351,6 +351,18 @@ export function AdminPanel({
     }
   }
 
+  async function updateKnockoutSchedule() {
+    if (!onResolveKnockout) return;
+    try {
+      const payload = await onResolveKnockout({ action: "schedule", mode: "apply" });
+      setKnockoutPreview(null);
+      setSelectedKnockoutUpdates([]);
+      setAdminMessage(`K.o.-Termine aktualisiert: ${payload?.updated ?? 0} Spiele geändert.`);
+    } catch (error) {
+      setAdminMessage(error.message);
+    }
+  }
+
   function toggleKnockoutUpdate(matchId) {
     setSelectedKnockoutUpdates((current) =>
       current.includes(matchId)
@@ -1469,6 +1481,9 @@ export function AdminPanel({
             <div className="inline-actions">
               <button type="button" className="ghost-button compact" onClick={previewKnownKnockoutSlots}>
                 Sichere Teams vorschlagen
+              </button>
+              <button type="button" className="ghost-button compact" onClick={updateKnockoutSchedule}>
+                KO-Termine korrigieren
               </button>
               <button type="button" className="primary-button compact" onClick={resolveKnockout}>
                 Paarungen komplett auflösen
