@@ -7,6 +7,10 @@ import {
   knockoutMatches,
   knockoutPlaceholderPairing,
 } from "../../src/koBracket.js";
+import {
+  buildTeamFlagLookup,
+  resolveTeamFlagCode,
+} from "../../src/lib/koManualPairing.js";
 
 const KO_IDS = new Set(knockoutMatches.map((match) => match.id));
 
@@ -58,13 +62,7 @@ export default async (req) => {
       .filter((row) => row.phase === "group")
       .map((row) => ({ id: row.id, groupKey: row.group_key, teamA: row.team_a, teamB: row.team_b }));
 
-    // Flaggen je Team aus den Gruppenspielen, damit aufgeloeste K.o.-Teams ihre
-    // Flagge mitbekommen.
-    const flagByTeam = new Map();
-    for (const row of matches) {
-      if (row.team_a && row.flag_code_a && !flagByTeam.has(row.team_a)) flagByTeam.set(row.team_a, row.flag_code_a);
-      if (row.team_b && row.flag_code_b && !flagByTeam.has(row.team_b)) flagByTeam.set(row.team_b, row.flag_code_b);
-    }
+    const flagByTeam = buildTeamFlagLookup(matches);
 
     const { bracket } = buildKnockout(groupMatches, resultsByMatchId, {
       manualPairings,
@@ -169,8 +167,8 @@ export default async (req) => {
         roundLabel: entry.roundLabel,
         team_a: teamA,
         team_b: teamB,
-        flag_code_a: entry.teamA ? (flagByTeam.get(entry.teamA) ?? "") : "",
-        flag_code_b: entry.teamB ? (flagByTeam.get(entry.teamB) ?? "") : "",
+        flag_code_a: entry.teamA ? resolveTeamFlagCode(flagByTeam, entry.teamA) : "",
+        flag_code_b: entry.teamB ? resolveTeamFlagCode(flagByTeam, entry.teamB) : "",
         current_team_a: current.team_a,
         current_team_b: current.team_b,
         resolved: entry.resolved,
