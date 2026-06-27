@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  buildTeamFlagLookup,
   buildManualKnockoutSaveRequest,
   normalizeKnockoutOverride,
+  resolveTeamFlagCode,
 } from "../src/lib/koManualPairing.js";
 
 test("normalizeKnockoutOverride trimmt leere manuelle KO-Eingaben heraus", () => {
@@ -30,4 +32,18 @@ test("buildManualKnockoutSaveRequest speichert genau ein manuell gesetztes KO-Sp
 
 test("buildManualKnockoutSaveRequest gibt null zurück, wenn keine Mannschaft gesetzt ist", () => {
   assert.equal(buildManualKnockoutSaveRequest("ko-r32-01", { teamA: " ", teamB: "" }), null);
+});
+
+test("resolveTeamFlagCode findet Flaggen auch über deutsche Admin-Teamnamen", () => {
+  const flagLookup = buildTeamFlagLookup([
+    {
+      team_a: "Germany",
+      flag_code_a: "de",
+      team_b: "Brazil",
+      flag_code_b: "br",
+    },
+  ]);
+
+  assert.equal(resolveTeamFlagCode(flagLookup, "Deutschland"), "de");
+  assert.equal(resolveTeamFlagCode(flagLookup, " brasilien "), "br");
 });
