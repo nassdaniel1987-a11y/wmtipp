@@ -73,7 +73,29 @@ test("WM ranking can be built from either live or sandbox results with identical
   const bonusResult = { champion: "Deutschland", top_scorer: null, top_scorer_player_ids: [], group_winners: { A: "Deutschland" } };
 
   assert.deepEqual(buildWmRanking(participants, tips, results, bonusTips, bonusResult), [
-    { name: "Ada", points: 14, matchPoints: 4, bonusPoints: 10, tipCount: 2, scoredTipCount: 1, averagePoints: 4 },
-    { name: "Ben", points: 0, matchPoints: 0, bonusPoints: 0, tipCount: 1, scoredTipCount: 1, averagePoints: 0 },
+    { name: "Ada", points: 14, matchPoints: 4, bonusPoints: 10, tipCount: 2, scoredTipCount: 1, averagePoints: 4, rank: 1 },
+    { name: "Ben", points: 0, matchPoints: 0, bonusPoints: 0, tipCount: 1, scoredTipCount: 1, averagePoints: 0, rank: 2 },
+  ]);
+});
+
+test("WM ranking gives tied participants the same rank", () => {
+  const participants = [
+    { id: "p1", display_name: "Ada" },
+    { id: "p2", display_name: "Ben" },
+    { id: "p3", display_name: "Cem" },
+  ];
+  const tips = [
+    { participant_id: "p1", match_id: "m1", score_a: 2, score_b: 1 },
+    { participant_id: "p2", match_id: "m1", score_a: 2, score_b: 1 },
+    { participant_id: "p3", match_id: "m1", score_a: 0, score_b: 0 },
+  ];
+  const results = [{ match_id: "m1", score_a: 2, score_b: 1, status: "final" }];
+
+  const ranking = buildWmRanking(participants, tips, results, [], null);
+
+  assert.deepEqual(ranking.map((row) => [row.name, row.points, row.rank]), [
+    ["Ada", 4, 1],
+    ["Ben", 4, 1],
+    ["Cem", 0, 3],
   ]);
 });

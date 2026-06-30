@@ -6201,7 +6201,8 @@ tbody tr:nth-child(1) td:first-child {
     background: #ffffff;
   }
 
-  .print-sheet.tip-sheets {
+  .print-sheet.tip-sheets,
+  .print-sheet.ko-tip-sheets {
     grid-auto-rows: auto;
     gap: 10mm;
   }
@@ -6706,6 +6707,107 @@ tbody tr:nth-child(1) td:first-child {
   .print-match-row em {
     font-style: normal;
     font-weight: 900;
+    text-align: center;
+  }
+
+  .print-ko-tip-sheet {
+    gap: 3.6mm;
+  }
+
+  .print-ko-note {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 3mm;
+    align-items: center;
+    padding: 2.6mm 3mm;
+    border: 1px solid rgba(35, 148, 56, 0.32);
+    border-radius: 2mm;
+    background: rgba(181, 223, 69, 0.11);
+    font-size: 8.8pt;
+  }
+
+  .print-ko-note strong {
+    font-size: 10pt;
+  }
+
+  .print-ko-note span {
+    color: rgba(7, 27, 69, 0.72);
+    font-weight: 800;
+  }
+
+  .print-ko-match-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-content: start;
+    gap: 2.4mm 4mm;
+  }
+
+  .print-ko-match-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 20mm minmax(0, 1fr);
+    gap: 1.6mm 2mm;
+    align-items: end;
+    min-height: 16mm;
+    padding: 2mm;
+    border: 1px solid rgba(7, 27, 69, 0.15);
+    border-radius: 1.5mm;
+    background: rgba(255, 255, 255, 0.9);
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .print-ko-match-meta {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 2mm;
+    align-items: baseline;
+    color: rgba(7, 27, 69, 0.68);
+    font-size: 7.4pt;
+    font-weight: 850;
+  }
+
+  .print-ko-match-meta b {
+    color: #071b45;
+  }
+
+  .print-ko-match-meta span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .print-ko-match-row label {
+    display: grid;
+    gap: 1mm;
+    color: rgba(7, 27, 69, 0.68);
+    font-size: 7.4pt;
+    font-weight: 850;
+  }
+
+  .print-ko-match-row label span {
+    min-height: 5mm;
+    border-bottom: 1px solid rgba(7, 27, 69, 0.58);
+  }
+
+  .print-ko-score {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 1.2mm;
+    align-items: center;
+  }
+
+  .print-ko-score i {
+    display: block;
+    min-height: 6mm;
+    border: 1px solid rgba(7, 27, 69, 0.48);
+    border-radius: 1mm;
+    background: #ffffff;
+  }
+
+  .print-ko-score em {
+    color: #071b45;
+    font-style: normal;
+    font-weight: 950;
     text-align: center;
   }
 

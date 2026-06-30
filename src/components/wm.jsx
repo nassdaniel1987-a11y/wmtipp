@@ -66,6 +66,7 @@ export function PlayerSelect({ players, value, fallbackText, disabled, multiple 
 
 export function RankingPanel({ ranking: rows, expanded = false, setActiveTab }) {
   const [rankingMode, setRankingMode] = useState("total");
+  const scoreKey = expanded && rankingMode === "average" ? "averagePoints" : "points";
   const sortedRows = useMemo(() => {
     const nextRows = rows.filter(
       (row) => row.isCurrent || (row.tipCount ?? 0) > 0 || (row.points ?? 0) > 0,
@@ -81,13 +82,25 @@ export function RankingPanel({ ranking: rows, expanded = false, setActiveTab }) 
     }
     return nextRows.sort((first, second) => second.points - first.points || first.name.localeCompare(second.name, "de"));
   }, [rows, expanded, rankingMode]);
-  const visibleRows = expanded ? sortedRows : sortedRows.slice(0, 10);
+  const rankedRows = useMemo(() => {
+    let previousScore = null;
+    let previousRank = 0;
+    return sortedRows.map((row, index) => {
+      const score = row[scoreKey] ?? 0;
+      const displayRank = index > 0 && score === previousScore ? previousRank : index + 1;
+      previousScore = score;
+      previousRank = displayRank;
+      return { ...row, displayRank };
+    });
+  }, [sortedRows, scoreKey]);
+  const visibleRows = expanded ? rankedRows : rankedRows.slice(0, 10);
   const getRowLabel = (row, index) => {
-    if (!expanded) return `${index + 1} ${row.name} ${row.points}`;
+    const rank = row.displayRank ?? row.rank ?? index + 1;
+    if (!expanded) return `${rank} ${row.name} ${row.points}`;
     if (rankingMode === "average") {
-      return `${index + 1} ${row.name} ${row.tipCount ?? 0} ${row.scoredTipCount ?? 0} ${(row.averagePoints ?? 0).toFixed(2)} ${row.matchPoints ?? row.points}`;
+      return `${rank} ${row.name} ${row.tipCount ?? 0} ${row.scoredTipCount ?? 0} ${(row.averagePoints ?? 0).toFixed(2)} ${row.matchPoints ?? row.points}`;
     }
-    return `${index + 1} ${row.name} ${row.tipCount ?? 0} ${row.matchPoints ?? row.points} ${row.bonusPoints ?? 0} ${row.points}`;
+    return `${rank} ${row.name} ${row.tipCount ?? 0} ${row.matchPoints ?? row.points} ${row.bonusPoints ?? 0} ${row.points}`;
   };
 
   return (
@@ -137,7 +150,7 @@ export function RankingPanel({ ranking: rows, expanded = false, setActiveTab }) 
           )}
           {visibleRows.map((row, index) => (
             <tr key={`${row.name}-${index}`} className={row.isCurrent ? "current" : ""} aria-label={getRowLabel(row, index)}>
-              <td data-label="Platz">{index + 1}</td>
+              <td data-label="Platz">{row.displayRank ?? row.rank ?? index + 1}</td>
               <td data-label="Name">{row.name}</td>
               {expanded && rankingMode === "total" && <td data-label="Tipps">{row.tipCount ?? 0}</td>}
               {expanded && rankingMode === "total" && <td data-label="Spielpunkte">{row.matchPoints ?? row.points}</td>}

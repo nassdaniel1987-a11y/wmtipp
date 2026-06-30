@@ -494,6 +494,29 @@ export function AdminPanel({
       return;
     }
 
+    const qrCodes = await buildTipSheetQrCodes();
+    flushSync(() => setPrintTipQrCodes(qrCodes));
+    flushSync(() => setPrintMode("tip-sheets"));
+    window.print();
+  }
+
+  async function printSelectedKoTipSheets() {
+    if (printableTipSheetParticipants.length === 0) {
+      setAdminMessage("Bitte erst Teilnehmer für K.o.-Tippbögen auswählen.");
+      return;
+    }
+    if (koAdminMatches.length === 0) {
+      setAdminMessage("Noch keine K.o.-Spiele im Spielplan vorhanden.");
+      return;
+    }
+
+    const qrCodes = await buildTipSheetQrCodes();
+    flushSync(() => setPrintTipQrCodes(qrCodes));
+    flushSync(() => setPrintMode("ko-tip-sheets"));
+    window.print();
+  }
+
+  async function buildTipSheetQrCodes() {
     const qrEntries = await Promise.all(
       printableTipSheetParticipants.map(async (participant) => {
         const code = adminData.codes.find((item) => item.participant?.id === participant.id);
@@ -501,10 +524,7 @@ export function AdminPanel({
         return [participant.id, await createQrCodeDataUrl(getInviteUrl(code.code))];
       }),
     );
-
-    flushSync(() => setPrintTipQrCodes(Object.fromEntries(qrEntries)));
-    flushSync(() => setPrintMode("tip-sheets"));
-    window.print();
+    return Object.fromEntries(qrEntries);
   }
 
   function openParticipant(participant) {
@@ -1232,7 +1252,7 @@ export function AdminPanel({
               <tbody>
                 {sortedAdminRanking.map((row, index) => (
                   <tr key={row.id ?? row.name}>
-                    <td>{index + 1}</td>
+                    <td>{row.rank ?? index + 1}</td>
                     <td>{row.name}</td>
                     <td>{row.tipCount ?? 0}</td>
                     <td>{row.matchPoints ?? row.points ?? 0}</td>
@@ -1326,6 +1346,55 @@ export function AdminPanel({
             </article>
           ));
         })}
+        {printMode === "ko-tip-sheets" && printableTipSheetParticipants.flatMap((participant) => {
+          const code = adminData.codes.find((item) => item.participant?.id === participant.id);
+          return chunkArray(koAdminMatches, 24).map((pageMatches, pageIndex, pages) => (
+            <article className="print-tip-sheet print-ko-tip-sheet" key={`${participant.id}-ko-${pageIndex}`}>
+              <header>
+                <img src="/oesterfeld-logo-round.jpg" alt="" />
+                <div>
+                  <span>WM-Tippspiel · K.o.-Tippbogen</span>
+                  <strong>{participant.display_name}</strong>
+                  <small>Code: {code?.code || "ohne Code"} · Seite {pageIndex + 1} / {pages.length}</small>
+                </div>
+                {code?.code && printTipQrCodes[participant.id] && (
+                  <div className="print-tip-qr">
+                    <span className="qr-image">
+                      <img
+                        src={printTipQrCodes[participant.id]}
+                        alt={`QR-Code für ${code.code}`}
+                      />
+                    </span>
+                  </div>
+                )}
+              </header>
+
+              <section className="print-ko-note">
+                <strong>K.o.-Spiele</strong>
+                <span>Mannschaften handschriftlich eintragen. Tipp gilt für das Ergebnis nach 90 Minuten.</span>
+              </section>
+
+              <section className="print-ko-match-grid">
+                {pageMatches.map((match) => (
+                  <div className="print-ko-match-row" key={match.id}>
+                    <div className="print-ko-match-meta">
+                      <b>Spiel {match.matchNumber}</b>
+                      <span>{KO_PHASE_LABELS[match.phase] ?? "K.o.-Phase"}</span>
+                      <small>{formatNumericDate(match.date)} · {match.time}</small>
+                    </div>
+                    <label>Mannschaft A <span /></label>
+                    <div className="print-ko-score"><i /> <em>:</em> <i /></div>
+                    <label>Mannschaft B <span /></label>
+                  </div>
+                ))}
+              </section>
+
+              <footer>
+                Bitte Mannschaften und Ergebnisse gut lesbar eintragen. Die Tipps werden später im Adminbereich übertragen.
+              </footer>
+            </article>
+          ));
+        })}
       </section>
 
       {wmAdminView === "participants" && (
@@ -1395,6 +1464,9 @@ export function AdminPanel({
         </button>
         <button type="button" className="primary-button compact" onClick={printSelectedTipSheets}>
           Ausgewählte Tippbögen drucken
+        </button>
+        <button type="button" className="primary-button compact" onClick={printSelectedKoTipSheets}>
+          K.o.-Tippbögen drucken
         </button>
       </div>
       <div className="participant-search">

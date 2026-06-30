@@ -61,6 +61,19 @@ export function bonusPointsFor(bonusTip, bonusResult) {
   return points;
 }
 
+export function withCompetitionRanks(rows, scoreKey = "points") {
+  let previousScore = null;
+  let previousRank = 0;
+
+  return rows.map((row, index) => {
+    const score = row?.[scoreKey] ?? 0;
+    const rank = index > 0 && score === previousScore ? previousRank : index + 1;
+    previousScore = score;
+    previousRank = rank;
+    return { ...row, rank };
+  });
+}
+
 export function buildWmRanking(participants = [], tips = [], results = [], bonusTips = [], bonusResult = null) {
   const resultsByMatch = new Map((results ?? []).map((result) => [result.match_id, result]));
   const bonusTipByParticipant = new Map((bonusTips ?? []).map((tip) => [tip.participant_id, tip]));
@@ -99,5 +112,6 @@ export function buildWmRanking(participants = [], tips = [], results = [], bonus
     row.averagePoints = row.scoredTipCount > 0 ? row.matchPoints / row.scoredTipCount : 0;
   });
 
-  return Array.from(totals.values()).sort((a, b) => b.points - a.points || a.name.localeCompare(b.name));
+  const sortedRows = Array.from(totals.values()).sort((a, b) => b.points - a.points || a.name.localeCompare(b.name));
+  return withCompetitionRanks(sortedRows);
 }
