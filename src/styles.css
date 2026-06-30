@@ -6554,7 +6554,9 @@ tbody tr:nth-child(1) td:first-child {
     display: grid;
     grid-template-rows: auto auto 1fr auto;
     gap: 4mm;
-    min-height: 277mm;
+    box-sizing: border-box;
+    height: 277mm;
+    min-height: 0;
     padding: 6mm;
     border: 1px solid rgba(7, 27, 69, 0.24);
     border-radius: 2mm;
@@ -6754,6 +6756,11 @@ tbody tr:nth-child(1) td:first-child {
     background: rgba(255, 255, 255, 0.9);
     break-inside: avoid;
     page-break-inside: avoid;
+  }
+
+  .print-tip-sheet:last-child {
+    break-after: auto;
+    page-break-after: auto;
   }
 
   .print-ko-match-meta {
