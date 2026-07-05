@@ -1171,6 +1171,54 @@ export function BundesligaParticipantApp({ isTestMode }) {
     );
   }
 
+  function renderMatchdayCommandCenter() {
+    const focusMatch = nextOpenMatch ?? dashboardMatches[0] ?? null;
+    return (
+      <section className="bundesliga-matchday-command" aria-label="Bundesliga Matchday Zentrale">
+        <div className="bundesliga-matchday-command-main">
+          <span>{preseasonPending ? "Saisonvorbereitung" : liveMatchCount > 0 ? `${liveMatchCount} live` : "Nächster Fokus"}</span>
+          <h2>{nextActionTitle}</h2>
+          <p>{nextActionDetail}</p>
+          <div className="bundesliga-progress-meter" aria-label={`${tipCompletionPercent} Prozent der Tipps gespeichert`}>
+            <span style={{ width: `${tipCompletionPercent}%` }} />
+          </div>
+          <small>{savedTipCount} von {matches.length} Tipps gespeichert</small>
+        </div>
+        {focusMatch && !preseasonPending && (
+          <div className="bundesliga-command-fixture">
+            <time>{formatDateTime(focusMatch.kickoffAt)}</time>
+            <div>
+              {teamBadge(focusMatch.teamAId, focusMatch.teamA)}
+              <b>{resultsByMatch.get(focusMatch.id) ? `${resultsByMatch.get(focusMatch.id).score_a}:${resultsByMatch.get(focusMatch.id).score_b}` : "vs"}</b>
+              {teamBadge(focusMatch.teamBId, focusMatch.teamB, { align: "right" })}
+            </div>
+          </div>
+        )}
+        <div className="bundesliga-command-rail">
+          <article>
+            <span>Platz</span>
+            <strong>{currentRankPosition ? `#${currentRankPosition}` : "-"}</strong>
+            <small>{pointsToNextRank > 0 ? `${pointsToNextRank} P bis nach oben` : currentRankPosition === 1 ? "Tabellenführer" : "nach erster Wertung"}</small>
+          </article>
+          <article>
+            <span>Bonus</span>
+            <strong>{bonusAvailable ? `${bonusStatus.doneCount}/${bonusStatus.totalCount}` : "-"}</strong>
+            <small>{bonusStatus.complete ? "vollständig" : "noch offen"}</small>
+          </article>
+          <article>
+            <span>Community</span>
+            <strong>{latestMatchdayWinner ? `ST ${latestMatchdayWinner.matchday}` : liveMatchCount > 0 ? "Live" : "-"}</strong>
+            <small>{latestMatchdayWinner ? `${latestMatchdayWinner.bestPoints} P bester Spieltag` : `${visibleLiveTipCount} sichtbare Live-Tipps`}</small>
+          </article>
+        </div>
+        <div className="bundesliga-command-actions">
+          <button type="button" onClick={nextAction}>{nextActionLabel}</button>
+          <button type="button" className="secondary" onClick={() => setBundesligaTab("bundesliga-live")}>Live öffnen</button>
+        </div>
+      </section>
+    );
+  }
+
   function renderBonusReminder() {
     const bonusDeadlineText = rulesSummary?.bonusDeadlineAt
       ? `Bonusfrist: ${formatDateTime(rulesSummary.bonusDeadlineAt)}`
@@ -1538,7 +1586,12 @@ export function BundesligaParticipantApp({ isTestMode }) {
                 {displayTableRows.map((row, index) => {
                   const diff = (row.goalsFor ?? 0) - (row.goalsAgainst ?? 0);
                   return (
-                    <tr key={row.teamId}>
+                    <tr key={row.teamId} className={[
+                      index < 4 ? "zone-champions" : "",
+                      index >= 4 && index < 6 ? "zone-europa" : "",
+                      index === 15 ? "zone-relegation" : "",
+                      index >= 16 ? "zone-down" : "",
+                    ].filter(Boolean).join(" ")}>
                       <td>{index + 1}</td>
                       <td>
                         <span className="bundesliga-table-team">
@@ -1790,6 +1843,11 @@ export function BundesligaParticipantApp({ isTestMode }) {
               </button>
             </div>
           </div>
+          <div className="bundesliga-live-scoreboard" aria-label="Live Kennzahlen">
+            <article><span>Live-Spiele</span><strong>{liveMatchCount}</strong></article>
+            <article><span>Sichtbare Tipps</span><strong>{visibleLiveTipCount}</strong></article>
+            <article><span>Gewertet</span><strong>{liveMatches.filter((match) => match.status === "finished").length}</strong></article>
+          </div>
           {renderLivePanel({ headingLink: false, heading: "Rangliste und Spiele" })}
         </section>
         <aside className="bundesliga-side-stack">
@@ -1846,8 +1904,66 @@ export function BundesligaParticipantApp({ isTestMode }) {
   const displayedTopRankingRows = selectedRankingReady ? displayedRanking.slice(0, 3) : [];
   const openTipCount = Math.max(0, matches.length - savedTipCount);
   const nextOpenMatchday = matchdayStatusRows.find((row) => row.openTipCount > 0)?.matchday ?? selectedMatchday;
+  const nextOpenMatch = matches.find((match) => Number(match.matchday) === Number(nextOpenMatchday) && !tips[match.id]?.saved) ?? null;
+  const tipCompletionPercent = matches.length ? Math.round((savedTipCount / matches.length) * 100) : 0;
+  const currentRankPosition = displayedCurrentRank
+    ? displayedRanking.findIndex((row) => row.id === displayedCurrentRank.id || row.name === displayedCurrentRank.name) + 1
+    : 0;
+  const pointsToNextRank = currentRankPosition > 1
+    ? Math.max(0, (displayedRanking[currentRankPosition - 2]?.points ?? 0) - (displayedCurrentRank?.points ?? 0) + 1)
+    : 0;
+  const latestMatchdayWinner = [...matchdayWinners].reverse().find((row) => row.winners?.length) ?? null;
+  const liveMatches = liveData?.matches ?? [];
+  const liveMatchCount = liveMatches.filter((match) => match.status === "live").length;
+  const visibleLiveTipCount = liveMatches.reduce(
+    (sum, match) => sum + (match.tips ?? []).filter((tip) => tip.visible).length,
+    0,
+  );
   const preseasonPending = Boolean(data) && !archivePreview && matches.length === 0;
   const bonusAvailable = bonusTeams.length > 0;
+  const nextActionTitle = preseasonPending
+    ? "Spielplan abwarten"
+    : openTipCount > 0
+      ? `Spieltag ${nextOpenMatchday} tippen`
+      : !bonusStatus.complete
+        ? "Bonus fertig machen"
+        : liveMatchCount > 0
+          ? "Live-Spieltag verfolgen"
+          : "Rangliste checken";
+  const nextActionDetail = preseasonPending
+    ? "Sobald die offiziellen Spiele importiert sind, erscheinen Tippkarten, Tabelle und Live-Bereich."
+    : openTipCount > 0
+      ? `${openTipCount} Tipps sind noch offen. Der nächste offene Spieltag ist direkt erreichbar.`
+      : !bonusStatus.complete
+        ? `${bonusStatus.doneCount}/${bonusStatus.totalCount} Bonus-Tipps sind gespeichert.`
+        : liveMatchCount > 0
+          ? `${liveMatchCount} Spiele laufen gerade, ${visibleLiveTipCount} Tipps sind sichtbar.`
+          : "Alles gespeichert. Jetzt geht es um Punkte, Spieltagssiege und den Abstand nach oben.";
+  const nextActionLabel = preseasonPending
+    ? "Spielplan ansehen"
+    : openTipCount > 0
+      ? "Tipps öffnen"
+      : !bonusStatus.complete
+        ? "Bonus öffnen"
+        : liveMatchCount > 0
+          ? "Live öffnen"
+          : "Rangliste öffnen";
+  const nextAction = () => {
+    if (preseasonPending) {
+      setBundesligaTab("bundesliga-spielplan");
+      return;
+    }
+    if (openTipCount > 0) {
+      setSelectedMatchday(nextOpenMatchday);
+      setBundesligaTab("bundesliga-tippen");
+      return;
+    }
+    if (!bonusStatus.complete && bonusAvailable) {
+      setBundesligaTab("bundesliga-bonus");
+      return;
+    }
+    setBundesligaTab(liveMatchCount > 0 ? "bundesliga-live" : "bundesliga-rangliste");
+  };
   const displayedTab = participant ? activeTab : "bundesliga-start";
   const headerSeasonLabel = isTestMode
     ? "Testmodus"
@@ -1980,6 +2096,7 @@ export function BundesligaParticipantApp({ isTestMode }) {
                 </div>
                 {!archivePreview && <button type="button" onClick={resetBundesligaLogin}>Abmelden</button>}
               </div>
+              {renderMatchdayCommandCenter()}
               <div className="bundesliga-dashboard-metrics">
                 <article>
                   <span>Offene Tipps</span>
@@ -2115,7 +2232,7 @@ export function BundesligaParticipantApp({ isTestMode }) {
                     ? getBundesligaTipCountdown(match, tipCountdownNow)
                     : null;
                   return (
-                    <article key={match.id} id={`bundesliga-match-${match.id}`} className={`bundesliga-user-match-card status-${matchState}${tip.saved ? " is-saved" : ""}`}>
+                    <article key={match.id} id={`bundesliga-match-${match.id}`} className={`bundesliga-user-match-card status-${matchState} status-${statusClass}${tip.saved ? " is-saved" : ""}`}>
                       <header>
                         <span>{formatDateTime(match.kickoffAt)}</span>
                         <b>{result ? `${result.score_a}:${result.score_b}` : "-:-"}</b>
@@ -2130,7 +2247,8 @@ export function BundesligaParticipantApp({ isTestMode }) {
                       <div className="bundesliga-user-match-body">
                         {teamBadge(match.teamAId, match.teamA)}
                         {showTipControls ? (
-                          <div className="score-row">
+                          <div className="score-row" aria-label="Dein Tipp">
+                            <small>Dein Tipp</small>
                             <ScoreControl value={tip.scoreA} onIncrease={() => changeScore(match.id, "scoreA", 1)} onDecrease={() => changeScore(match.id, "scoreA", -1)} disabled={tipLocked} />
                             <span className="score-separator">:</span>
                             <ScoreControl value={tip.scoreB} onIncrease={() => changeScore(match.id, "scoreB", 1)} onDecrease={() => changeScore(match.id, "scoreB", -1)} disabled={tipLocked} />
@@ -2219,6 +2337,11 @@ export function BundesligaParticipantApp({ isTestMode }) {
                 <button type="button" onClick={() => saveBonus()} disabled={bonusLocked}>{archivePreview ? "Nur lesbar" : bonusLocked ? "Bonusfrist abgelaufen" : "Bonus speichern"}</button>
               </div>
               {renderBonusProgress()}
+              <div className="bundesliga-bonus-stepper" aria-label="Bonus Fortschritt">
+                <span className={bonusTip.championTeamId ? "done" : "active"}>1 Meister</span>
+                <span className={bonusTip.topScorerId || bonusTip.topScorer ? "done" : bonusTip.championTeamId ? "active" : ""}>2 Torschütze</span>
+                <span className={bonusStatus.relegatedDoneCount === 3 ? "done" : bonusTip.topScorerId || bonusTip.topScorer ? "active" : ""}>3 Absteiger</span>
+              </div>
               <section className="bundesliga-choice-section">
                 <h3>Meister</h3>
                 <div className="bundesliga-choice-grid">
@@ -2323,6 +2446,7 @@ export function BundesligaParticipantApp({ isTestMode }) {
                       <span>Dein Platz</span>
                       <strong>{displayedRanking.findIndex((row) => row.id === displayedCurrentRank.id || row.name === displayedCurrentRank.name) + 1}. {displayedCurrentRank.name}</strong>
                       <b>{rankingMode === "average" ? `${(displayedCurrentRank.averagePoints ?? 0).toFixed(2)} P / Tipp` : `${displayedCurrentRank.points} Punkte`}</b>
+                      <small>{pointsToNextRank > 0 ? `${pointsToNextRank} Punkte bis zum nächsten Platz` : currentRankPosition === 1 ? "Du führst die Rangliste an." : "Abstand wird nach der ersten Wertung sichtbar."}</small>
                     </div>
                   )}
                   <div className={`bundesliga-public-ranking mode-${rankingMode}`}>
@@ -2388,6 +2512,30 @@ export function BundesligaParticipantApp({ isTestMode }) {
         {displayedTab === "bundesliga-spielplan" && renderSchedulePage()}
         {getBundesligaMatchDetailId(displayedTab) && renderMatchDetailPage()}
       </main>
+      {participant && (
+        <nav className="bundesliga-bottom-nav" aria-label="Bundesliga Hauptnavigation">
+          <button type="button" className={displayedTab === "bundesliga-start" ? "active" : ""} onClick={() => setBundesligaTab("bundesliga-start")}>
+            <House size={18} />
+            <span>Start</span>
+          </button>
+          <button type="button" className={displayedTab === "bundesliga-tippen" ? "active" : ""} onClick={() => setBundesligaTab("bundesliga-tippen")}>
+            <ListFilter size={18} />
+            <span>Tippen</span>
+          </button>
+          <button type="button" className={displayedTab === "bundesliga-live" ? "active" : ""} onClick={() => setBundesligaTab("bundesliga-live")}>
+            <Goal size={18} />
+            <span>Live</span>
+          </button>
+          <button type="button" className={displayedTab === "bundesliga-rangliste" ? "active" : ""} onClick={() => { setBundesligaTab("bundesliga-rangliste"); void refreshRanking(); }}>
+            <Trophy size={18} />
+            <span>Rang</span>
+          </button>
+          <button type="button" className={moreNavigationActive || mobileMoreOpen ? "active" : ""} onClick={() => setMobileMoreOpen((current) => !current)}>
+            <ChevronDown size={18} />
+            <span>Menü</span>
+          </button>
+        </nav>
+      )}
     </div>
   );
 }
