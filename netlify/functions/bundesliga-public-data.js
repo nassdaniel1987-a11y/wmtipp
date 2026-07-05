@@ -32,7 +32,7 @@ export default async (req) => {
 
     const normalizedTeams = (teams.data ?? []).map((team) => ({
       ...team,
-      logo_url: normalizeTeamLogoUrl(team.logo_url),
+      logo_url: normalizeTeamLogoUrl(team.logo_url, team.name),
     }));
     const visibleMatches = matches.data ?? [];
     const leagueMatches = visibleMatches.filter((match) => match.phase === "league");

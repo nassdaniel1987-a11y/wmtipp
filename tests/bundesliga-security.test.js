@@ -13,6 +13,7 @@ import {
   canViewMatchTips,
   isBundesligaTipLocked,
   isBundesligaCompetitionId,
+  normalizeTeamLogoUrl,
   normalizeOpenLigaMatch,
 } from "../netlify/functions/_shared/bundesliga.js";
 import {
@@ -74,6 +75,24 @@ test("regular relegation matches use the active season live path", () => {
 test("completed live probe is no longer an accepted preview competition", () => {
   assert.equal(BUNDESLIGA_RETIRED_LIVE_PROBE_COMPETITION_ID, "bundesliga-liveprobe-rel-2026");
   assert.equal(isBundesligaCompetitionId(BUNDESLIGA_RETIRED_LIVE_PROBE_COMPETITION_ID), false);
+});
+
+test("Bundesliga team logos fall back by team name when source rows are empty", () => {
+  const missingLogoTeams = [
+    "1. FC Union Berlin",
+    "Bayer 04 Leverkusen",
+    "Borussia Mönchengladbach",
+    "Eintracht Frankfurt",
+    "FC Augsburg",
+    "RB Leipzig",
+    "SC Freiburg",
+    "TSG Hoffenheim",
+    "VfB Stuttgart",
+  ];
+
+  for (const teamName of missingLogoTeams) {
+    assert.match(normalizeTeamLogoUrl(null, teamName), /^https:\/\//, teamName);
+  }
 });
 
 test("goal refresh upgrades unknown scorers and never downgrades known names", () => {

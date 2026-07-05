@@ -20,6 +20,26 @@ export const BUNDESLIGA_RELEGATION_LEAGUE = "rel";
 
 const WIKIMEDIA_SVG_THUMBNAIL_SIZE_PATTERN = /\/(\d+)px-([^/]+\.svg\.png)$/i;
 const MISSING_OPTIONAL_SCHEMA_CODES = new Set(["42P01", "42703", "PGRST200", "PGRST204", "PGRST205"]);
+const BUNDESLIGA_TEAM_LOGO_FALLBACKS = new Map([
+  ["1 fc köln", "https://upload.wikimedia.org/wikipedia/commons/0/01/1._FC_Koeln_Logo_2014%E2%80%93.svg"],
+  ["1 fc union berlin", "https://assets.dfb.de/uploads/000/018/232/small_union-Berlin.jpg"],
+  ["1 fsv mainz 05", "https://upload.wikimedia.org/wikipedia/commons/9/9e/Logo_Mainz_05.svg"],
+  ["bayer 04 leverkusen", "https://www.bundesliga-reisefuehrer.de/sites/default/files/B04_Standard_Logo_RGB.png"],
+  ["borussia dortmund", "https://upload.wikimedia.org/wikipedia/commons/thumb/6/67/Borussia_Dortmund_logo.svg/500px-Borussia_Dortmund_logo.svg.png"],
+  ["borussia mönchengladbach", "https://i.imgur.com/KSIk0Eu.png"],
+  ["eintracht frankfurt", "https://i.imgur.com/X8NFkOb.png"],
+  ["fc augsburg", "https://i.imgur.com/sdE62e2.png"],
+  ["fc bayern münchen", "https://upload.wikimedia.org/wikipedia/commons/1/1f/Logo_FC_Bayern_M%C3%BCnchen_%282002%E2%80%932017%29.svg"],
+  ["fc schalke 04", "https://upload.wikimedia.org/wikipedia/commons/9/97/FC_Schalke_04_Logo.png"],
+  ["hamburger sv", "https://upload.wikimedia.org/wikipedia/commons/f/f7/Hamburger_SV_logo.svg"],
+  ["rb leipzig", "https://i.imgur.com/Rpwsjz1.png"],
+  ["sc freiburg", "https://i.imgur.com/r3mvi0h.png"],
+  ["sc paderborn 07", "https://upload.wikimedia.org/wikipedia/commons/e/e3/SC_Paderborn_07_Logo.svg"],
+  ["sv 07 elversberg", "https://upload.wikimedia.org/wikipedia/commons/thumb/3/35/SV_Elversberg_Logo.svg/500px-SV_Elversberg_Logo.svg.png"],
+  ["sv werder bremen", "https://upload.wikimedia.org/wikipedia/commons/b/be/SV-Werder-Bremen-Logo.svg"],
+  ["tsg hoffenheim", "https://i.imgur.com/gF0PfEl.png"],
+  ["vfb stuttgart", "https://i.imgur.com/v0tkpNx.png"],
+]);
 
 export const defaultBundesligaRuleSettings = {
   competition_id: BUNDESLIGA_COMPETITION_ID,
@@ -61,9 +81,19 @@ export async function loadCompetitionRuleSettings(supabase, competitionId = BUND
   };
 }
 
-export function normalizeTeamLogoUrl(url) {
+function normalizeTeamLogoKey(name) {
+  return String(name || "")
+    .normalize("NFC")
+    .toLocaleLowerCase("de-DE")
+    .replace(/\./g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function normalizeTeamLogoUrl(url, teamName = "") {
   const value = String(url || "").trim();
-  if (!value) return null;
+  const fallback = BUNDESLIGA_TEAM_LOGO_FALLBACKS.get(normalizeTeamLogoKey(teamName)) ?? null;
+  if (!value) return fallback;
 
   return value.replace(WIKIMEDIA_SVG_THUMBNAIL_SIZE_PATTERN, (match, size, fileName) => {
     const numericSize = Number(size);
@@ -434,7 +464,7 @@ export function buildLeagueTable(matches, results, teams = []) {
       teamId: team.id,
       team: team.name,
       shortName: team.short_name,
-      logoUrl: normalizeTeamLogoUrl(team.logo_url),
+      logoUrl: normalizeTeamLogoUrl(team.logo_url, team.name),
       played: 0,
       won: 0,
       drawn: 0,
@@ -709,8 +739,8 @@ export function buildBundesligaMatchDetail(match, result, goals = [], participan
       matchday: match.matchday,
       kickoffAt: match.kickoff_at,
       status: "finished",
-      teamA: { id: match.team_a_id, name: match.team_a_name, logoUrl: normalizeTeamLogoUrl(homeTeam?.logo_url) },
-      teamB: { id: match.team_b_id, name: match.team_b_name, logoUrl: normalizeTeamLogoUrl(awayTeam?.logo_url) },
+      teamA: { id: match.team_a_id, name: match.team_a_name, logoUrl: normalizeTeamLogoUrl(homeTeam?.logo_url, match.team_a_name) },
+      teamB: { id: match.team_b_id, name: match.team_b_name, logoUrl: normalizeTeamLogoUrl(awayTeam?.logo_url, match.team_b_name) },
     },
     result,
     goals: normalizedGoals,
@@ -812,7 +842,7 @@ export function normalizeOpenLigaMatch(match, leagueShortcut, indexOffset = 0, o
       external_id: String(match.team1?.teamId ?? `${externalId}-home`),
       name: match.team1?.teamName ?? "Heimteam",
       short_name: match.team1?.shortName ?? null,
-      logo_url: normalizeTeamLogoUrl(match.team1?.teamIconUrl),
+      logo_url: normalizeTeamLogoUrl(match.team1?.teamIconUrl, match.team1?.teamName),
       updated_at: new Date().toISOString(),
     },
     awayTeam: {
@@ -820,7 +850,7 @@ export function normalizeOpenLigaMatch(match, leagueShortcut, indexOffset = 0, o
       external_id: String(match.team2?.teamId ?? `${externalId}-away`),
       name: match.team2?.teamName ?? "Auswärtsteam",
       short_name: match.team2?.shortName ?? null,
-      logo_url: normalizeTeamLogoUrl(match.team2?.teamIconUrl),
+      logo_url: normalizeTeamLogoUrl(match.team2?.teamIconUrl, match.team2?.teamName),
       updated_at: new Date().toISOString(),
     },
     resultRow: currentScore
