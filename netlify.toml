@@ -12,7 +12,7 @@
     X-Frame-Options = "DENY"
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "geolocation=(), microphone=(), camera=()"
-    Content-Security-Policy = "default-src 'self'; img-src 'self' data: blob: https://flagcdn.com https://upload.wikimedia.org; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+    Content-Security-Policy = "default-src 'self'; img-src 'self' data: blob: https://flagcdn.com https://upload.wikimedia.org https://assets.dfb.de https://www.bundesliga-reisefuehrer.de https://i.imgur.com; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
 
 # index.html nie hart cachen: so holt der Browser nach einem Deploy sofort den
 # neuen Bundle-Verweis, ohne dass Nutzer ihren Cache leeren muessen.
