@@ -1219,6 +1219,122 @@ export function BundesligaParticipantApp({ isTestMode }) {
     );
   }
 
+  function renderDashboardPulse() {
+    return (
+      <section className="bundesliga-dashboard-pulse" aria-label="Saison Schnellstatus">
+        <article>
+          <span>Live</span>
+          <strong>{liveMatchCount > 0 ? `${liveMatchCount} läuft` : "ruhig"}</strong>
+          <small>{visibleLiveTipCount} sichtbare Tipps</small>
+        </article>
+        <article>
+          <span>Tabellenführer</span>
+          <strong>{tableLeader?.team ?? "-"}</strong>
+          <small>{Number.isInteger(tableLeader?.points) ? `${tableLeader.points} Punkte` : "nach Ergebnissen"}</small>
+        </article>
+        <article>
+          <span>Nächster Spieltag</span>
+          <strong>{preseasonPending ? "-" : `ST ${nextOpenMatchday}`}</strong>
+          <small>{openTipCount > 0 ? `${openTipCount} Tipps offen` : "alles gespeichert"}</small>
+        </article>
+        <article>
+          <span>Saisonkarte</span>
+          <strong>{participant?.name ?? "Gast"}</strong>
+          <small>{userCompletionLabel}</small>
+        </article>
+      </section>
+    );
+  }
+
+  function renderTableSummary() {
+    return (
+      <section className="bundesliga-table-summary" aria-label="Tabellenübersicht">
+        <article>
+          <span>Spitze</span>
+          <strong>{tableLeader?.team ?? "-"}</strong>
+          <small>{Number.isInteger(tableLeader?.points) ? `${tableLeader.points} Punkte` : "noch ohne Punkte"}</small>
+        </article>
+        <article>
+          <span>Europa-Zone</span>
+          <strong>{displayTableRows.slice(0, 6).filter(Boolean).length}</strong>
+          <small>Plätze 1 bis 6 markiert</small>
+        </article>
+        <article>
+          <span>Keller</span>
+          <strong>{relegationWatchTeams || "-"}</strong>
+          <small>Relegation und Abstieg im Blick</small>
+        </article>
+      </section>
+    );
+  }
+
+  function renderLiveFeature() {
+    if (!featuredLiveMatch) return null;
+    const trend = liveTrends.find((row) => row.matchId === featuredLiveMatch.id);
+    return (
+      <section className={`bundesliga-live-feature ${featuredLiveMatch.status === "live" ? "is-live" : ""}`}>
+        <div>
+          <span>{featuredLiveMatch.status === "live" ? "Live-Fokus" : "Spiel im Fokus"}</span>
+          <time>{formatDateTime(featuredLiveMatch.kickoffAt)}</time>
+        </div>
+        <div className="bundesliga-live-feature-score">
+          {teamBadge(featuredLiveMatch.teamAId, featuredLiveMatch.teamA)}
+          <b>{featuredLiveMatch.result ? `${featuredLiveMatch.result.score_a}:${featuredLiveMatch.result.score_b}` : "-:-"}</b>
+          {teamBadge(featuredLiveMatch.teamBId, featuredLiveMatch.teamB, { align: "right" })}
+        </div>
+        {trend && (
+          <div className="bundesliga-live-feature-trend">
+            <span>Heim {trend.homePercent}%</span>
+            <span>Remis {trend.drawPercent}%</span>
+            <span>Auswärts {trend.awayPercent}%</span>
+          </div>
+        )}
+      </section>
+    );
+  }
+
+  function renderRankingInsight() {
+    if (!displayedCurrentRank) return null;
+    return (
+      <section className="bundesliga-ranking-insight">
+        <article>
+          <span>Jagd</span>
+          <strong>{nextRankTarget ? nextRankTarget.name : currentRankPosition === 1 ? "Platz halten" : "erste Wertung"}</strong>
+          <small>{pointsToNextRank > 0 ? `${pointsToNextRank} Punkte Rückstand` : currentRankPosition === 1 ? "alle jagen dich" : "nach Ergebnissen sichtbar"}</small>
+        </article>
+        <article>
+          <span>Form</span>
+          <strong>{displayedCurrentRank.matchdayWins ?? 0}</strong>
+          <small>Spieltags-Siege</small>
+        </article>
+        <article>
+          <span>Schnitt</span>
+          <strong>{(displayedCurrentRank.averagePoints ?? 0).toFixed(2)}</strong>
+          <small>Punkte pro gewertetem Tipp</small>
+        </article>
+      </section>
+    );
+  }
+
+  function renderBonusFocusBar() {
+    return (
+      <section className="bundesliga-bonus-focus">
+        <article className={bonusTip.championTeamId ? "done" : ""}>
+          <span>Meister</span>
+          <strong>{bonusTip.championTeamId ? "gewählt" : "offen"}</strong>
+        </article>
+        <article className={bonusTip.topScorerId || bonusTip.topScorer ? "done" : ""}>
+          <span>Torschütze</span>
+          <strong>{bonusTip.topScorerId || bonusTip.topScorer ? "gewählt" : "offen"}</strong>
+        </article>
+        <article className={bonusStatus.relegatedDoneCount === 3 ? "done" : ""}>
+          <span>Absteiger</span>
+          <strong>{bonusStatus.relegatedDoneCount}/3 gewählt</strong>
+        </article>
+      </section>
+    );
+  }
+
   function renderBonusReminder() {
     const bonusDeadlineText = rulesSummary?.bonusDeadlineAt
       ? `Bonusfrist: ${formatDateTime(rulesSummary.bonusDeadlineAt)}`
@@ -1567,6 +1683,7 @@ export function BundesligaParticipantApp({ isTestMode }) {
           {(data?.results ?? []).length === 0 && (
             <p className="bundesliga-detail-empty-note">Noch keine offiziellen Ergebnisse importiert. Die Tabelle startet daher mit Nullwerten.</p>
           )}
+          {renderTableSummary()}
           <div className="bundesliga-full-table-scroll">
             <table className="bundesliga-full-table">
               <thead>
@@ -1843,6 +1960,7 @@ export function BundesligaParticipantApp({ isTestMode }) {
               </button>
             </div>
           </div>
+          {renderLiveFeature()}
           <div className="bundesliga-live-scoreboard" aria-label="Live Kennzahlen">
             <article><span>Live-Spiele</span><strong>{liveMatchCount}</strong></article>
             <article><span>Sichtbare Tipps</span><strong>{visibleLiveTipCount}</strong></article>
@@ -1868,6 +1986,8 @@ export function BundesligaParticipantApp({ isTestMode }) {
         logoUrl: team.logo_url,
         points: 0,
       }));
+  const tableLeader = displayTableRows[0] ?? null;
+  const relegationWatchTeams = displayTableRows.slice(15, 18).map((row) => row.team).filter(Boolean).join(", ");
   const firstMatches = matches.slice(0, 5);
   const upcomingMatches = matches
     .filter((match) => new Date(match.kickoffAt).getTime() >= Date.now())
@@ -1909,18 +2029,27 @@ export function BundesligaParticipantApp({ isTestMode }) {
   const currentRankPosition = displayedCurrentRank
     ? displayedRanking.findIndex((row) => row.id === displayedCurrentRank.id || row.name === displayedCurrentRank.name) + 1
     : 0;
+  const nextRankTarget = currentRankPosition > 1 ? displayedRanking[currentRankPosition - 2] : null;
   const pointsToNextRank = currentRankPosition > 1
-    ? Math.max(0, (displayedRanking[currentRankPosition - 2]?.points ?? 0) - (displayedCurrentRank?.points ?? 0) + 1)
+    ? Math.max(0, (nextRankTarget?.points ?? 0) - (displayedCurrentRank?.points ?? 0) + 1)
     : 0;
   const latestMatchdayWinner = [...matchdayWinners].reverse().find((row) => row.winners?.length) ?? null;
   const liveMatches = liveData?.matches ?? [];
   const liveMatchCount = liveMatches.filter((match) => match.status === "live").length;
+  const featuredLiveMatch = liveMatches.find((match) => match.status === "live") ?? liveMatches[0] ?? null;
   const visibleLiveTipCount = liveMatches.reduce(
     (sum, match) => sum + (match.tips ?? []).filter((tip) => tip.visible).length,
     0,
   );
   const preseasonPending = Boolean(data) && !archivePreview && matches.length === 0;
   const bonusAvailable = bonusTeams.length > 0;
+  const userCompletionLabel = preseasonPending
+    ? "wartet auf Spielplan"
+    : openTipCount === 0 && bonusStatus.complete
+      ? "bereit für den Spieltag"
+      : openTipCount > 0
+        ? "Tipps offen"
+        : "Bonus offen";
   const nextActionTitle = preseasonPending
     ? "Spielplan abwarten"
     : openTipCount > 0
@@ -2097,6 +2226,7 @@ export function BundesligaParticipantApp({ isTestMode }) {
                 {!archivePreview && <button type="button" onClick={resetBundesligaLogin}>Abmelden</button>}
               </div>
               {renderMatchdayCommandCenter()}
+              {renderDashboardPulse()}
               <div className="bundesliga-dashboard-metrics">
                 <article>
                   <span>Offene Tipps</span>
@@ -2342,6 +2472,7 @@ export function BundesligaParticipantApp({ isTestMode }) {
                 <span className={bonusTip.topScorerId || bonusTip.topScorer ? "done" : bonusTip.championTeamId ? "active" : ""}>2 Torschütze</span>
                 <span className={bonusStatus.relegatedDoneCount === 3 ? "done" : bonusTip.topScorerId || bonusTip.topScorer ? "active" : ""}>3 Absteiger</span>
               </div>
+              {renderBonusFocusBar()}
               <section className="bundesliga-choice-section">
                 <h3>Meister</h3>
                 <div className="bundesliga-choice-grid">
@@ -2449,6 +2580,7 @@ export function BundesligaParticipantApp({ isTestMode }) {
                       <small>{pointsToNextRank > 0 ? `${pointsToNextRank} Punkte bis zum nächsten Platz` : currentRankPosition === 1 ? "Du führst die Rangliste an." : "Abstand wird nach der ersten Wertung sichtbar."}</small>
                     </div>
                   )}
+                  {renderRankingInsight()}
                   <div className={`bundesliga-public-ranking mode-${rankingMode}`}>
                     {rankingMode === "total" ? (
                       <div className="head"><span>Pl.</span><strong>Name</strong><span>Getippt</span><span>Spieltags-Siege</span><span>Spielpunkte</span><span>Bonus</span><b>Gesamt</b></div>
@@ -4059,9 +4191,33 @@ export function BundesligaAdminArea({
     );
   }
 
+  function renderAdminCommandStrip() {
+    const firstOpenOperation = operationQueue.find((item) => item.severity !== "ok") ?? operationQueue[0];
+    return (
+      <section className="bundesliga-admin-command-strip" aria-label="Bundesliga Betriebsstatus">
+        <article className={releaseReady ? "ok" : "warning"}>
+          <span>Freigabe</span>
+          <strong>{releaseReady ? "bereit" : `${criticalReleaseChecks.length} offen`}</strong>
+          <small>{data?.competition?.public_enabled ? "öffentlich aktiv" : "weiter versteckt"}</small>
+        </article>
+        <article className={firstOpenOperation?.severity ?? "ok"}>
+          <span>Nächste Aufgabe</span>
+          <strong>{firstOpenOperation?.label ?? "keine Aufgabe"}</strong>
+          <small>{firstOpenOperation?.detail ?? "alles im Blick"}</small>
+        </article>
+        <article className={logoIssueCount === 0 ? "ok" : "warning"}>
+          <span>Datenqualität</span>
+          <strong>{logoIssueCount === 0 ? "Logos ok" : `${logoIssueCount} Logos`}</strong>
+          <small>{dataQuality.topScorerSource === "match_goals_fallback" ? "Torschützen-Fallback aktiv" : "Torschützenquelle ok"}</small>
+        </article>
+      </section>
+    );
+  }
+
   function renderOverview() {
     return (
       <div className="bundesliga-admin-overview">
+        {renderAdminCommandStrip()}
         <div className="bundesliga-admin-guidance">
           <main>
             <section className={`bundesliga-admin-season-lead ${preseasonWaiting ? "is-waiting" : ""}`}>
