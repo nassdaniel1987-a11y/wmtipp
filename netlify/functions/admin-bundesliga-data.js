@@ -86,7 +86,7 @@ export default async (req) => {
     const rawTeams = teams.data ?? [];
     const normalizedTeams = rawTeams.map((team) => ({
       ...team,
-      logo_url: normalizeTeamLogoUrl(team.logo_url),
+      logo_url: normalizeTeamLogoUrl(team.logo_url, team.name),
     }));
     const logoIssues = normalizedTeams
       .filter((team) => !team.logo_url)
