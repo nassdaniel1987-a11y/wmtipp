@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
   BUNDESLIGA_ARCHIVE_SHOWCASE_PARTICIPANT_NAME,
@@ -92,6 +93,18 @@ test("Bundesliga team logos fall back by team name when source rows are empty", 
 
   for (const teamName of missingLogoTeams) {
     assert.match(normalizeTeamLogoUrl(null, teamName), /^https:\/\//, teamName);
+  }
+});
+
+test("Netlify CSP allows the Bundesliga logo fallback sources", () => {
+  const netlifyConfig = readFileSync(new URL("../netlify.toml", import.meta.url), "utf8");
+  for (const host of [
+    "https://upload.wikimedia.org",
+    "https://assets.dfb.de",
+    "https://www.bundesliga-reisefuehrer.de",
+    "https://i.imgur.com",
+  ]) {
+    assert.match(netlifyConfig, new RegExp(host.replaceAll(".", "\\.")));
   }
 });
 
