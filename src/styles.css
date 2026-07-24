@@ -10681,3 +10681,16 @@ tbody tr:nth-child(1) td:first-child {
 .wm-archive-results .wm-archive-team.away { text-align: left; }
 .wm-archive-results .wm-archive-score { font-weight: 700; font-variant-numeric: tabular-nums; }
 .bundesliga-archive-link { margin-top: 8px; font-size: 0.85rem; color: var(--muted, #5a6478); }
+
+/* Schmale Screens: verhindert horizontalen Ueberlauf der Bundesliga-Oberflaeche.
+   Grid-/Flex-Kinder haben standardmaessig min-width:auto (min-content) und koennen
+   dadurch ihren Container sprengen (lange Namen, feste Kachelbreiten). min-width:0
+   erlaubt das Schrumpfen; die inneren Scroll-Container (Nav, Tabellen) bleiben
+   davon unberuehrt. */
+.bundesliga-public-main,
+.bundesliga-public-main *:not(.bundesliga-public-header nav) {
+  min-width: 0;
+}
+.bundesliga-public-main {
+  max-width: 100%;
+}
