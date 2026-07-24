@@ -9,16 +9,19 @@ export const codeStatusLabels = {
 };
 export const competitions = {
   wm2026: {
+    // Die WM ist abgeschlossen und nur noch als Read-only-Rueckblick (#wm-archiv)
+    // sowie im Admin/Archiv erreichbar.
     id: "wm-2026",
     name: "WM 2026",
-    adminLabel: "WM-Verwaltung",
-    publicEnabled: true,
+    adminLabel: "WM-Archiv",
+    publicEnabled: false,
   },
   bundesliga: {
+    // Bundesliga ist jetzt die oeffentliche Haupt-App.
     id: "bundesliga",
     name: "Bundesliga",
     adminLabel: "Bundesliga-Version",
-    publicEnabled: false,
+    publicEnabled: true,
   },
 };
 export const KO_PHASES = ["r32", "r16", "quarter", "semi", "third", "final"];

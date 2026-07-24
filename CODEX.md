@@ -2,6 +2,11 @@
 
 ## Projektüberblick
 
+- **Saisonstatus:** Die WM 2026 ist abgeschlossen. Öffentliche Haupt-App ist die
+  Bundesliga (Root-URL ohne Hash). Das WM-Tippspiel ist read-only unter
+  `#wm-archiv` (`src/WmArchiveApp.jsx`) und im Admin/Archiv (`#admin`) erreichbar;
+  die Oberflächen-Auswahl steuert `getActiveSurface()` in `src/App.jsx`. Rein
+  interaktive WM-Bausteine (K.o.-Simulation) liegen unter `archive/wm/`.
 - Webapp: React/Vite im Projektwurzelordner
 - Android-App: eigenständiges natives Projekt in `android-app/`
 - Live-URL: `https://wmtipp.netlify.app`
