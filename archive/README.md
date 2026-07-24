@@ -15,9 +15,12 @@ Build genommen wurden, weil die WM-Teilnehmeroberfläche nicht mehr der öffentl
 Standard ist:
 
 - `KnockoutSimulator.jsx` – die WM-K.o.-Simulation (früher Tab „Simulation").
-- `koBracket.js`, `fifaAnnexC.js` – Bracket-/Auslosungslogik der K.o.-Runden.
 - `tests/ko-bracket.test.js` – Unit-Tests der Bracket-Logik.
 - `tests/ko-simulation.spec.js` – E2E-Test der (entfernten) Simulations-UI.
+
+**Nicht archiviert:** `src/koBracket.js` und `src/fifaAnnexC.js` bleiben in `src/`,
+weil die Netlify-Function `admin-resolve-knockout.js` (WM-Admin/Archiv) sie
+weiterhin serverseitig importiert. Sie werden daher weiter gebaut.
 
 Diese Dateien werden weder gebaut, gelintet noch von den regulären Test-Skripten
 ausgeführt. Sie bleiben als Referenz erhalten und lassen sich per `git`-Historie

@@ -11,7 +11,7 @@ import {
   resolveKnockout,
   resolveKnownGroupSlots,
   buildKnockout,
-} from "../koBracket.js";
+} from "../../../src/koBracket.js";
 
 function finalResult(scoreA, scoreB, extra = {}) {
   return { score_a: scoreA, score_b: scoreB, status: "final", ...extra };
