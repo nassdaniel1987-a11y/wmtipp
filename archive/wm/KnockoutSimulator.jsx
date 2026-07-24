@@ -7,7 +7,7 @@ import {
   computeGroupStandings,
   rankThirdPlaced,
   resolveKnockout,
-} from "./koBracket.js";
+} from "../../src/koBracket.js";
 
 const ROUND_ORDER = ["r32", "r16", "quarter", "semi", "third", "final"];
 
