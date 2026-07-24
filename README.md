@@ -1,6 +1,12 @@
-# WM-Tippspiel Österfeld-Edition
+# Tippspiel Österfeld-Edition
 
-Klickbarer Prototyp für ein WM-Tippspiel einer Ganztagsschule.
+Tippspiel-App einer Ganztagsschule.
+
+> **Status:** Die WM 2026 ist abgeschlossen. Öffentliche Haupt-App ist jetzt die
+> **Bundesliga**. Das WM-Tippspiel bleibt als Read-only-Rückblick unter der Route
+> `#wm-archiv` sowie im Admin/Archiv (`#admin`) erreichbar. Rein interaktive
+> WM-Bausteine (K.o.-Simulation) liegen unter `archive/wm/` – Details in
+> [`archive/README.md`](archive/README.md).
 
 ## Lokal starten
 
@@ -108,8 +114,9 @@ Adminabläufe, Supabase-Daten und `/api/*`-Prüfungen benötigen
 `npm run dev:netlify`; die Oberfläche weist lokal verständlich darauf hin,
 falls nur der Vite-Server läuft.
 
-## Bundesliga Vorschau
+## Bundesliga (aktive Saison)
 
+- Die Bundesliga ist der öffentliche Standard-Einstieg (Root-URL ohne Hash).
 - Die Nutzeroberfläche verwendet ausschließlich Variante A.
 - `bundesliga-2026` ist die versteckte Vorbereitungsbasis für `2026/2027`;
   ohne importierten Spielplan zeigt sie einen ruhigen Vorsaisonstatus.

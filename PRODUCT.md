@@ -4,6 +4,12 @@
 
 product
 
+## Status
+
+Die WM 2026 ist abgeschlossen. Öffentliche Haupt-App ist jetzt die Bundesliga;
+das WM-Tippspiel bleibt als Read-only-Rückblick (`#wm-archiv`) und im Admin/Archiv
+erhalten.
+
 ## Users
 
 Private WM and Bundesliga tipping participants use the app with family, friends, or community groups to enter match tips, bonus picks, and follow rankings. Web-only admins prepare participants, codes, schedules, results, bonus values, and release checks.

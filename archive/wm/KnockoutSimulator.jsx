@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { matches as groupMatches } from "./data.js";
+import { matches as groupMatches } from "../../src/data.js";
 import {
   GROUP_KEYS,
   KNOCKOUT_ROUND_LABELS,

@@ -7,8 +7,6 @@ import {
   ChevronUp,
   CircleUserRound,
   Download,
-  Goal,
-  House,
   Info,
   ListFilter,
   LogOut,
@@ -47,7 +45,6 @@ import {
   matches as bundledMatches,
   scheduleSource,
 } from "./data.js";
-import KnockoutSimulator from "./KnockoutSimulator.jsx";
 import { displayTeamName } from "./teamNames.js";
 import {
   clampScore,
@@ -87,19 +84,24 @@ import {
 } from "./lib/wm.js";
 import { PlayerSelect, RankingPanel } from "./components/wm.jsx";
 import { AdminPanel } from "./admin.jsx";
-import {
-  BundesligaParticipantApp,
-  isBundesligaRoute,
-} from "./bundesliga.jsx";
+import { BundesligaParticipantApp } from "./bundesliga.jsx";
+import WmArchiveApp from "./WmArchiveApp.jsx";
 
 const STORAGE_KEY = "wm-tippspiel-participant";
 const ANDROID_APK_URL = "/downloads/wmtippspiel-latest.apk";
 
+// Die WM ist abgeschlossen. Die oeffentliche Haupt-App ist jetzt die Bundesliga;
+// das WM-Tippspiel bleibt nur noch als Read-only-Rueckblick (#wm-archiv) sowie
+// als Admin-/Archiv-Verwaltung (#admin) erreichbar. Diese Funktion entscheidet
+// anhand des URL-Hash, welche Oberflaeche gerendert wird.
+export function getActiveSurface() {
+  const hash = window.location.hash.replace("#", "").trim();
+  if (hash === "admin") return "admin";
+  if (hash === "wm-archiv" || hash.startsWith("wm-archiv")) return "wm-archiv";
+  return "bundesliga";
+}
+
 const tabs = [
-  { id: "start", label: "Start", icon: House },
-  { id: "tippen", label: "Tippen", icon: Goal },
-  { id: "rangliste", label: "Rangliste", icon: Trophy },
-  { id: "simulation", label: "Simulation", icon: Trophy },
   { id: "info", label: "Info", icon: Info },
   { id: "admin", label: "Admin", icon: ShieldCheck },
 ];
@@ -407,7 +409,7 @@ function buildGroupTables(matches, resultsByMatch) {
 
 export default function App() {
   const isTestMode = useMemo(() => getIsTestMode(), []);
-  const [showBundesligaApp, setShowBundesligaApp] = useState(isBundesligaRoute);
+  const [surface, setSurface] = useState(getActiveSurface);
   const [scannedCode, setScannedCode] = useState(() => (isTestMode ? TEST_PARTICIPANT.code : getInitialCode()));
   const savedParticipant = useMemo(() => loadSavedParticipant(), []);
   const [activeTab, setActiveTabState] = useState(getTabFromHash);
@@ -443,7 +445,7 @@ export default function App() {
 
   useEffect(() => {
     function syncCompetitionRoute() {
-      setShowBundesligaApp(isBundesligaRoute());
+      setSurface(getActiveSurface());
     }
     window.addEventListener("hashchange", syncCompetitionRoute);
     window.addEventListener("popstate", syncCompetitionRoute);
@@ -462,7 +464,7 @@ export default function App() {
   }, [bonusTips]);
 
   const setActiveTab = useCallback((tabId, { replace = false } = {}) => {
-    if (isBundesligaRoute()) return;
+    if (getActiveSurface() === "bundesliga") return;
     if (!tabIds.has(tabId)) return;
     if (tabId === "rangliste" && !canViewRanking) {
       setAppStatus("Bitte zuerst QR-Code aktivieren und Namen eintragen.");
@@ -594,12 +596,6 @@ export default function App() {
       setActiveTab("start", { replace: true });
     }
   }, [activeTab, canViewRanking, setActiveTab]);
-
-  useEffect(() => {
-    if (activeTab === "simulation" && !isTestMode && !adminSession) {
-      setActiveTab("start", { replace: true });
-    }
-  }, [activeTab, isTestMode, adminSession, setActiveTab]);
 
   useEffect(() => {
     if (activeTab === "rangliste" && canViewRanking) {
@@ -1265,8 +1261,12 @@ export default function App() {
     return payload;
   }
 
-  if (showBundesligaApp) {
+  if (surface === "bundesliga") {
     return <BundesligaParticipantApp isTestMode={isTestMode} />;
+  }
+
+  if (surface === "wm-archiv") {
+    return <WmArchiveApp isTestMode={isTestMode} />;
   }
 
   return (
@@ -1279,19 +1279,18 @@ export default function App() {
         />
       )}
       <header className="topbar">
-        <button type="button" className="brand" onClick={() => setActiveTab("start")}>
+        <button type="button" className="brand" onClick={() => setActiveTab("admin")}>
           <span className="brand-logo">
             <img src="/oesterfeld-logo-round.jpg" alt="WM-Tippspiel Österfeld-Edition" />
           </span>
           <span>
             <strong>WM-Tippspiel Österfeld-Edition</strong>
-            <small>WM 2026</small>
+            <small>Archiv &amp; Verwaltung</small>
           </span>
         </button>
 
         <nav className="main-nav" aria-label="Hauptnavigation">
           {tabs
-            .filter((tab) => (tab.id !== "rangliste" || canViewRanking) && (tab.id !== "simulation" || isTestMode || Boolean(adminSession)))
             .map(({ id, label, icon: Icon }) => (
             <button
               type="button"
@@ -1451,10 +1450,6 @@ export default function App() {
 
             {activeTab === "info" && (
               <InfoScreen />
-            )}
-
-            {activeTab === "simulation" && (isTestMode || adminSession) && (
-              <KnockoutSimulator />
             )}
 
             {activeTab === "admin" && (

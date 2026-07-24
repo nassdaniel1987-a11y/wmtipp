@@ -1384,6 +1384,9 @@ export function BundesligaParticipantApp({ isTestMode }) {
         </div>
         <p>{rulesSummary?.visibility ?? "Fremde Tipps werden pro Spiel ab Anpfiff sichtbar."} {rulesSummary?.tieBreaker ?? "Bei Punktgleichstand zählen zuerst die Spieltagssiege."}</p>
         {rulesSummary?.bonusDeadlineAt && <p>Bonusfrist: {formatDateTime(rulesSummary.bonusDeadlineAt)}</p>}
+        <p className="bundesliga-archive-link">
+          Die WM 2026 ist abgeschlossen. <a href="#wm-archiv">Zum WM-Rückblick</a>
+        </p>
       </section>
     );
   }
