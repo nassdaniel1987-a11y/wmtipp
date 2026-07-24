@@ -1,6 +1,5 @@
 import { makeInviteCode, requireAdmin } from "./_shared/admin.js";
 import { json } from "./_shared/supabase.js";
-import { buildBundesligaReleaseGates } from "./_shared/bundesliga-release.js";
 import { syncLiveCompetition } from "./_shared/bundesliga-live-sync.js";
 import {
   BUNDESLIGA_COMPETITION_ID,
@@ -911,16 +910,11 @@ export default async (req) => {
       const status = String(body.status || "admin_test");
       const publicEnabled = Boolean(body.publicEnabled);
       if (!["admin_test", "public", "archived"].includes(status)) return json({ error: "Ungültiger Status." }, 400);
-      if (status === "public" || publicEnabled) {
-        const releaseGates = await buildBundesligaReleaseGates(supabase);
-        if (!releaseGates.ready) {
-          const openGates = releaseGates.checks.filter((check) => !check.passed).map((check) => check.label).join(", ");
-          return json({
-            error: `Freigabe blockiert: ${openGates}`,
-            releaseGates,
-          }, 409);
-        }
-      }
+      // Force-Publish: Die WM ist abgeschlossen und die Bundesliga ist die aktive
+      // Haupt-App. Die frueheren Release-Gates (u. a. gesetzte Bonusfrist) blockieren
+      // die Freigabe nicht mehr hart; sie bleiben im Adminbereich als Hinweis
+      // sichtbar. Die Datenintegritaet (Spielplan/Teams/Testdaten) prueft der Admin
+      // weiterhin ueber die Diagnose-Checkliste.
       const { data, error } = await supabase
         .from("competitions")
         .update({ status, public_enabled: publicEnabled, updated_at: new Date().toISOString() })

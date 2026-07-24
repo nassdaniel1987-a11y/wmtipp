@@ -1384,9 +1384,6 @@ export function BundesligaParticipantApp({ isTestMode }) {
         </div>
         <p>{rulesSummary?.visibility ?? "Fremde Tipps werden pro Spiel ab Anpfiff sichtbar."} {rulesSummary?.tieBreaker ?? "Bei Punktgleichstand zählen zuerst die Spieltagssiege."}</p>
         {rulesSummary?.bonusDeadlineAt && <p>Bonusfrist: {formatDateTime(rulesSummary.bonusDeadlineAt)}</p>}
-        <p className="bundesliga-archive-link">
-          Die WM 2026 ist abgeschlossen. <a href="#wm-archiv">Zum WM-Rückblick</a>
-        </p>
       </section>
     );
   }
@@ -2205,6 +2202,11 @@ export function BundesligaParticipantApp({ isTestMode }) {
               </div>
               {!archivePreview && renderLoginPanel()}
               <p className="bundesliga-login-note">{archivePreview ? message || "Einen Augenblick bitte." : "Deine Tipps, Bonusfragen und Ranglistenposition bleiben deinem Code zugeordnet."}</p>
+              {!archivePreview && (
+                <p className="bundesliga-admin-access">
+                  <a href="#admin">Admin-Login</a>
+                </p>
+              )}
             </section>
           </section>
         )}
@@ -3947,7 +3949,7 @@ export function BundesligaAdminArea({
         <div className="bundesliga-status-editor">
           <button type="button" onClick={() => onSetCompetitionStatus("admin_test", false)}>Versteckt lassen</button>
           {!data?.competition?.public_enabled && (
-            <button type="button" className="primary-action" onClick={() => onSetCompetitionStatus("public", true)} disabled={loading || !releaseReady}>
+            <button type="button" className="primary-action" onClick={() => onSetCompetitionStatus("public", true)} disabled={loading}>
               Öffentlich freigeben
             </button>
           )}
